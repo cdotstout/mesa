@@ -12,3 +12,4 @@ vk_icdNegotiateLoaderICDInterfaceVersion
 # Version 4 - Add unknown physical device extension querying via
 #             vk_icdGetPhysicalDeviceProcAddr.
 (optional) vk_icdGetPhysicalDeviceProcAddr
+(optional) vk_icdInitializeOpenInNamespaceCallback
