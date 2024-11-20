@@ -74,6 +74,12 @@ endif
 if with_wayland_bind_display
   subdir('egl/wayland/wayland-drm')
 endif
+idep_magma_ffi = null_dep
+if with_magma
+  subdir('virtio/magma-gpu-rs/lib')
+  subdir('virtio/magma-gpu-rs/magma')
+  subdir('virtio/magma-gpu-rs/ffi/magma_ffi')
+endif
 if with_any_vk or with_gallium_zink
   subdir('vulkan')
 endif
@@ -97,13 +103,6 @@ if with_gallium_freedreno or with_freedreno_vk or with_tools.contains('freedreno
 endif
 if with_imagination_vk or with_tools.contains('imagination')
   subdir('imagination')
-endif
-
-idep_magma_ffi = null_dep
-if with_magma
-  subdir('virtio/magma-gpu-rs/lib')
-  subdir('virtio/magma-gpu-rs/magma')
-  subdir('virtio/magma-gpu-rs/ffi/magma_ffi')
 endif
 if with_any_intel
   subdir('intel')

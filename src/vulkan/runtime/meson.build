@@ -64,6 +64,11 @@ if with_platform_android
   vulkan_lite_runtime_deps += [dep_android, idep_u_gralloc]
 endif
 
+if host_machine.system() == 'fuchsia'
+  vulkan_lite_runtime_files += files('vk_icd_fuchsia.c')
+  vulkan_lite_runtime_deps += idep_magma_ffi
+endif
+
 vk_common_entrypoints = custom_target(
   'vk_common_entrypoints',
   input : [vk_entrypoints_gen, vk_api_xml],
