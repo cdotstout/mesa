@@ -1,0 +1,371 @@
+# Copyright 2026 The Magma GPU Project
+# SPDX-License-Identifier: MIT
+
+[[structs]]
+name = 'MagmaHeap'
+aspects = [ "common" ]
+members = [
+    { name = "heap_size", type = "u64" },
+    { name = "heap_flags", type = "u64" },
+]
+
+[[structs]]
+name = 'MagmaHeapBudget'
+aspects = [ "common" ]
+members = [
+    { name = "budget", type = "u64" },
+    { name = "usage", type = "u64" },
+]
+
+[[structs]]
+name = 'MagmaMemoryType'
+aspects = [ "common" ]
+members = [
+    { name = "property_flags", type = "u32" },
+    { name = "heap_idx", type = "u32" },
+]
+
+[[structs]]
+name = 'MagmaPciBusInfo'
+aspects = [ "common" ]
+members = [
+    { name = "domain", type = "u16" },
+    { name = "subvendor_id", type = "u16" },
+    { name = "subdevice_id", type = "u16" },
+    { name = "revision_id", type = "u8" },
+    { name = "bus", type = "u8" },
+    { name = "device", type = "u8" },
+    { name = "function", type = "u8" },
+]
+
+[[structs]]
+name = 'MagmaCreateQueueInfo'
+aspects = [ "common" ]
+members = [
+    { name = "queue_family_idx", type = "u32" },
+    { name = "priority", type = "u32" },
+    { name = "flags", type = "u32" },
+]
+
+[[structs]]
+name = 'MagmaQueueFamilyProperties'
+aspects = [ "common" ]
+members = [
+    { name = "queue_flags", type = "MagmaQueueFlags" },
+    { name = "queue_count", type = "u32" },
+]
+
+[[structs]]
+name = 'MagmaMapping'
+aspects = [ "ffi" ]
+members = [
+    { name = "ptr", type = "void*" },
+    { name = "size", type = "u64" },
+]
+
+[[structs]]
+name = 'MagmaHandle'
+aspects = [ "ffi" ]
+members = [
+    { name = "os_handle", type = "int64_t" },
+    { name = "handle_type", type = "MagmaHandleType" },
+]
+
+[[extensible_structs]]
+name = 'MagmaCreateBufferInfo'
+stype = { name = "CreateBufferInfo", value = 0x00000001 }
+members = [
+    { name = "memory_type_idx", type = "u32" },
+    { name = "alignment", type = "u32" },
+    { name = "common_flags", type = "u32" },
+    { name = "vendor_flags", type = "u32" },
+    { name = "size", type = "u64" },
+]
+
+[[extensible_structs]]
+name = 'MagmaDeviceCreateInfo'
+aspects = [ "common" ]
+stype = { name = "DeviceCreateInfo", value = 0x00000002 }
+members = [
+    { name = "flags", type = "u32" },
+]
+
+[[extensible_structs]]
+name = 'MagmaSubmitSyncInfo'
+stype = { name = "SubmitSyncInfo", value = 0x00000003 }
+members = [
+    { name = "num_wait_semaphores", type = "u32" },
+    { name = "num_signal_semaphores", type = "u32" },
+    { name = "wait_semaphores", type = "Semaphore", array = { size = "num_wait_semaphores" } },
+    { name = "signal_semaphores", type = "Semaphore", array = { size = "num_signal_semaphores" } },
+    { name = "wait_points", type = "u64", array = { size = "num_wait_semaphores" } },
+    { name = "signal_points", type = "u64", array = { size = "num_signal_semaphores" } },
+]
+
+[[extensible_structs]]
+name = 'MagmaSubmitInfo'
+stype = { name = "SubmitInfo", value = 0x00000004 }
+members = [
+    { name = "flags", type = "u32" },
+    { name = "sync_info", type = "MagmaSubmitSyncInfo" },
+]
+
+[[extensible_structs]]
+name = 'MagmaSubmitAddressSpaceInfo'
+extends = 'MagmaSubmitInfo'
+rust_member_name = 'address_space_info'
+stype = { name = "SubmitAddressSpaceInfo", value = 0x00000005 }
+members = [
+    { name = "command_va", type = "u64" },
+    { name = "length", type = "u64" },
+]
+
+[[extensible_structs]]
+name = 'MagmaSubmitBufferInfo'
+extends = 'MagmaSubmitInfo'
+rust_member_name = 'buffer_info'
+stype = { name = "SubmitBufferInfo", value = 0x00000006 }
+members = [
+    { name = "command_buffer", type = "Buffer" },
+    { name = "start_offset", type = "u64" },
+    { name = "length", type = "u64" },
+]
+
+[[extensible_structs]]
+name = 'MagmaSubmitMapBufferInfo'
+extends = 'MagmaSubmitInfo'
+rust_member_name = 'map_buffer_info'
+stype = { name = "SubmitMapBufferInfo", value = 0x00000009 }
+members = [
+    { name = "buffer", type = "Buffer" },
+    { name = "buffer_offset", type = "u64" },
+    { name = "gpu_va", type = "u64" },
+    { name = "size", type = "u64" },
+    { name = "flags", type = "MagmaGpuMapFlags" },
+]
+
+[[extensible_structs]]
+name = 'MagmaSubmitUnmapBufferInfo'
+extends = 'MagmaSubmitInfo'
+rust_member_name = 'unmap_buffer_info'
+stype = { name = "SubmitUnmapBufferInfo", value = 0x0000000a }
+members = [
+    { name = "gpu_va", type = "u64" },
+    { name = "size", type = "u64" },
+]
+
+[[extensible_structs]]
+name = 'MagmaSubmitResourcesInfo'
+extends = 'MagmaSubmitInfo'
+rust_member_name = 'resources_info'
+stype = { name = "SubmitResourcesInfo", value = 0x00000012 }
+members = [
+    { name = "num_resources", type = "u32" },
+    { name = "buffers", type = "Buffer", array = { size = "num_resources" } },
+]
+
+[[extensible_structs]]
+name = 'MagmaCreateSemaphoreInfo'
+stype = { name = "CreateSemaphoreInfo", value = 0x00000007 }
+members = [
+    { name = "semaphore_type", type = "u32" },
+    { name = "use_flags", type = "MagmaSemaphoreUseFlags" },
+    { name = "initial_point", type = "u64" },
+]
+
+[[extensible_structs]]
+name = 'MagmaSyncProperties'
+aspects = [ "common" ]
+stype = { name = "SyncProperties", value = 0x00000008 }
+members = [
+    { name = "capabilities", type = "u32" },
+    { name = "max_timeline_value_difference", type = "u64" },
+]
+
+[[extensible_structs]]
+name = 'MagmaMemoryProperties'
+aspects = [ "common" ]
+stype = { name = "MemoryProperties", value = 0x0000000b }
+members = [
+    { name = "memory_type_count", type = "u32" },
+    { name = "memory_heap_count", type = "u32" },
+    { name = "memory_types", type = "MagmaMemoryType", array = { size = "MAGMA_MAX_MEMORY_TYPES" } },
+    { name = "memory_heaps", type = "MagmaHeap", array = { size = "MAGMA_MAX_MEMORY_HEAPS" } },
+]
+
+
+[[extensible_structs]]
+name = 'MagmaVirtCapabilities'
+aspects = [ "virtio", "rust_api" ]
+stype = { name = "VirtCapabilities", value = 0x00010001 }
+members = [
+    { name = "capset_version", type = "u32" },
+    { name = "num_physical_devices", type = "u32" },
+    { name = "blob_preference", type = "VirtioGpuBlobPreference" },
+    { name = "ring_buffer_len", type = "u64" },
+]
+
+[[extensible_structs]]
+name = 'MagmaPhysicalDeviceInfo'
+extends = 'MagmaVirtCapabilities'
+rust_member_name = 'physical_device_info'
+aspects = [ "common" ]
+stype = { name = "PhysicalDeviceInfo", value = 0x00010002 }
+members = [
+    { name = "bus_type", type = "u32" },
+    { name = "vendor_id", type = "MagmaVendorId" },
+    { name = "device_id", type = "u16" },
+    { name = "flags", type = "u32" },
+    { name = "pci_bus_info", type = "MagmaPciBusInfo" },
+    { name = "queue_family_count", type = "u32" },
+    { name = "queue_families", type = "MagmaQueueFamilyProperties", array = { size = "MAGMA_MAX_QUEUES" } },
+]
+
+[[extensible_structs]]
+name = 'MagmaAddressSpaceProperties'
+extends = 'MagmaPhysicalDeviceInfo'
+rust_member_name = 'address_space_properties'
+aspects = [ "common" ]
+stype = { name = "AddressSpaceProperties", value = 0x0000000c }
+members = [
+    { name = "va_start", type = "u64" },
+    { name = "va_size", type = "u64" },
+    { name = "mem_alignment", type = "u64" },
+]
+
+[[extensible_structs]]
+name = 'MagmaTimestampProperties'
+extends = 'MagmaPhysicalDeviceInfo'
+rust_member_name = 'timestamp_properties'
+aspects = [ "common" ]
+stype = { name = "TimestampProperties", value = 0x0000000d }
+members = [
+    { name = "timestamp_frequency", type = "u64" },
+]
+
+[[extensible_structs]]
+name = 'MagmaIntelDeviceInfo'
+extends = 'MagmaPhysicalDeviceInfo'
+rust_member_name = 'intel_device_info'
+aspects = [ "common" ]
+stype = { name = "IntelDeviceInfo", value = 0x0000000e }
+members = [
+    { name = "hw_config_count", type = "u32" },
+    { name = "l3_banks", type = "u32" },
+    { name = "geo_dss_mask", type = "u64" },
+    { name = "eu_per_dss_mask", type = "u64" },
+    { name = "geo_dss_num_bytes", type = "u32" },
+    { name = "ip_ver_major", type = "u32" },
+    { name = "ip_ver_minor", type = "u32" },
+    { name = "ip_ver_rev", type = "u32" },
+    { name = "config_flags", type = "MagmaIntelConfigFlag" },
+    { name = "hw_config_data", type = "u32", array = { size = "MAGMA_MAX_HW_CONFIG_DWORDS" } },
+]
+
+[[extensible_structs]]
+name = 'MagmaAdrenoDeviceInfo'
+extends = 'MagmaPhysicalDeviceInfo'
+rust_member_name = 'adreno_device_info'
+aspects = [ "common" ]
+stype = { name = "AdrenoDeviceInfo", value = 0x0000000f }
+members = [
+    { name = "chip_id", type = "u64" },
+    { name = "gmem_size", type = "u64" },
+    { name = "gmem_base", type = "u64" },
+    { name = "gpu_id", type = "u32" },
+    { name = "highest_bank_bit", type = "u32" },
+    { name = "ubwc_swizzle", type = "u32" },
+    { name = "macrotile_mode", type = "u32" },
+    { name = "raytracing", type = "u32" },
+    { name = "flags", type = "u32" },
+]
+
+[[extensible_structs]]
+name = 'MagmaArmDeviceInfo'
+extends = 'MagmaPhysicalDeviceInfo'
+rust_member_name = 'arm_device_info'
+aspects = [ "common" ]
+stype = { name = "ArmDeviceInfo", value = 0x00000010 }
+members = [
+    { name = "shader_present", type = "u64" },
+    { name = "tiler_present", type = "u64" },
+    { name = "l2_present", type = "u64" },
+    { name = "gpu_id", type = "u32" },
+    { name = "gpu_rev", type = "u32" },
+    { name = "csf_id", type = "u32" },
+    { name = "l2_features", type = "u32" },
+    { name = "tiler_features", type = "u32" },
+    { name = "mem_features", type = "u32" },
+    { name = "mmu_features", type = "u32" },
+    { name = "thread_features", type = "u32" },
+    { name = "max_threads", type = "u32" },
+    { name = "thread_max_workgroup_size", type = "u32" },
+    { name = "thread_max_barrier_size", type = "u32" },
+    { name = "coherency_features", type = "u32" },
+    { name = "selected_coherency", type = "u32" },
+    { name = "as_present", type = "u32" },
+    { name = "csg_slot_count", type = "u32" },
+    { name = "cs_slot_count", type = "u32" },
+    { name = "cs_reg_count", type = "u32" },
+    { name = "scoreboard_slot_count", type = "u32" },
+]
+
+[[extensible_structs]]
+name = 'MagmaAmdgpuDeviceInfo'
+extends = 'MagmaPhysicalDeviceInfo'
+rust_member_name = 'amdgpu_device_info'
+aspects = [ "common" ]
+stype = { name = "AmdgpuDeviceInfo", value = 0x00000011 }
+members = [
+    { name = "max_engine_clock", type = "u64" },
+    { name = "max_memory_clock", type = "u64" },
+    { name = "ids_flags", type = "u64" },
+    { name = "chip_rev", type = "u32" },
+    { name = "external_rev", type = "u32" },
+    { name = "family", type = "u32" },
+    { name = "num_shader_engines", type = "u32" },
+    { name = "num_shader_arrays_per_engine", type = "u32" },
+    { name = "cu_active_number", type = "u32" },
+    { name = "enabled_rb_pipes_mask", type = "u32" },
+    { name = "num_rb_pipes", type = "u32" },
+    { name = "vram_type", type = "u32" },
+    { name = "vram_bit_width", type = "u32" },
+    { name = "wave_front_size", type = "u32" },
+    { name = "num_shader_visible_vgprs", type = "u32" },
+    { name = "num_cu_per_sh", type = "u32" },
+    { name = "num_tcc_blocks", type = "u32" },
+]
+
+[[extensible_structs]]
+name = 'MagmaPhysicalDeviceMemoryType'
+extends = 'MagmaPhysicalDeviceInfo'
+rust_member_name = 'memory_type'
+aspects = [ "virtio", "rust_api" ]
+stype = { name = "PhysicalDeviceMemoryType", value = 0x00010003 }
+members = [
+    { name = "property_flags", type = "u32" },
+    { name = "heap_idx", type = "u32" },
+]
+
+[[extensible_structs]]
+name = 'MagmaPhysicalDeviceMemoryHeap'
+extends = 'MagmaPhysicalDeviceInfo'
+rust_member_name = 'memory_heap'
+aspects = [ "virtio", "rust_api" ]
+stype = { name = "PhysicalDeviceMemoryHeap", value = 0x00010004 }
+members = [
+    { name = "heap_size", type = "u64" },
+    { name = "heap_flags", type = "u64" },
+]
+
+[[extensible_structs]]
+name = 'MagmaVirtioSeqnoInfo'
+extends = 'MagmaSubmitInfo'
+rust_member_name = 'virtio_seqno_info'
+aspects = [ "virtio", "rust_api" ]
+stype = { name = "VirtioSeqnoInfo", value = 0x00010005 }
+members = [
+    { name = "ring_idx", type = "u32" },
+    { name = "wait_seqno", type = "u32" },
+]
+

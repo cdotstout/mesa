@@ -1,0 +1,341 @@
+# Copyright 2026 The Magma GPU Project
+# SPDX-License-Identifier: MIT
+
+[[commands]]
+name = "magma_enumerate_physical_devices"
+target = "enumerate_devices"
+inputs = [
+    { name = "physical_devices", type = "PhysicalDevice", array = { size = "MAGMA_MAX_PHYSICAL_DEVICES" }, direction = "inout" },
+    { name = "num_devices", type = "uint32_t", direction = "inout" },
+]
+output = "MagmaStatus"
+aspects = [ "ffi", "rust_api" ]
+manual = true
+response = true
+
+[[commands]]
+name = "MagmaPhysicalDeviceCreateDevice"
+inputs = [
+    { name = "physical_device", type = "PhysicalDevice", direction = "in" },
+    { name = "device", type = "Device", direction = "inout" },
+]
+output = "MagmaStatus"
+aspects = [ "common" ]
+response = true
+
+[[commands]]
+name = "MagmaDeviceGetMemoryBudget"
+inputs = [
+    { name = "device", type = "Device", direction = "in" },
+    { name = "heap_idx", type = "uint32_t", direction = "in" },
+    { name = "budget", type = "MagmaHeapBudget", direction = "inout" },
+]
+output = "MagmaStatus"
+aspects = [ "common" ]
+response = true
+
+[[commands]]
+name = "MagmaDeviceCreateBuffer"
+inputs = [
+    { name = "device", type = "Device", direction = "in" },
+    { name = "info", type = "MagmaCreateBufferInfo", direction = "in" },
+    { name = "buffer_out", type = "Buffer", direction = "inout" },
+]
+output = "MagmaStatus"
+aspects = [ "common" ]
+response = true
+
+[[commands]]
+name = "MagmaDeviceCreateAddressSpace"
+inputs = [
+    { name = "device", type = "Device", direction = "in" },
+    { name = "address_space", type = "AddressSpace", direction = "inout" },
+]
+output = "MagmaStatus"
+aspects = [ "common" ]
+response = true
+
+[[commands]]
+name = "MagmaDeviceCreateQueue"
+inputs = [
+    { name = "device", type = "Device", direction = "in" },
+    { name = "address_space", type = "AddressSpace", direction = "in" },
+    { name = "info", type = "MagmaCreateQueueInfo", direction = "in" },
+    { name = "queue", type = "Queue", direction = "inout" },
+]
+output = "MagmaStatus"
+aspects = [ "common" ]
+response = true
+
+[[commands]]
+name = "MagmaDeviceRelease"
+inputs = [
+    { name = "device", type = "Device", direction = "inout" },
+]
+output = "MagmaStatus"
+aspects = [ "common" ]
+destructor = true
+
+[[commands]]
+name = "MagmaPhysicalDeviceRelease"
+inputs = [
+    { name = "physical_device", type = "PhysicalDevice", direction = "inout" },
+]
+output = "MagmaStatus"
+aspects = [ "common" ]
+destructor = true
+
+[[commands]]
+name = "MagmaBufferRelease"
+inputs = [
+    { name = "buffer", type = "Buffer", direction = "inout" },
+]
+output = "MagmaStatus"
+aspects = [ "common" ]
+destructor = true
+
+[[commands]]
+name = "MagmaQueueRelease"
+inputs = [
+    { name = "queue", type = "Queue", direction = "inout" },
+]
+output = "MagmaStatus"
+aspects = [ "common" ]
+destructor = true
+
+[[commands]]
+name = "MagmaAddressSpaceRelease"
+inputs = [
+    { name = "address_space", type = "AddressSpace", direction = "inout" },
+]
+output = "MagmaStatus"
+aspects = [ "common" ]
+destructor = true
+
+
+[[commands]]
+name = "MagmaVirtioCreateRing"
+inputs = [
+    { name = "ring_idx", type = "u32", direction = "in" },
+    { name = "ring_blob_id", type = "u32", direction = "in" },
+]
+output = "MagmaStatus"
+aspects = [ "virtio" ]
+
+[[commands]]
+name = "MagmaQueueSubmit"
+target = "submit_command"
+inputs = [
+    { name = "queue", type = "Queue", direction = "in" },
+    { name = "submit_info", type = "MagmaSubmitInfo", direction = "in" },
+]
+output = "MagmaStatus"
+aspects = [ "common" ]
+response = true
+
+[[commands]]
+name = "MagmaDeviceCreateSemaphore"
+inputs = [
+    { name = "device", type = "Device", direction = "in" },
+    { name = "info", type = "MagmaCreateSemaphoreInfo", direction = "in" },
+    { name = "semaphore", type = "Semaphore", direction = "inout" },
+]
+output = "MagmaStatus"
+aspects = [ "common" ]
+response = true
+
+[[commands]]
+name = "MagmaSemaphoreRelease"
+inputs = [
+    { name = "semaphore", type = "Semaphore", direction = "inout" },
+]
+output = "MagmaStatus"
+aspects = [ "common" ]
+destructor = true
+
+[[commands]]
+name = "MagmaSemaphoreWait"
+target = "wait"
+inputs = [
+    { name = "semaphore", type = "Semaphore", direction = "in" },
+    { name = "timeout_ns", type = "u64", direction = "in" },
+]
+output = "MagmaStatus"
+aspects = [ "ffi" ]
+
+[[commands]]
+name = "MagmaSemaphoreSignal"
+target = "signal"
+inputs = [
+    { name = "semaphore", type = "Semaphore", direction = "in" },
+]
+output = "MagmaStatus"
+aspects = [ "common" ]
+response = true
+
+[[commands]]
+name = "MagmaSemaphoreTimelineWait"
+target = "timeline_wait"
+inputs = [
+    { name = "semaphore", type = "Semaphore", direction = "in" },
+    { name = "point", type = "u64", direction = "in" },
+    { name = "timeout_ns", type = "u64", direction = "in" },
+    { name = "flags", type = "u32", direction = "in" },
+]
+output = "MagmaStatus"
+aspects = [ "common" ]
+response = true
+
+[[commands]]
+name = "MagmaSemaphoreTimelineSignal"
+target = "timeline_signal"
+inputs = [
+    { name = "semaphore", type = "Semaphore", direction = "in" },
+    { name = "point", type = "u64", direction = "in" },
+]
+output = "MagmaStatus"
+aspects = [ "common" ]
+response = true
+
+[[commands]]
+name = "MagmaSemaphoreTimelineQuery"
+target = "timeline_query"
+inputs = [
+    { name = "semaphore", type = "Semaphore", direction = "in" },
+    { name = "point_out", type = "u64", direction = "inout" },
+]
+output = "MagmaStatus"
+aspects = [ "common" ]
+response = true
+
+[[commands]]
+name = "MagmaPhysicalDeviceQuery"
+target = "query"
+inputs = [
+    { name = "physical_device", type = "PhysicalDevice", direction = "in" },
+    { name = "query", type = "void*", direction = "in" },
+]
+output = "MagmaStatus"
+aspects = [ "ffi" ]
+manual = true
+
+[[commands]]
+name = "MagmaQueueCheckStatus"
+target = "check_status"
+inputs = [
+    { name = "queue", type = "Queue", direction = "in" },
+]
+output = "MagmaStatus"
+aspects = [ "common" ]
+response = true
+
+[[commands]]
+name = "MagmaBufferMap"
+target = "map_cpu"
+inputs = [
+    { name = "buffer", type = "Buffer", direction = "in" },
+    { name = "mapping_out", type = "MagmaMapping", direction = "inout" },
+]
+output = "MagmaStatus"
+aspects = [ "ffi" ]
+
+[[commands]]
+name = "MagmaBufferUnmap"
+target = "unmap_cpu"
+inputs = [
+    { name = "buffer", type = "Buffer", direction = "in" },
+]
+output = "MagmaStatus"
+aspects = [ "ffi" ]
+
+[[commands]]
+name = "MagmaSemaphoreExport"
+inputs = [
+    { name = "semaphore", type = "Semaphore", direction = "in" },
+    { name = "handle_out", type = "MagmaHandle", direction = "inout" },
+]
+output = "MagmaStatus"
+aspects = [ "ffi" ]
+manual = true
+
+[[commands]]
+name = "MagmaSemaphoreImport"
+inputs = [
+    { name = "semaphore", type = "Semaphore", direction = "in" },
+    { name = "handle", type = "MagmaHandle", direction = "in" },
+]
+output = "MagmaStatus"
+aspects = [ "ffi" ]
+manual = true
+
+[[commands]]
+name = "MagmaBufferExport"
+inputs = [
+    { name = "buffer", type = "Buffer", direction = "in" },
+    { name = "handle_out", type = "MagmaHandle", direction = "inout" },
+]
+output = "MagmaStatus"
+aspects = [ "ffi" ]
+manual = true
+
+[[commands]]
+name = "MagmaDeviceImportBuffer"
+inputs = [
+    { name = "device", type = "Device", direction = "in" },
+    { name = "handle", type = "MagmaHandle", direction = "in" },
+    { name = "buffer_out", type = "Buffer", direction = "inout" },
+]
+output = "MagmaStatus"
+aspects = [ "ffi" ]
+manual = true
+
+[[commands]]
+name = "MagmaVirtioPing"
+inputs = [
+    { name = "ring_idx", type = "u32", direction = "in" },
+]
+output = "MagmaStatus"
+aspects = [ "virtio" ]
+
+[[commands]]
+name = "MagmaVirtioCreateFence"
+inputs = [
+    { name = "ring_idx", type = "u32", direction = "in" },
+    { name = "guest_sync_id", type = "u32", direction = "in" },
+]
+output = "MagmaStatus"
+aspects = [ "virtio" ]
+
+# TODO: Once wire commands (or release commands) support chaining extensible structs
+# such as MagmaVirtioSeqnoInfo via `extends = [...]`, remove MagmaVirtioSemaphoreRelease
+# and MagmaVirtioBufferRelease in favor of MagmaSemaphoreRelease and MagmaBufferRelease.
+[[commands]]
+name = "MagmaVirtioSemaphoreRelease"
+inputs = [
+    { name = "semaphore", type = "u32", direction = "in" },
+    { name = "ring_idx", type = "u32", direction = "in" },
+    { name = "wait_seqno", type = "u32", direction = "in" },
+]
+output = "MagmaStatus"
+aspects = [ "virtio" ]
+
+[[commands]]
+name = "MagmaVirtioBufferRelease"
+inputs = [
+    { name = "buffer", type = "u32", direction = "in" },
+    { name = "ring_idx", type = "u32", direction = "in" },
+    { name = "wait_seqno", type = "u32", direction = "in" },
+]
+output = "MagmaStatus"
+aspects = [ "virtio" ]
+
+[[commands]]
+name = "MagmaVirtioImportBuffer"
+inputs = [
+    { name = "res_handle", type = "u32", direction = "in" },
+    { name = "buffer_out", type = "u32", direction = "in" },
+    { name = "size", type = "u64", direction = "in" },
+    { name = "memory_type_idx", type = "u32", direction = "in" },
+]
+output = "MagmaStatus"
+aspects = [ "virtio" ]
