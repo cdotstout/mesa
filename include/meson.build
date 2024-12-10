@@ -102,3 +102,13 @@ opencl_headers = files(
   'CL/cl_version.h',
   'CL/opencl.h',
 )
+
+if with_magma and host_machine.system() == 'linux'
+  drm_h = files('drm-uapi/drm.h')
+  amdgpu_drm_h = files('drm-uapi/amdgpu_drm.h')
+  msm_drm_h = files('drm-uapi/msm_drm.h')
+  panthor_drm_h = files('drm-uapi/panthor_drm.h')
+  virtgpu_drm_h = files('drm-uapi/virtgpu_drm.h')
+  xe_drm_h = files('drm-uapi/xe_drm.h')
+  i915_drm_h = files('drm-uapi/i915_drm.h')
+endif
