@@ -98,6 +98,14 @@ endif
 if with_imagination_vk or with_tools.contains('imagination') or get_option('html-docs').allowed()
   subdir('imagination')
 endif
+
+idep_magma_ffi = null_dep
+if with_magma
+  msm_kgsl_h = files('freedreno/vulkan/msm_kgsl.h')
+  subdir('virtio/magma-gpu-rs/lib')
+  subdir('virtio/magma-gpu-rs/magma')
+  subdir('virtio/magma-gpu-rs/ffi/magma_ffi')
+endif
 if with_any_intel
   subdir('intel')
 endif

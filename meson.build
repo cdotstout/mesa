@@ -929,10 +929,13 @@ if with_gallium_rusticl
   endif
 endif
 
+with_magma = get_option('magma')
+pre_args += '-DHAVE_MAGMA=@0@'.format(with_magma.to_int())
 with_virtgpu_kumquat = get_option('virtgpu_kumquat') and with_gfxstream_vk
 
 with_any_rust = [
   with_gallium_rusticl,
+  with_magma,
   with_nouveau_vk,
   with_panfrost_rust,
   with_tools.contains('etnaviv'),
