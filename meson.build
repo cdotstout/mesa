@@ -947,8 +947,11 @@ if with_gallium_rusticl
   endif
 endif
 
+with_magma = get_option('magma')
 with_virtgpu_kumquat = get_option('virtgpu_kumquat') and with_gfxstream_vk
-if with_gallium_rusticl or with_nouveau_vk or with_tools.contains('etnaviv') or with_virtgpu_kumquat or with_panfrost_rust
+pre_args += '-DHAVE_MAGMA=@0@'.format(with_magma.to_int())
+with_virtgpu_kumquat = get_option('virtgpu_kumquat') and with_gfxstream_vk
+if with_gallium_rusticl or with_nouveau_vk or with_tools.contains('etnaviv') or with_virtgpu_kumquat or with_panfrost_rust or with_magma
   # rust.bindgen() does not pass `--rust-target` to bindgen until 1.7.0.
   if meson.version().version_compare('< 1.7.0')
     error('Mesa Rust support requires Meson 1.7.0 or newer')

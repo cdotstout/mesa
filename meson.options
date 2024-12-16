@@ -915,3 +915,10 @@ option(
   value : false,
   description : 'Build panfrost Rust components.'
 )
+
+option(
+  'magma',
+  type : 'boolean',
+  value : false,
+  description : 'Build Magma backends of Mesa3D',
+)
