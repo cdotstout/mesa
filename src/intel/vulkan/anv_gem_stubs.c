@@ -166,6 +166,11 @@ stub_physical_device_init_memory_types(struct anv_physical_device *device)
    return VK_SUCCESS;
 }
 
+static void
+stub_physical_device_init_sync(struct anv_physical_device *device)
+{
+}
+
 static VkResult
 stub_device_setup_context_or_vm(struct anv_device *device,
                                 const VkDeviceCreateInfo *pCreateInfo,
@@ -223,6 +228,7 @@ const struct anv_kmd_backend *anv_stub_kmd_backend_get(void)
       .import_bo_alloc_flags_to_bo_flags = stub_import_bo_alloc_flags_to_bo_flags,
       .physical_device_get_parameters = stub_physical_device_get_parameters,
       .physical_device_init_memory_types = stub_physical_device_init_memory_types,
+      .physical_device_init_sync = stub_physical_device_init_sync,
       .device_setup_context_or_vm = stub_device_setup_context_or_vm,
       .device_destroy_context_or_vm = stub_device_destroy_context_or_vm,
       .device_check_status = stub_device_check_status,

@@ -3134,20 +3134,7 @@ anv_physical_device_try_create(struct vk_instance *vk_instance,
    if (result != VK_SUCCESS)
       goto fail_drirc;
 
-   if (is_virtio) {
-      struct util_sync_provider *sync = intel_virtio_sync_provider(fd);
-      device->sync_syncobj_type = vk_drm_syncobj_get_type_from_provider(sync);
-   } else {
-      device->sync_syncobj_type = vk_drm_syncobj_get_type(fd);
-   }
-
-   assert(vk_sync_type_is_drm_syncobj(&device->sync_syncobj_type));
-   assert(device->sync_syncobj_type.features & VK_SYNC_FEATURE_TIMELINE);
-   assert(device->sync_syncobj_type.features & VK_SYNC_FEATURE_CPU_WAIT);
-
-   device->sync_types[0] = &device->sync_syncobj_type;
-   device->sync_types[1] = NULL;
-   device->vk.supported_sync_types = device->sync_types;
+   device->kmd_backend->physical_device_init_sync(device);
 
    device->vk.pipeline_cache_import_ops = anv_cache_import_ops;
 

@@ -491,6 +491,7 @@ anv_i915_kmd_backend_get(void)
       .import_bo_alloc_flags_to_bo_flags = i915_import_bo_alloc_flags_to_bo_flags,
       .physical_device_get_parameters = anv_i915_physical_device_get_parameters,
       .physical_device_init_memory_types = anv_i915_physical_device_init_memory_types,
+      .physical_device_init_sync = anv_i915_physical_device_init_sync,
       .device_setup_context_or_vm = anv_i915_device_setup_context,
       .device_destroy_context_or_vm = anv_i915_device_destroy_context,
       .device_check_status = anv_i915_device_check_status,
