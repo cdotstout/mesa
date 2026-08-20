@@ -204,6 +204,19 @@ stub_destroy_engine(struct anv_device *device, struct anv_queue *queue)
 {
 }
 
+static VkResult
+stub_device_open(struct anv_device *device,
+                 const struct anv_physical_device *physical_device)
+{
+   device->fd = -1;
+   return VK_SUCCESS;
+}
+
+static void
+stub_device_close(struct anv_device *device)
+{
+}
+
 static const struct anv_linux_sys_driver_ops stub_linux_sys_driver_ops = {
    .bo_export_fd = anv_gem_bo_export_fd,
    .bo_import_fd = anv_gem_bo_import_fd,
@@ -229,6 +242,8 @@ const struct anv_kmd_backend *anv_stub_kmd_backend_get(void)
       .physical_device_get_parameters = stub_physical_device_get_parameters,
       .physical_device_init_memory_types = stub_physical_device_init_memory_types,
       .physical_device_init_sync = stub_physical_device_init_sync,
+      .device_open = stub_device_open,
+      .device_close = stub_device_close,
       .device_setup_context_or_vm = stub_device_setup_context_or_vm,
       .device_destroy_context_or_vm = stub_device_destroy_context_or_vm,
       .device_check_status = stub_device_check_status,

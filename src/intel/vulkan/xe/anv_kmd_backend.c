@@ -491,6 +491,8 @@ anv_xe_kmd_backend_get(void)
       .physical_device_get_parameters = anv_xe_physical_device_get_parameters,
       .physical_device_init_memory_types = anv_xe_physical_device_init_memory_types,
       .physical_device_init_sync = anv_xe_physical_device_init_sync,
+      .device_open = anv_linux_device_open,
+      .device_close = anv_linux_device_close,
       .device_setup_context_or_vm = xe_device_setup_context_or_vm,
       .device_destroy_context_or_vm = anv_xe_device_destroy_vm,
       .device_check_status = anv_xe_device_check_status,

@@ -21,9 +21,11 @@
  * IN THE SOFTWARE.
  */
 
+#include <fcntl.h>
 #include <unistd.h>
 
 #include "anv_private.h"
+#include "dev/virtio/intel_virtio.h"
 #include "util/os_mman.h"
 
 VkResult
@@ -43,6 +45,38 @@ anv_linux_bo_unmap(struct anv_device *device, struct anv_bo *bo,
       munmap(map, map_size);
    }
    return VK_SUCCESS;
+}
+
+VkResult
+anv_linux_device_open(struct anv_device *device,
+                      const struct anv_physical_device *physical_device)
+{
+   if (physical_device->path[0] == '\0') {
+      device->fd = -1;
+      return VK_SUCCESS;
+   }
+
+   device->fd = open(physical_device->path, O_RDWR | O_CLOEXEC);
+   if (device->fd == -1)
+      return vk_error(device, VK_ERROR_INITIALIZATION_FAILED);
+
+   if (intel_virtio_init_fd(device->fd) < 0) {
+      close(device->fd);
+      device->fd = -1;
+      return VK_ERROR_INCOMPATIBLE_DRIVER;
+   }
+
+   return VK_SUCCESS;
+}
+
+void
+anv_linux_device_close(struct anv_device *device)
+{
+   if (device->fd >= 0) {
+      intel_virtio_unref_fd(device->fd);
+      close(device->fd);
+      device->fd = -1;
+   }
 }
 
 VkResult

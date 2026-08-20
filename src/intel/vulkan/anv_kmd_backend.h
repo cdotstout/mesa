@@ -148,6 +148,9 @@ struct anv_kmd_backend {
    VkResult (*physical_device_get_parameters)(struct anv_physical_device *device);
    VkResult (*physical_device_init_memory_types)(struct anv_physical_device *device);
    void (*physical_device_init_sync)(struct anv_physical_device *device);
+   VkResult (*device_open)(struct anv_device *device,
+                           const struct anv_physical_device *physical_device);
+   void (*device_close)(struct anv_device *device);
    VkResult (*device_setup_context_or_vm)(struct anv_device *device,
                                           const VkDeviceCreateInfo *pCreateInfo,
                                           const uint32_t num_queues);
