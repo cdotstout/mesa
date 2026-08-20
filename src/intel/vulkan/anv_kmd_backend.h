@@ -145,6 +145,11 @@ struct anv_kmd_backend {
                                                  struct anv_bo *bo,
                                                  enum anv_bo_alloc_flags alloc_flags,
                                                  uint32_t *bo_flags);
+   void (*physical_device_init_fd)(struct anv_physical_device *device,
+                                   const char *primary_path,
+                                   const char *path,
+                                   int fd);
+   void (*physical_device_finish_fd)(struct anv_physical_device *device);
    VkResult (*physical_device_get_parameters)(struct anv_physical_device *device);
    VkResult (*physical_device_init_memory_types)(struct anv_physical_device *device);
    void (*physical_device_init_sync)(struct anv_physical_device *device);

@@ -42,7 +42,6 @@
 #include "common/intel_aux_map.h"
 #include "common/intel_bind_timeline.h"
 #include "common/intel_common.h"
-#include "common/intel_gem.h"
 #include "common/intel_l3_config.h"
 #include "common/intel_measure.h"
 #include "common/intel_sample_positions.h"
@@ -53,7 +52,6 @@
 #include "compiler/brw/brw_compiler.h"
 #include "compiler/brw/brw_rt.h"
 #include "ds/intel_driver_ds.h"
-#include "dev/virtio/intel_virtio.h"
 #include "shaders/libintel_shaders.h"
 #include "util/bitset.h"
 #include "util/bitscan.h"
@@ -1831,9 +1829,15 @@ anv_physical_device_get_scratch_surface_state_pool_va(const struct anv_physical_
    return pdevice->va.scratch_surface_state_pool;
 }
 
-VkResult anv_physical_device_try_create(struct vk_instance *vk_instance,
-                                        struct _drmDevice *drm_device,
-                                        struct vk_physical_device **out);
+VkResult
+anv_physical_device_create(struct anv_instance *instance,
+                           const struct intel_device_info *devinfo,
+                           const char *primary_path,
+                           const char *path,
+                           int fd,
+                           struct vk_physical_device **out);
+
+VkResult anv_enumerate_physical_devices(struct vk_instance *vk_instance);
 
 void anv_physical_device_destroy(struct vk_physical_device *vk_device);
 

@@ -23,6 +23,7 @@
 
 #include <sys/mman.h>
 
+#include "common/intel_gem.h"
 #include "common/xe/intel_engine.h"
 
 #include "anv_private.h"
@@ -488,6 +489,8 @@ anv_xe_kmd_backend_get(void)
       .queue_get_exec_id = xe_queue_get_exec_id,
       .bo_alloc_flags_to_bo_flags = xe_bo_alloc_flags_to_bo_flags,
       .import_bo_alloc_flags_to_bo_flags = xe_import_bo_alloc_flags_to_bo_flags,
+      .physical_device_init_fd = anv_linux_physical_device_init_fd,
+      .physical_device_finish_fd = anv_linux_physical_device_finish_fd,
       .physical_device_get_parameters = anv_xe_physical_device_get_parameters,
       .physical_device_init_memory_types = anv_xe_physical_device_init_memory_types,
       .physical_device_init_sync = anv_xe_physical_device_init_sync,

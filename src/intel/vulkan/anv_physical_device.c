@@ -10,8 +10,6 @@
 
 #include "common/intel_common.h"
 #include "common/intel_uuid.h"
-#include "common/xe/intel_gem.h"
-#include "common/xe/intel_queue.h"
 
 #include "perf/intel_perf.h"
 
@@ -21,13 +19,8 @@
 #include "util/hex.h"
 #include "util/os_misc.h"
 #include "util/mesa-blake3.h"
-#include "util/os_misc.h"
 
-#include <xf86drm.h>
 #include <fcntl.h>
-#ifdef MAJOR_IN_SYSMACROS
-#include <sys/sysmacros.h>
-#endif
 
 #include "vk_android.h"
 
@@ -592,7 +585,7 @@ get_device_extensions(const struct anv_physical_device *device,
       .EXT_nested_command_buffer             = true,
       .EXT_non_seamless_cube_map             = true,
       .EXT_pci_bus_info                      = true,
-      .EXT_physical_device_drm               = true,
+      .EXT_physical_device_drm               = device->has_local,
       .EXT_pipeline_creation_cache_control   = true,
       .EXT_pipeline_creation_feedback        = true,
       .EXT_pipeline_library_group_handles    = rt_enabled,
@@ -2986,87 +2979,20 @@ anv_physical_device_init_queue_families(struct anv_physical_device *pdevice)
 }
 
 VkResult
-anv_physical_device_try_create(struct vk_instance *vk_instance,
-                               struct _drmDevice *drm_device,
-                               struct vk_physical_device **out)
+anv_physical_device_create(struct anv_instance *instance,
+                           const struct intel_device_info *devinfo,
+                           const char *primary_path,
+                           const char *path,
+                           int fd,
+                           struct vk_physical_device **out)
 {
-   struct anv_instance *instance =
-      container_of(vk_instance, struct anv_instance, vk);
-
-   const char *primary_path = drm_device->nodes[DRM_NODE_PRIMARY];
-   const char *path = drm_device->nodes[DRM_NODE_RENDER];
    VkResult result;
-   int fd;
-   int master_fd = -1;
-   int ret;
-
-   fd = open(path, O_RDWR | O_CLOEXEC);
-   if (fd < 0) {
-      if (errno == ENOMEM) {
-         return vk_errorf(instance, VK_ERROR_OUT_OF_HOST_MEMORY,
-                          "Unable to open device %s: out of memory", path);
-      }
-      return vk_errorf(instance, VK_ERROR_INCOMPATIBLE_DRIVER,
-                       "Unable to open device %s: %m", path);
-   }
-
-   ret = intel_virtio_init_fd(fd);
-   if (ret < 0) {
-      result = VK_ERROR_INCOMPATIBLE_DRIVER;
-      goto fail_fd;
-   }
-
-   bool is_virtio = ret > 0;
-   if (!is_virtio) {
-      if (!(drm_device->available_nodes & (1 << DRM_NODE_RENDER)) ||
-         drm_device->bustype != DRM_BUS_PCI ||
-         drm_device->deviceinfo.pci->vendor_id != 0x8086) {
-         result = VK_ERROR_INCOMPATIBLE_DRIVER;
-         goto fail_fd;
-      }
-   }
-
-   struct intel_device_info devinfo;
-   if (!intel_get_device_info_from_fd(fd, &devinfo, 9, -1)) {
-      result = VK_ERROR_INCOMPATIBLE_DRIVER;
-      goto fail_fd;
-   }
-
-   if (devinfo.ver < 9) {
-      /* Silently fail here, hasvk should pick up this device. */
-      result = VK_ERROR_INCOMPATIBLE_DRIVER;
-      goto fail_fd;
-   } else if (devinfo.probe_forced) {
-      /* If INTEL_FORCE_PROBE was used, then the user has opted-in for
-       * unsupported device support. No need to print a warning message.
-       */
-   } else if (devinfo.ver > 30) {
-      result = vk_errorf(instance, VK_ERROR_INCOMPATIBLE_DRIVER,
-                         "Vulkan not yet supported on %s", devinfo.name);
-      goto fail_fd;
-   }
-
-   /* Disable Wa_16013994831 on Gfx12.0 because we found other cases where we
-    * need to always disable preemption :
-    *    - https://gitlab.freedesktop.org/mesa/mesa/-/issues/5963
-    *    - https://gitlab.freedesktop.org/mesa/mesa/-/issues/5662
-    */
-   if (devinfo.verx10 == 120)
-      BITSET_CLEAR(devinfo.workarounds, INTEL_WA_16013994831);
-
-   if (!devinfo.has_context_isolation) {
-      result = vk_errorf(instance, VK_ERROR_INCOMPATIBLE_DRIVER,
-                         "Vulkan requires context isolation for %s", devinfo.name);
-      goto fail_fd;
-   }
 
    struct anv_physical_device *device =
       vk_zalloc(&instance->vk.alloc, sizeof(*device), 8,
                 VK_SYSTEM_ALLOCATION_SCOPE_INSTANCE);
-   if (device == NULL) {
-      result = vk_error(instance, VK_ERROR_OUT_OF_HOST_MEMORY);
-      goto fail_fd;
-   }
+   if (device == NULL)
+      return vk_error(instance, VK_ERROR_OUT_OF_HOST_MEMORY);
 
    struct vk_physical_device_dispatch_table dispatch_table;
    vk_physical_device_dispatch_table_from_entrypoints(
@@ -3083,13 +3009,18 @@ anv_physical_device_try_create(struct vk_instance *vk_instance,
    }
    device->instance = instance;
 
-   assert(strlen(path) < ARRAY_SIZE(device->path));
-   snprintf(device->path, ARRAY_SIZE(device->path), "%s", path);
+   if (path) {
+      assert(strlen(path) < ARRAY_SIZE(device->path));
+      snprintf(device->path, ARRAY_SIZE(device->path), "%s", path);
+   } else {
+      device->path[0] = '\0';
+   }
 
-   device->info = devinfo;
+   device->info = *devinfo;
    device->kmd_backend = anv_kmd_backend_get(device->info.kmd_type);
 
    device->local_fd = fd;
+   device->master_fd = -1;
    result = device->kmd_backend->physical_device_get_parameters(device);
    if (result != VK_SUCCESS)
       goto fail_base;
@@ -3107,42 +3038,23 @@ anv_physical_device_try_create(struct vk_instance *vk_instance,
       goto fail_drirc;
    }
 
-   /* We currently only have the right bits for instructions in Gen12+. If the
-    * kernel ever starts supporting that feature on previous generations,
-    * we'll need to edit genxml prior to enabling here.
-    */
-   device->has_protected_contexts = device->info.ver >= 12 &&
-      intel_gem_supports_protected_context(fd, device->info.kmd_type);
-
-   device->has_huc = intel_gem_supports_huc(fd, device->info.kmd_type);
-
    /* Just pick one; they're all the same */
    device->has_astc_ldr =
       isl_format_supports_sampling(&device->info,
                                    ISL_FORMAT_ASTC_LDR_2D_4X4_FLT16);
    if (!device->has_astc_ldr && device->drirc.features.require_astc)
       device->emu_astc_ldr = true;
-   if (devinfo.ver == 9 && !intel_device_info_is_9lp(&devinfo)) {
+   if (devinfo->ver == 9 && !intel_device_info_is_9lp(devinfo)) {
       device->flush_astc_ldr_void_extent_denorms =
          device->has_astc_ldr && !device->emu_astc_ldr;
    }
    device->brw_disable_subgroup_size_control =
-      !intel_use_jay_for_stage(&devinfo, MESA_SHADER_COMPUTE) &&
+      !intel_use_jay_for_stage(devinfo, MESA_SHADER_COMPUTE) &&
       device->drirc.debug.disable_subgroup_size_control;
-
-   result = anv_physical_device_init_heaps(device, fd);
-   if (result != VK_SUCCESS)
-      goto fail_drirc;
 
    device->kmd_backend->physical_device_init_sync(device);
 
    device->vk.pipeline_cache_import_ops = anv_cache_import_ops;
-
-   /* Check if we can read the GPU timestamp register from the CPU */
-   uint64_t u64_ignore;
-   device->has_reg_timestamp = intel_gem_read_render_timestamp(fd,
-                                                               device->info.kmd_type,
-                                                               &u64_ignore);
 
    device->uses_relocs = device->info.kmd_type != INTEL_KMD_TYPE_XE;
 
@@ -3182,7 +3094,7 @@ anv_physical_device_try_create(struct vk_instance *vk_instance,
        device->drirc.features.fake_image_compression_control_xe2_plus);
 
    device->indirect_descriptors =
-      !intel_has_extended_bindless(&devinfo) ||
+      !intel_has_extended_bindless(devinfo) ||
       device->drirc.debug.force_indirect_descriptors;
 
    device->uses_efficient_64bit =
@@ -3196,7 +3108,7 @@ anv_physical_device_try_create(struct vk_instance *vk_instance,
     * not using the binding table is difficult.
     */
    const bool platform_supports_btp_bit_rcc =
-      devinfo.has_lsc &&
+      devinfo->has_lsc &&
       (device->info.kmd_type == INTEL_KMD_TYPE_I915 ||
        device->info.xe_has_state_cache_perf_fix);
 
@@ -3214,9 +3126,6 @@ anv_physical_device_try_create(struct vk_instance *vk_instance,
    device->has_scratch_page =
       device->info.ver < 20 || device->info.kmd_type == INTEL_KMD_TYPE_I915 ||
       device->drirc.features.scratch_page;
-
-   device->can_get_vm_faults =
-      !device->has_scratch_page && xe_gem_supports_get_vm_faults(device->local_fd);
 
    device->info.no_jay = device->drirc.perf.disable_jay;
 
@@ -3247,47 +3156,16 @@ anv_physical_device_try_create(struct vk_instance *vk_instance,
 
    anv_physical_device_init_disk_cache(device);
 
-   if (instance->vk.enabled_extensions.KHR_display) {
-      master_fd = open(primary_path, O_RDWR | O_CLOEXEC);
-      if (master_fd >= 0) {
-         /* fail if we don't have permission to even render on this device */
-         if (!intel_gem_can_render_on_fd(master_fd, device->info.kmd_type)) {
-            close(master_fd);
-            master_fd = -1;
-         }
-      }
-   }
-   device->master_fd = master_fd;
+   device->kmd_backend->physical_device_init_fd(device, primary_path, path, fd);
 
-   device->engine_info = intel_engine_get_info(fd, device->info.kmd_type);
-   intel_common_update_device_info(fd, &device->info);
+   result = anv_physical_device_init_heaps(device, fd);
+   if (result != VK_SUCCESS)
+      goto fail_disk_cache;
 
    anv_physical_device_init_queue_families(device);
 
-   anv_physical_device_init_perf(device, fd);
-
-   /* Gather major/minor before WSI. */
-   struct stat st;
-
-   if (stat(primary_path, &st) == 0) {
-      device->has_master = true;
-      device->master_major = major(st.st_rdev);
-      device->master_minor = minor(st.st_rdev);
-   } else {
-      device->has_master = false;
-      device->master_major = 0;
-      device->master_minor = 0;
-   }
-
-   if (stat(path, &st) == 0) {
-      device->has_local = true;
-      device->local_major = major(st.st_rdev);
-      device->local_minor = minor(st.st_rdev);
-   } else {
-      device->has_local = false;
-      device->local_major = 0;
-      device->local_minor = 0;
-   }
+   if (fd >= 0)
+      anv_physical_device_init_perf(device, fd);
 
    device->has_small_bar = anv_physical_device_has_vram(device) &&
                            device->vram_non_mappable.size != 0;
@@ -3315,6 +3193,7 @@ anv_physical_device_try_create(struct vk_instance *vk_instance,
 fail_perf:
    release_physical_device_budget(device->memory.heaps_budget);
    intel_perf_free(device->perf);
+fail_disk_cache:
    free(device->engine_info);
    anv_physical_device_free_disk_cache(device);
 fail_compiler:
@@ -3324,13 +3203,16 @@ fail_drirc:
 fail_base:
    vk_physical_device_finish(&device->vk);
 fail_alloc:
+   if (device->master_fd != -1)
+      close(device->master_fd);
    vk_free(&instance->vk.alloc, device);
-fail_fd:
-   intel_virtio_unref_fd(fd);
-   close(fd);
-   if (master_fd != -1)
-      close(master_fd);
    return result;
+}
+
+VkResult
+anv_enumerate_physical_devices(struct vk_instance *vk_instance)
+{
+   return VK_ERROR_INCOMPATIBLE_DRIVER;
 }
 
 void
@@ -3347,10 +3229,7 @@ anv_physical_device_destroy(struct vk_physical_device *vk_device)
    release_physical_device_budget(device->memory.heaps_budget);
    intel_perf_free(device->perf);
    anv_physical_device_finish_drirc(device);
-   intel_virtio_unref_fd(device->local_fd);
-   close(device->local_fd);
-   if (device->master_fd >= 0)
-      close(device->master_fd);
+   device->kmd_backend->physical_device_finish_fd(device);
    vk_physical_device_finish(&device->vk);
    vk_free(&device->instance->vk.alloc, device);
 }

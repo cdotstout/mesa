@@ -121,7 +121,10 @@ VkResult anv_CreateInstance(
       return vk_error(NULL, result);
    }
 
-   instance->vk.physical_devices.try_create_for_drm = anv_physical_device_try_create;
+   instance->vk.physical_devices.enumerate = anv_enumerate_physical_devices;
+#if DETECT_OS_LINUX
+   instance->vk.physical_devices.try_create_for_drm = anv_linux_physical_device_try_create;
+#endif
    instance->vk.physical_devices.destroy = anv_physical_device_destroy;
 
    VG(VALGRIND_CREATE_MEMPOOL(instance, 0, false));

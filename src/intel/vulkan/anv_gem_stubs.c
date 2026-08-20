@@ -243,6 +243,19 @@ anv_gem_update_memory_info(struct intel_device_info *devinfo, int fd)
    return false;
 }
 
+static void
+stub_physical_device_init_fd(struct anv_physical_device *device,
+                             const char *primary_path,
+                             const char *path,
+                             int fd)
+{
+}
+
+static void
+stub_physical_device_finish_fd(struct anv_physical_device *device)
+{
+}
+
 static const struct anv_linux_sys_driver_ops stub_linux_sys_driver_ops = {
    .bo_export_fd = anv_gem_bo_export_fd,
    .bo_import_fd = anv_gem_bo_import_fd,
@@ -265,6 +278,8 @@ const struct anv_kmd_backend *anv_stub_kmd_backend_get(void)
       .queue_get_exec_id = stub_queue_get_exec_id,
       .bo_alloc_flags_to_bo_flags = stub_bo_alloc_flags_to_bo_flags,
       .import_bo_alloc_flags_to_bo_flags = stub_import_bo_alloc_flags_to_bo_flags,
+      .physical_device_init_fd = stub_physical_device_init_fd,
+      .physical_device_finish_fd = stub_physical_device_finish_fd,
       .physical_device_get_parameters = stub_physical_device_get_parameters,
       .physical_device_init_memory_types = stub_physical_device_init_memory_types,
       .physical_device_init_sync = stub_physical_device_init_sync,

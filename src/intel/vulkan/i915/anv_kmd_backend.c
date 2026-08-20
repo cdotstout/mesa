@@ -30,6 +30,8 @@
 #include "i915/anv_queue.h"
 
 #include "drm-uapi/i915_drm.h"
+#include "common/intel_gem.h"
+#include "dev/virtio/intel_virtio.h"
 #include "intel/common/i915/intel_gem.h"
 
 static int
@@ -489,6 +491,8 @@ anv_i915_kmd_backend_get(void)
       .queue_get_exec_id = i915_queue_get_exec_id,
       .bo_alloc_flags_to_bo_flags = i915_bo_alloc_flags_to_bo_flags,
       .import_bo_alloc_flags_to_bo_flags = i915_import_bo_alloc_flags_to_bo_flags,
+      .physical_device_init_fd = anv_linux_physical_device_init_fd,
+      .physical_device_finish_fd = anv_linux_physical_device_finish_fd,
       .physical_device_get_parameters = anv_i915_physical_device_get_parameters,
       .physical_device_init_memory_types = anv_i915_physical_device_init_memory_types,
       .physical_device_init_sync = anv_i915_physical_device_init_sync,

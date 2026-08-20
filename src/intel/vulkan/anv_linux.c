@@ -21,10 +21,19 @@
  * IN THE SOFTWARE.
  */
 
+#include <errno.h>
 #include <fcntl.h>
+#include <sys/stat.h>
+#ifdef MAJOR_IN_SYSMACROS
+#include <sys/sysmacros.h>
+#endif
 #include <unistd.h>
+#include <xf86drm.h>
 
 #include "anv_private.h"
+#include "common/intel_gem.h"
+#include "common/xe/intel_gem.h"
+#include "dev/intel_wa.h"
 #include "dev/virtio/intel_virtio.h"
 #include "util/os_mman.h"
 
@@ -45,6 +54,153 @@ anv_linux_bo_unmap(struct anv_device *device, struct anv_bo *bo,
       munmap(map, map_size);
    }
    return VK_SUCCESS;
+}
+
+VkResult
+anv_linux_physical_device_try_create(struct vk_instance *vk_instance,
+                                     struct _drmDevice *drm_device,
+                                     struct vk_physical_device **out)
+{
+   struct anv_instance *instance =
+      container_of(vk_instance, struct anv_instance, vk);
+
+   const char *primary_path = drm_device->nodes[DRM_NODE_PRIMARY];
+   const char *path = drm_device->nodes[DRM_NODE_RENDER];
+   VkResult result;
+   int fd;
+   int ret;
+
+   fd = open(path, O_RDWR | O_CLOEXEC);
+   if (fd < 0) {
+      if (errno == ENOMEM) {
+         return vk_errorf(instance, VK_ERROR_OUT_OF_HOST_MEMORY,
+                          "Unable to open device %s: out of memory", path);
+      }
+      return vk_errorf(instance, VK_ERROR_INCOMPATIBLE_DRIVER,
+                       "Unable to open device %s: %m", path);
+   }
+
+   ret = intel_virtio_init_fd(fd);
+   if (ret < 0) {
+      result = VK_ERROR_INCOMPATIBLE_DRIVER;
+      goto fail_fd;
+   }
+
+   bool is_virtio = ret > 0;
+   if (!is_virtio) {
+      if (!(drm_device->available_nodes & (1 << DRM_NODE_RENDER)) ||
+         drm_device->bustype != DRM_BUS_PCI ||
+         drm_device->deviceinfo.pci->vendor_id != 0x8086) {
+         result = VK_ERROR_INCOMPATIBLE_DRIVER;
+         goto fail_fd;
+      }
+   }
+
+   struct intel_device_info devinfo;
+   if (!intel_get_device_info_from_fd(fd, &devinfo, 9, -1)) {
+      result = VK_ERROR_INCOMPATIBLE_DRIVER;
+      goto fail_fd;
+   }
+
+   if (devinfo.ver < 9) {
+      result = VK_ERROR_INCOMPATIBLE_DRIVER;
+      goto fail_fd;
+   } else if (devinfo.probe_forced) {
+   } else if (devinfo.ver > 30) {
+      result = vk_errorf(instance, VK_ERROR_INCOMPATIBLE_DRIVER,
+                         "Vulkan not yet supported on %s", devinfo.name);
+      goto fail_fd;
+   }
+
+   if (devinfo.verx10 == 120)
+      BITSET_CLEAR(devinfo.workarounds, INTEL_WA_16013994831);
+
+   if (!devinfo.has_context_isolation) {
+      result = vk_errorf(instance, VK_ERROR_INCOMPATIBLE_DRIVER,
+                         "Vulkan requires context isolation for %s", devinfo.name);
+      goto fail_fd;
+   }
+
+   result = anv_physical_device_create(instance, &devinfo, primary_path, path, fd, out);
+   if (result != VK_SUCCESS)
+      goto fail_fd;
+
+   return VK_SUCCESS;
+
+fail_fd:
+   intel_virtio_unref_fd(fd);
+   close(fd);
+   return result;
+}
+
+void
+anv_linux_physical_device_init_fd(struct anv_physical_device *device,
+                                  const char *primary_path,
+                                  const char *path,
+                                  int fd)
+{
+   device->has_protected_contexts = device->info.ver >= 12 &&
+      fd >= 0 && intel_gem_supports_protected_context(fd, device->info.kmd_type);
+
+   device->has_huc = fd >= 0 && intel_gem_supports_huc(fd, device->info.kmd_type);
+
+   uint64_t u64_ignore;
+   device->has_reg_timestamp = fd >= 0 &&
+      intel_gem_read_render_timestamp(fd, device->info.kmd_type, &u64_ignore);
+
+   device->can_get_vm_faults =
+      !device->has_scratch_page && fd >= 0 &&
+      xe_gem_supports_get_vm_faults(device->local_fd);
+
+   int master_fd = -1;
+   if (primary_path && device->instance->vk.enabled_extensions.KHR_display) {
+      master_fd = open(primary_path, O_RDWR | O_CLOEXEC);
+      if (master_fd >= 0) {
+         if (!intel_gem_can_render_on_fd(master_fd, device->info.kmd_type)) {
+            close(master_fd);
+            master_fd = -1;
+         }
+      }
+   }
+   device->master_fd = master_fd;
+
+   if (fd >= 0) {
+      device->engine_info = intel_engine_get_info(fd, device->info.kmd_type);
+      intel_common_update_device_info(fd, &device->info);
+   }
+
+   struct stat st;
+
+   if (primary_path && stat(primary_path, &st) == 0) {
+      device->has_master = true;
+      device->master_major = major(st.st_rdev);
+      device->master_minor = minor(st.st_rdev);
+   } else {
+      device->has_master = false;
+      device->master_major = 0;
+      device->master_minor = 0;
+   }
+
+   if (path && stat(path, &st) == 0) {
+      device->has_local = true;
+      device->local_major = major(st.st_rdev);
+      device->local_minor = minor(st.st_rdev);
+   } else {
+      device->has_local = false;
+      device->local_major = 0;
+      device->local_minor = 0;
+   }
+}
+
+void
+anv_linux_physical_device_finish_fd(struct anv_physical_device *device)
+{
+   if (device->local_fd >= 0) {
+      intel_virtio_unref_fd(device->local_fd);
+      close(device->local_fd);
+   }
+   if (device->master_fd >= 0)
+      close(device->master_fd);
 }
 
 VkResult
