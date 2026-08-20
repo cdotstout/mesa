@@ -3010,7 +3010,6 @@ anv_physical_device_try_create(struct vk_instance *vk_instance,
    const char *path = drm_device->nodes[DRM_NODE_RENDER];
    VkResult result;
    int fd;
-   int master_fd = -1;
    int ret;
 
    fd = open(path, O_RDWR | O_CLOEXEC);
@@ -3073,13 +3072,34 @@ anv_physical_device_try_create(struct vk_instance *vk_instance,
       goto fail_fd;
    }
 
+   result = anv_physical_device_create(instance, &devinfo, primary_path, path, fd, out);
+   if (result != VK_SUCCESS)
+      goto fail_fd;
+
+   return VK_SUCCESS;
+
+fail_fd:
+   intel_virtio_unref_fd(fd);
+   close(fd);
+   return result;
+}
+
+VkResult
+anv_physical_device_create(struct anv_instance *instance,
+                           const struct intel_device_info *devinfo,
+                           const char *primary_path,
+                           const char *path,
+                           int fd,
+                           struct vk_physical_device **out)
+{
+   VkResult result;
+   int master_fd = -1;
+
    struct anv_physical_device *device =
       vk_zalloc(&instance->vk.alloc, sizeof(*device), 8,
                 VK_SYSTEM_ALLOCATION_SCOPE_INSTANCE);
-   if (device == NULL) {
-      result = vk_error(instance, VK_ERROR_OUT_OF_HOST_MEMORY);
-      goto fail_fd;
-   }
+   if (device == NULL)
+      return vk_error(instance, VK_ERROR_OUT_OF_HOST_MEMORY);
 
    struct vk_physical_device_dispatch_table dispatch_table;
    vk_physical_device_dispatch_table_from_entrypoints(
@@ -3096,10 +3116,14 @@ anv_physical_device_try_create(struct vk_instance *vk_instance,
    }
    device->instance = instance;
 
-   assert(strlen(path) < ARRAY_SIZE(device->path));
-   snprintf(device->path, ARRAY_SIZE(device->path), "%s", path);
+   if (path) {
+      assert(strlen(path) < ARRAY_SIZE(device->path));
+      snprintf(device->path, ARRAY_SIZE(device->path), "%s", path);
+   } else {
+      device->path[0] = '\0';
+   }
 
-   device->info = devinfo;
+   device->info = *devinfo;
 
    device->local_fd = fd;
    result = anv_physical_device_get_parameters(device);
@@ -3124,9 +3148,9 @@ anv_physical_device_try_create(struct vk_instance *vk_instance,
     * we'll need to edit genxml prior to enabling here.
     */
    device->has_protected_contexts = device->info.ver >= 12 &&
-      intel_gem_supports_protected_context(fd, device->info.kmd_type);
+      fd >= 0 && intel_gem_supports_protected_context(fd, device->info.kmd_type);
 
-   device->has_huc = intel_gem_supports_huc(fd, device->info.kmd_type);
+   device->has_huc = fd >= 0 && intel_gem_supports_huc(fd, device->info.kmd_type);
 
    /* Just pick one; they're all the same */
    device->has_astc_ldr =
@@ -3134,7 +3158,7 @@ anv_physical_device_try_create(struct vk_instance *vk_instance,
                                    ISL_FORMAT_ASTC_LDR_2D_4X4_FLT16);
    if (!device->has_astc_ldr && device->drirc.features.require_astc)
       device->emu_astc_ldr = true;
-   if (devinfo.ver == 9 && !intel_device_info_is_9lp(&devinfo)) {
+   if (devinfo->ver == 9 && !intel_device_info_is_9lp(devinfo)) {
       device->flush_astc_ldr_void_extent_denorms =
          device->has_astc_ldr && !device->emu_astc_ldr;
    }
@@ -3152,9 +3176,8 @@ anv_physical_device_try_create(struct vk_instance *vk_instance,
 
    /* Check if we can read the GPU timestamp register from the CPU */
    uint64_t u64_ignore;
-   device->has_reg_timestamp = intel_gem_read_render_timestamp(fd,
-                                                               device->info.kmd_type,
-                                                               &u64_ignore);
+   device->has_reg_timestamp = fd >= 0 &&
+      intel_gem_read_render_timestamp(fd, device->info.kmd_type, &u64_ignore);
 
    device->uses_relocs = device->info.kmd_type != INTEL_KMD_TYPE_XE;
 
@@ -3194,7 +3217,7 @@ anv_physical_device_try_create(struct vk_instance *vk_instance,
        device->drirc.features.fake_image_compression_control_xe2_plus);
 
    device->indirect_descriptors =
-      !intel_has_extended_bindless(&devinfo) ||
+      !intel_has_extended_bindless(devinfo) ||
       device->drirc.debug.force_indirect_descriptors;
 
    device->uses_efficient_64bit =
@@ -3208,7 +3231,7 @@ anv_physical_device_try_create(struct vk_instance *vk_instance,
     * not using the binding table is difficult.
     */
    const bool platform_supports_btp_bit_rcc =
-      devinfo.has_lsc &&
+      devinfo->has_lsc &&
       (device->info.kmd_type == INTEL_KMD_TYPE_I915 ||
        device->info.xe_has_state_cache_perf_fix);
 
@@ -3228,7 +3251,8 @@ anv_physical_device_try_create(struct vk_instance *vk_instance,
       device->drirc.features.scratch_page;
 
    device->can_get_vm_faults =
-      !device->has_scratch_page && xe_gem_supports_get_vm_faults(device->local_fd);
+      !device->has_scratch_page && fd >= 0 &&
+      xe_gem_supports_get_vm_faults(device->local_fd);
 
    device->compiler = brw_compiler_create(NULL, &device->info);
    if (device->compiler == NULL) {
@@ -3257,7 +3281,8 @@ anv_physical_device_try_create(struct vk_instance *vk_instance,
 
    anv_physical_device_init_disk_cache(device);
 
-   if (instance->vk.enabled_extensions.KHR_display) {
+   master_fd = -1;
+   if (primary_path && instance->vk.enabled_extensions.KHR_display) {
       master_fd = open(primary_path, O_RDWR | O_CLOEXEC);
       if (master_fd >= 0) {
          /* fail if we don't have permission to even render on this device */
@@ -3269,17 +3294,20 @@ anv_physical_device_try_create(struct vk_instance *vk_instance,
    }
    device->master_fd = master_fd;
 
-   device->engine_info = intel_engine_get_info(fd, device->info.kmd_type);
-   intel_common_update_device_info(fd, &device->info);
+   if (fd >= 0) {
+      device->engine_info = intel_engine_get_info(fd, device->info.kmd_type);
+      intel_common_update_device_info(fd, &device->info);
+   }
 
    anv_physical_device_init_queue_families(device);
 
-   anv_physical_device_init_perf(device, fd);
+   if (fd >= 0)
+      anv_physical_device_init_perf(device, fd);
 
    /* Gather major/minor before WSI. */
    struct stat st;
 
-   if (stat(primary_path, &st) == 0) {
+   if (primary_path && stat(primary_path, &st) == 0) {
       device->has_master = true;
       device->master_major = major(st.st_rdev);
       device->master_minor = minor(st.st_rdev);
@@ -3289,7 +3317,7 @@ anv_physical_device_try_create(struct vk_instance *vk_instance,
       device->master_minor = 0;
    }
 
-   if (stat(path, &st) == 0) {
+   if (path && stat(path, &st) == 0) {
       device->has_local = true;
       device->local_major = major(st.st_rdev);
       device->local_minor = minor(st.st_rdev);
@@ -3335,12 +3363,15 @@ fail_base:
    vk_physical_device_finish(&device->vk);
 fail_alloc:
    vk_free(&instance->vk.alloc, device);
-fail_fd:
-   intel_virtio_unref_fd(fd);
-   close(fd);
    if (master_fd != -1)
       close(master_fd);
    return result;
+}
+
+VkResult
+anv_enumerate_physical_devices(struct vk_instance *vk_instance)
+{
+   return VK_ERROR_INCOMPATIBLE_DRIVER;
 }
 
 void
@@ -3357,8 +3388,10 @@ anv_physical_device_destroy(struct vk_physical_device *vk_device)
    release_physical_device_budget(device->memory.heaps_budget);
    intel_perf_free(device->perf);
    anv_physical_device_finish_drirc(device);
-   intel_virtio_unref_fd(device->local_fd);
-   close(device->local_fd);
+   if (device->local_fd >= 0) {
+      intel_virtio_unref_fd(device->local_fd);
+      close(device->local_fd);
+   }
    if (device->master_fd >= 0)
       close(device->master_fd);
    vk_physical_device_finish(&device->vk);

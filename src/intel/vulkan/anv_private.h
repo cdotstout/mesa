@@ -1810,9 +1810,19 @@ anv_physical_device_get_scratch_surface_state_pool_va(const struct anv_physical_
    return pdevice->va.scratch_surface_state_pool;
 }
 
+VkResult
+anv_physical_device_create(struct anv_instance *instance,
+                           const struct intel_device_info *devinfo,
+                           const char *primary_path,
+                           const char *path,
+                           int fd,
+                           struct vk_physical_device **out);
+
 VkResult anv_physical_device_try_create(struct vk_instance *vk_instance,
                                         struct _drmDevice *drm_device,
                                         struct vk_physical_device **out);
+
+VkResult anv_enumerate_physical_devices(struct vk_instance *vk_instance);
 
 void anv_physical_device_destroy(struct vk_physical_device *vk_device);
 
