@@ -248,6 +248,38 @@ static struct intel_mapped_pinned_buffer_alloc aux_map_allocator = {
 };
 
 static VkResult
+anv_device_open(struct anv_device *device,
+                const struct anv_physical_device *physical_device)
+{
+   if (physical_device->path[0] == '\0') {
+      device->fd = -1;
+      return VK_SUCCESS;
+   }
+
+   device->fd = open(physical_device->path, O_RDWR | O_CLOEXEC);
+   if (device->fd == -1)
+      return vk_error(device, VK_ERROR_INITIALIZATION_FAILED);
+
+   if (intel_virtio_init_fd(device->fd) < 0) {
+      close(device->fd);
+      device->fd = -1;
+      return VK_ERROR_INCOMPATIBLE_DRIVER;
+   }
+
+   return VK_SUCCESS;
+}
+
+static void
+anv_device_close(struct anv_device *device)
+{
+   if (device->fd >= 0) {
+      intel_virtio_unref_fd(device->fd);
+      close(device->fd);
+      device->fd = -1;
+   }
+}
+
+static VkResult
 anv_device_setup_context_or_vm(struct anv_device *device,
                                const VkDeviceCreateInfo *pCreateInfo,
                                const uint32_t num_queues)
@@ -925,17 +957,9 @@ VkResult anv_CreateDevice(
    anv_device_set_physical(device, physical_device);
    device->kmd_backend = anv_kmd_backend_get(device->info->kmd_type);
 
-   /* XXX(chadv): Can we dup() physicalDevice->fd here? */
-   device->fd = open(physical_device->path, O_RDWR | O_CLOEXEC);
-   if (device->fd == -1) {
-      result = vk_error(device, VK_ERROR_INITIALIZATION_FAILED);
+   result = anv_device_open(device, physical_device);
+   if (result != VK_SUCCESS)
       goto fail_device;
-   }
-
-   if (intel_virtio_init_fd(device->fd) < 0) {
-      result = VK_ERROR_INCOMPATIBLE_DRIVER;
-      goto fail_fd;
-   }
 
    switch (device->info->kmd_type) {
    case INTEL_KMD_TYPE_I915:
@@ -1462,8 +1486,7 @@ VkResult anv_CreateDevice(
  fail_context_id:
    anv_device_destroy_context_or_vm(device);
  fail_fd:
-   intel_virtio_unref_fd(device->fd);
-   close(device->fd);
+   anv_device_close(device);
  fail_device:
    vk_device_finish(&device->vk);
  fail_alloc:
@@ -1612,7 +1635,7 @@ void anv_DestroyDevice(
       }
    }
 
-   close(device->fd);
+   anv_device_close(device);
 
    vk_device_finish(&device->vk);
    vk_free(&device->vk.alloc, device);
