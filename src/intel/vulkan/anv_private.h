@@ -90,7 +90,6 @@
 #include "vk_device.h"
 #include "vk_device_generated_commands.h"
 #include "vk_device_memory.h"
-#include "vk_drm_syncobj.h"
 #include "vk_enum_defines.h"
 #include "vk_format.h"
 #include "vk_framebuffer.h"

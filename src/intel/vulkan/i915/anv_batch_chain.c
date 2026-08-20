@@ -28,6 +28,7 @@
 
 #include "perf/intel_perf.h"
 #include "util/u_debug.h"
+#include "vk_drm_syncobj.h"
 
 #include "drm-uapi/i915_drm.h"
 

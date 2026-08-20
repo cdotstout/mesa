@@ -41,3 +41,5 @@ VkResult
 anv_xe_physical_device_get_parameters(struct anv_physical_device *device);
 VkResult
 anv_xe_physical_device_init_memory_types(struct anv_physical_device *device);
+void
+anv_xe_physical_device_init_sync(struct anv_physical_device *device);

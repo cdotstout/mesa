@@ -25,9 +25,6 @@
 #include <inttypes.h>
 #include <stdbool.h>
 #include <fcntl.h>
-#include "drm-uapi/drm_fourcc.h"
-#include "drm-uapi/drm.h"
-#include <xf86drm.h>
 
 #include "anv_private.h"
 #include "anv_measure.h"
@@ -41,7 +38,6 @@
 #include "vk_common_entrypoints.h"
 #include "vk_util.h"
 #include "vk_deferred_operation.h"
-#include "vk_drm_syncobj.h"
 #include "common/intel_aux_map.h"
 #include "common/intel_common.h"
 #include "common/intel_debug_identifier.h"
@@ -952,13 +948,7 @@ VkResult anv_CreateDevice(
       UNREACHABLE("Missing");
    }
 
-   device->vk.copy_sync_payloads = vk_drm_syncobj_copy_payloads;
    device->vk.command_buffer_ops = &anv_cmd_buffer_ops;
-
-   if (physical_device->info.is_virtio)
-      device->vk.sync = intel_virtio_sync_provider(device->fd);
-   else
-      vk_device_set_drm_fd(&device->vk, device->fd);
 
    uint32_t num_queues = 0;
    for (uint32_t i = 0; i < pCreateInfo->queueCreateInfoCount; i++)

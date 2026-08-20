@@ -23,6 +23,8 @@
 #include "i915/anv_device.h"
 #include "anv_private.h"
 #include "vk_debug_utils.h"
+#include "vk_drm_syncobj.h"
+#include "dev/virtio/intel_virtio.h"
 
 #include "common/i915/intel_defines.h"
 #include "common/i915/intel_gem.h"
@@ -271,6 +273,13 @@ anv_i915_device_setup_context(struct anv_device *device,
 {
    device->protected_session_id = I915_PROTECTED_CONTENT_DEFAULT_SESSION;
 
+   device->vk.copy_sync_payloads = vk_drm_syncobj_copy_payloads;
+
+   if (device->physical->info.is_virtio)
+      device->vk.sync = intel_virtio_sync_provider(device->fd);
+   else
+      vk_device_set_drm_fd(&device->vk, device->fd);
+
    if (device->physical->has_vm_control)
       return anv_i915_device_setup_vm(device);
 
@@ -418,4 +427,23 @@ anv_i915_device_setup_vm(struct anv_device *device)
 
    device->vm_id = create.vm_id;
    return VK_SUCCESS;
+}
+
+void
+anv_i915_physical_device_init_sync(struct anv_physical_device *device)
+{
+   if (device->info.is_virtio) {
+      struct util_sync_provider *sync = intel_virtio_sync_provider(device->local_fd);
+      device->sync_syncobj_type = vk_drm_syncobj_get_type_from_provider(sync);
+   } else {
+      device->sync_syncobj_type = vk_drm_syncobj_get_type(device->local_fd);
+   }
+
+   assert(vk_sync_type_is_drm_syncobj(&device->sync_syncobj_type));
+   assert(device->sync_syncobj_type.features & VK_SYNC_FEATURE_TIMELINE);
+   assert(device->sync_syncobj_type.features & VK_SYNC_FEATURE_CPU_WAIT);
+
+   device->sync_types[0] = &device->sync_syncobj_type;
+   device->sync_types[1] = NULL;
+   device->vk.supported_sync_types = device->sync_types;
 }

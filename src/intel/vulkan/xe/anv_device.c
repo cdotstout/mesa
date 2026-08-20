@@ -23,6 +23,8 @@
 #include "xe/anv_device.h"
 #include "anv_private.h"
 #include "vk_debug_utils.h"
+#include "vk_drm_syncobj.h"
+#include "dev/virtio/intel_virtio.h"
 
 #include "drm-uapi/gpu_scheduler.h"
 #include "drm-uapi/xe_drm.h"
@@ -60,6 +62,13 @@ VkResult anv_xe_device_setup_vm(struct anv_device *device)
    }
 
    device->protected_session_id = DRM_XE_PXP_HWDRM_DEFAULT_SESSION;
+
+   device->vk.copy_sync_payloads = vk_drm_syncobj_copy_payloads;
+
+   if (device->physical->info.is_virtio)
+      device->vk.sync = intel_virtio_sync_provider(device->fd);
+   else
+      vk_device_set_drm_fd(&device->vk, device->fd);
 
    return VK_SUCCESS;
 }
@@ -233,4 +242,23 @@ struct intel_pagefault_buffer *
 anv_xe_device_alloc_get_vm_faults(struct anv_device *device)
 {
    return xe_gem_alloc_get_vm_faults(device->fd, device->vm_id);
+}
+
+void
+anv_xe_physical_device_init_sync(struct anv_physical_device *device)
+{
+   if (device->info.is_virtio) {
+      struct util_sync_provider *sync = intel_virtio_sync_provider(device->local_fd);
+      device->sync_syncobj_type = vk_drm_syncobj_get_type_from_provider(sync);
+   } else {
+      device->sync_syncobj_type = vk_drm_syncobj_get_type(device->local_fd);
+   }
+
+   assert(vk_sync_type_is_drm_syncobj(&device->sync_syncobj_type));
+   assert(device->sync_syncobj_type.features & VK_SYNC_FEATURE_TIMELINE);
+   assert(device->sync_syncobj_type.features & VK_SYNC_FEATURE_CPU_WAIT);
+
+   device->sync_types[0] = &device->sync_syncobj_type;
+   device->sync_types[1] = NULL;
+   device->vk.supported_sync_types = device->sync_types;
 }

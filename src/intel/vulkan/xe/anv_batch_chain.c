@@ -28,6 +28,7 @@
 #include "common/intel_bind_timeline.h"
 #include "common/xe/intel_gem.h"
 #include "perf/intel_perf.h"
+#include "vk_drm_syncobj.h"
 
 #include "drm-uapi/xe_drm.h"
 
