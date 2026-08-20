@@ -161,6 +161,17 @@ struct anv_kmd_backend {
                              struct anv_queue *queue,
                              const VkDeviceQueueCreateInfo *pCreateInfo);
    void (*destroy_engine)(struct anv_device *device, struct anv_queue *queue);
+   bool (*update_memory_info)(struct intel_device_info *devinfo, int fd);
+   bool (*read_render_timestamp)(int fd, enum intel_kmd_type kmd_type,
+                                 uint64_t *timestamp);
+   bool (*read_correlate_cpu_gpu_timestamp)(int fd,
+                                            enum intel_kmd_type kmd_type,
+                                            enum intel_engine_class engine_class,
+                                            uint16_t engine_instance,
+                                            int cpu_clock_id,
+                                            uint64_t *cpu_timestamp,
+                                            uint64_t *gpu_timestamp,
+                                            uint64_t *cpu_delta_timestamp);
 };
 
 const struct anv_kmd_backend *anv_kmd_backend_get(enum intel_kmd_type type);

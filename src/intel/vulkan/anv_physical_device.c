@@ -2582,7 +2582,7 @@ anv_init_meminfo(struct anv_physical_device *device, int fd)
 static void
 anv_update_meminfo(struct anv_physical_device *device, int fd)
 {
-   if (!intel_device_info_update_memory_info(&device->info, fd))
+   if (!device->kmd_backend->update_memory_info(&device->info, fd))
       return;
 
    const struct intel_device_info *devinfo = &device->info;

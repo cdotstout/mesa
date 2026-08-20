@@ -499,6 +499,9 @@ anv_i915_kmd_backend_get(void)
       .device_check_status = anv_i915_device_check_status,
       .create_engine = anv_i915_create_engine,
       .destroy_engine = anv_i915_destroy_engine,
+      .update_memory_info = anv_gem_update_memory_info,
+      .read_render_timestamp = anv_gem_read_render_timestamp,
+      .read_correlate_cpu_gpu_timestamp = anv_gem_read_correlate_cpu_gpu_timestamp,
    };
    return &i915_backend;
 }

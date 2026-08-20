@@ -217,6 +217,32 @@ stub_device_close(struct anv_device *device)
 {
 }
 
+bool
+anv_gem_read_render_timestamp(int fd, enum intel_kmd_type kmd_type,
+                              uint64_t *timestamp)
+{
+   return false;
+}
+
+bool
+anv_gem_read_correlate_cpu_gpu_timestamp(int fd,
+                                         enum intel_kmd_type kmd_type,
+                                         enum intel_engine_class engine_class,
+                                         uint16_t engine_instance,
+                                         int cpu_clock_id,
+                                         uint64_t *cpu_timestamp,
+                                         uint64_t *gpu_timestamp,
+                                         uint64_t *cpu_delta_timestamp)
+{
+   return false;
+}
+
+bool
+anv_gem_update_memory_info(struct intel_device_info *devinfo, int fd)
+{
+   return false;
+}
+
 static const struct anv_linux_sys_driver_ops stub_linux_sys_driver_ops = {
    .bo_export_fd = anv_gem_bo_export_fd,
    .bo_import_fd = anv_gem_bo_import_fd,
@@ -249,6 +275,9 @@ const struct anv_kmd_backend *anv_stub_kmd_backend_get(void)
       .device_check_status = stub_device_check_status,
       .create_engine = stub_create_engine,
       .destroy_engine = stub_destroy_engine,
+      .update_memory_info = anv_gem_update_memory_info,
+      .read_render_timestamp = anv_gem_read_render_timestamp,
+      .read_correlate_cpu_gpu_timestamp = anv_gem_read_correlate_cpu_gpu_timestamp,
    };
    return &stub_backend;
 }

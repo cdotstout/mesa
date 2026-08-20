@@ -499,6 +499,9 @@ anv_xe_kmd_backend_get(void)
       .device_alloc_get_vm_faults = anv_xe_device_alloc_get_vm_faults,
       .create_engine = anv_xe_create_engine,
       .destroy_engine = anv_xe_destroy_engine,
+      .update_memory_info = anv_gem_update_memory_info,
+      .read_render_timestamp = anv_gem_read_render_timestamp,
+      .read_correlate_cpu_gpu_timestamp = anv_gem_read_correlate_cpu_gpu_timestamp,
    };
    return &xe_backend;
 }

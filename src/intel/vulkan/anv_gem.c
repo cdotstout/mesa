@@ -61,6 +61,39 @@ anv_gem_bo_import_fd(struct anv_device *device, int fd)
    return args.handle;
 }
 
+bool
+anv_gem_read_render_timestamp(int fd, enum intel_kmd_type kmd_type,
+                              uint64_t *timestamp)
+{
+   return intel_gem_read_render_timestamp(fd, kmd_type, timestamp);
+}
+
+bool
+anv_gem_read_correlate_cpu_gpu_timestamp(int fd,
+                                         enum intel_kmd_type kmd_type,
+                                         enum intel_engine_class engine_class,
+                                         uint16_t engine_instance,
+                                         int cpu_clock_id,
+                                         uint64_t *cpu_timestamp,
+                                         uint64_t *gpu_timestamp,
+                                         uint64_t *cpu_delta_timestamp)
+{
+   return intel_gem_read_correlate_cpu_gpu_timestamp(fd,
+                                                     kmd_type,
+                                                     engine_class,
+                                                     engine_instance,
+                                                     cpu_clock_id,
+                                                     cpu_timestamp,
+                                                     gpu_timestamp,
+                                                     cpu_delta_timestamp);
+}
+
+bool
+anv_gem_update_memory_info(struct intel_device_info *devinfo, int fd)
+{
+   return intel_device_info_update_memory_info(devinfo, fd);
+}
+
 const struct anv_kmd_backend *anv_stub_kmd_backend_get(void)
 {
    return NULL;

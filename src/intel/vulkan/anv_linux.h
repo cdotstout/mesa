@@ -52,3 +52,14 @@ VkResult anv_linux_bo_unmap(struct anv_device *device, struct anv_bo *bo,
 VkResult anv_linux_device_open(struct anv_device *device,
                                const struct anv_physical_device *physical_device);
 void anv_linux_device_close(struct anv_device *device);
+bool anv_gem_update_memory_info(struct intel_device_info *devinfo, int fd);
+bool anv_gem_read_render_timestamp(int fd, enum intel_kmd_type kmd_type,
+                                   uint64_t *timestamp);
+bool anv_gem_read_correlate_cpu_gpu_timestamp(int fd,
+                                              enum intel_kmd_type kmd_type,
+                                              enum intel_engine_class engine_class,
+                                              uint16_t engine_instance,
+                                              int cpu_clock_id,
+                                              uint64_t *cpu_timestamp,
+                                              uint64_t *gpu_timestamp,
+                                              uint64_t *cpu_delta_timestamp);

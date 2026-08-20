@@ -2357,14 +2357,15 @@ VkResult anv_GetCalibratedTimestampsKHR(
                cpu_clock_id = vk_time_domain_to_clockid(next);
 
             uint64_t cpu_timestamp, gpu_timestamp, cpu_delta_timestamp, cpu_end_timestamp;
-            if (!intel_gem_read_correlate_cpu_gpu_timestamp(device->fd,
-                                                            kmd_type,
-                                                            INTEL_ENGINE_CLASS_RENDER,
-                                                            0 /* engine_instance */,
-                                                            cpu_clock_id,
-                                                            &cpu_timestamp,
-                                                            &gpu_timestamp,
-                                                            &cpu_delta_timestamp))
+            if (!device->kmd_backend->read_correlate_cpu_gpu_timestamp(
+                   device->fd,
+                   kmd_type,
+                   INTEL_ENGINE_CLASS_RENDER,
+                   0 /* engine_instance */,
+                   cpu_clock_id,
+                   &cpu_timestamp,
+                   &gpu_timestamp,
+                   &cpu_delta_timestamp))
                return vk_device_set_lost(&device->vk, "Failed to read correlate timestamp %m");
 
             cpu_end_timestamp = cpu_timestamp + cpu_delta_timestamp;
@@ -2401,9 +2402,10 @@ VkResult anv_GetCalibratedTimestampsKHR(
       increment = 1;
       switch (current) {
       case VK_TIME_DOMAIN_DEVICE_KHR:
-         if (!intel_gem_read_render_timestamp(device->fd,
-                                              device->info->kmd_type,
-                                              &pTimestamps[d])) {
+         if (!device->kmd_backend->read_render_timestamp(
+                device->fd,
+                device->info->kmd_type,
+                &pTimestamps[d])) {
             return vk_device_set_lost(&device->vk, "Failed to read the "
                                       "TIMESTAMP register: %m");
          }
