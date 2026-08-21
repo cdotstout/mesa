@@ -2035,9 +2035,10 @@ anv_device_import_bo(struct anv_device *device,
    struct anv_bo *bo = anv_device_lookup_bo(device, gem_handle);
 
    uint32_t bo_flags;
-   VkResult result = anv_gem_import_bo_alloc_flags_to_bo_flags(device, bo,
-                                                               alloc_flags,
-                                                               &bo_flags);
+   VkResult result =
+      device->kmd_backend->import_bo_alloc_flags_to_bo_flags(device, bo,
+                                                             alloc_flags,
+                                                             &bo_flags);
    if (result != VK_SUCCESS) {
       simple_mtx_unlock(&cache->mutex);
       return result;

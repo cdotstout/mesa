@@ -439,6 +439,16 @@ xe_bo_alloc_flags_to_bo_flags(struct anv_device *device,
    return 0;
 }
 
+static VkResult
+xe_import_bo_alloc_flags_to_bo_flags(struct anv_device *device,
+                                     struct anv_bo *bo,
+                                     enum anv_bo_alloc_flags alloc_flags,
+                                     uint32_t *bo_flags)
+{
+   *bo_flags = xe_bo_alloc_flags_to_bo_flags(device, alloc_flags);
+   return VK_SUCCESS;
+}
+
 const struct anv_kmd_backend *
 anv_xe_kmd_backend_get(void)
 {
@@ -453,6 +463,7 @@ anv_xe_kmd_backend_get(void)
       .queue_exec_locked = xe_queue_exec_locked,
       .queue_exec_async = xe_queue_exec_async,
       .bo_alloc_flags_to_bo_flags = xe_bo_alloc_flags_to_bo_flags,
+      .import_bo_alloc_flags_to_bo_flags = xe_import_bo_alloc_flags_to_bo_flags,
    };
    return &xe_backend;
 }

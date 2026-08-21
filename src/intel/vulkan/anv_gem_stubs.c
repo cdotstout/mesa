@@ -127,11 +127,11 @@ anv_gem_fd_to_handle(struct anv_device *device, int fd)
    UNREACHABLE("Unused");
 }
 
-VkResult
-anv_gem_import_bo_alloc_flags_to_bo_flags(struct anv_device *device,
-                                          struct anv_bo *bo,
-                                          enum anv_bo_alloc_flags alloc_flags,
-                                          uint32_t *bo_flags)
+static VkResult
+stub_import_bo_alloc_flags_to_bo_flags(struct anv_device *device,
+                                       struct anv_bo *bo,
+                                       enum anv_bo_alloc_flags alloc_flags,
+                                       uint32_t *bo_flags)
 {
    return VK_SUCCESS;
 }
@@ -162,6 +162,7 @@ const struct anv_kmd_backend *anv_stub_kmd_backend_get(void)
       .queue_exec_locked = stub_queue_exec_locked,
       .queue_exec_async = stub_queue_exec_async,
       .bo_alloc_flags_to_bo_flags = stub_bo_alloc_flags_to_bo_flags,
+      .import_bo_alloc_flags_to_bo_flags = stub_import_bo_alloc_flags_to_bo_flags,
    };
    return &stub_backend;
 }

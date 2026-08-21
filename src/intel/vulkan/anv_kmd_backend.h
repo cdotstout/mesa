@@ -128,6 +128,10 @@ struct anv_kmd_backend {
                                 const struct vk_sync_signal *signals);
    uint32_t (*bo_alloc_flags_to_bo_flags)(struct anv_device *device,
                                           enum anv_bo_alloc_flags alloc_flags);
+   VkResult (*import_bo_alloc_flags_to_bo_flags)(struct anv_device *device,
+                                                 struct anv_bo *bo,
+                                                 enum anv_bo_alloc_flags alloc_flags,
+                                                 uint32_t *bo_flags);
 };
 
 const struct anv_kmd_backend *anv_kmd_backend_get(enum intel_kmd_type type);
