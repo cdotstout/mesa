@@ -3143,6 +3143,15 @@ anv_sanitize_map_params(struct anv_device *device,
 }
 
 
+void anv_bo_vma_free(struct anv_device *device, struct anv_bo *bo);
+uint32_t anv_bo_vma_calc_alignment_requirement(struct anv_device *device,
+                                               enum anv_bo_alloc_flags alloc_flags,
+                                               uint64_t size);
+VkResult anv_bo_vma_alloc_or_close(struct anv_device *device,
+                                   struct anv_bo *bo,
+                                   enum anv_bo_alloc_flags alloc_flags,
+                                   uint64_t explicit_address,
+                                   uint32_t align);
 VkResult anv_device_alloc_bo(struct anv_device *device,
                              const char *name, const uint64_t size,
                              enum anv_bo_alloc_flags alloc_flags,
@@ -3163,12 +3172,6 @@ VkResult anv_device_import_bo_from_host_ptr(struct anv_device *device,
                                             enum anv_bo_alloc_flags alloc_flags,
                                             uint64_t client_address,
                                             struct anv_bo **bo_out);
-VkResult anv_device_import_bo(struct anv_device *device, int fd,
-                              enum anv_bo_alloc_flags alloc_flags,
-                              uint64_t client_address,
-                              struct anv_bo **bo);
-VkResult anv_device_export_bo(struct anv_device *device,
-                              struct anv_bo *bo, int *fd_out);
 void anv_device_release_bo(struct anv_device *device,
                            struct anv_bo *bo);
 

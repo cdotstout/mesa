@@ -50,11 +50,11 @@ anv_android_import_from_handle(struct anv_device *device,
       alloc_flags |= ANV_BO_ALLOC_COMPRESSED | ANV_BO_ALLOC_SCANOUT;
    }
 
-   return anv_device_import_bo(device,
-                               dma_buf,
-                               alloc_flags,
-                               0 /* client_address */,
-                               bo_out);
+   return anv_linux_device_import_bo(device,
+                                     dma_buf,
+                                     alloc_flags,
+                                     0 /* client_address */,
+                                     bo_out);
 }
 
 /*

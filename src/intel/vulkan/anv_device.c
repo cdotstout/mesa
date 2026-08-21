@@ -1890,6 +1890,7 @@ VkResult anv_AllocateMemory(
    /* The Vulkan spec permits handleType to be 0, in which case the struct is
     * ignored.
     */
+#if DETECT_OS_LINUX
    if (fd_info && fd_info->handleType) {
       /* At the moment, we support only the below handle types. */
       assert(fd_info->handleType ==
@@ -1918,8 +1919,8 @@ VkResult anv_AllocateMemory(
             alloc_flags |= ANV_BO_ALLOC_SCANOUT;
       }
 
-      result = anv_device_import_bo(device, fd_info->fd, alloc_flags,
-                                    client_address, &mem->bo);
+      result = anv_linux_device_import_bo(device, fd_info->fd, alloc_flags,
+                                          client_address, &mem->bo);
       if (result != VK_SUCCESS)
          goto fail;
 
@@ -1953,6 +1954,9 @@ VkResult anv_AllocateMemory(
       close(fd_info->fd);
       goto success;
    }
+#else
+   (void)fd_info;
+#endif
 
    if (mem->vk.host_ptr) {
       if (mem->vk.import_handle_type ==
@@ -2039,49 +2043,6 @@ VkResult anv_AllocateMemory(
    vk_device_memory_destroy(&device->vk, pAllocator, &mem->vk);
 
    return result;
-}
-
-VkResult anv_GetMemoryFdKHR(
-    VkDevice                                    device_h,
-    const VkMemoryGetFdInfoKHR*                 pGetFdInfo,
-    int*                                        pFd)
-{
-   ANV_FROM_HANDLE(anv_device, dev, device_h);
-   ANV_FROM_HANDLE(anv_device_memory, mem, pGetFdInfo->memory);
-
-   assert(pGetFdInfo->sType == VK_STRUCTURE_TYPE_MEMORY_GET_FD_INFO_KHR);
-
-   assert(pGetFdInfo->handleType == VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT ||
-          pGetFdInfo->handleType == VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT);
-
-   return anv_device_export_bo(dev, mem->bo, pFd);
-}
-
-VkResult anv_GetMemoryFdPropertiesKHR(
-    VkDevice                                    _device,
-    VkExternalMemoryHandleTypeFlagBits          handleType,
-    int                                         fd,
-    VkMemoryFdPropertiesKHR*                    pMemoryFdProperties)
-{
-   ANV_FROM_HANDLE(anv_device, device, _device);
-
-   switch (handleType) {
-   case VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT:
-      /* dma-buf can be imported as any memory type */
-      pMemoryFdProperties->memoryTypeBits =
-         (1 << device->physical->memory.type_count) - 1;
-      return VK_SUCCESS;
-
-   default:
-      /* The valid usage section for this function says:
-       *
-       *    "handleType must not be one of the handle types defined as
-       *    opaque."
-       *
-       * So opaque handle types fall into the default "unsupported" case.
-       */
-      return vk_error(device, VK_ERROR_INVALID_EXTERNAL_HANDLE);
-   }
 }
 
 VkResult anv_GetMemoryHostPointerPropertiesEXT(

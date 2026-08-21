@@ -211,6 +211,7 @@ libanv_files = files(
   'anv_kmd_backend.c',
   'anv_kmd_backend.h',
   'anv_linux.h',
+  'anv_linux.c',
   'anv_measure.c',
   'anv_measure.h',
   'anv_nir.h',

@@ -30,3 +30,16 @@ struct anv_linux_sys_driver_ops {
    VkResult (*set_bo_tiling)(struct anv_device *device, struct anv_bo *bo,
                              uint32_t row_pitch_B, enum isl_tiling tiling);
 };
+
+VkResult anv_linux_device_map_placed_addr_slab(struct anv_device *device,
+                                               struct anv_bo *bo,
+                                               uint64_t offset,
+                                               size_t size,
+                                               void *placed_addr,
+                                               void **map_out);
+VkResult anv_linux_device_import_bo(struct anv_device *device, int fd,
+                                    enum anv_bo_alloc_flags alloc_flags,
+                                    uint64_t client_address,
+                                    struct anv_bo **bo);
+VkResult anv_linux_device_export_bo(struct anv_device *device,
+                                    struct anv_bo *bo, int *fd_out);
