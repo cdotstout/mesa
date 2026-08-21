@@ -465,6 +465,8 @@ i915_queue_get_exec_id(struct anv_queue *queue)
 }
 
 static const struct anv_linux_sys_driver_ops i915_linux_sys_driver_ops = {
+   .bo_export_fd = anv_gem_bo_export_fd,
+   .bo_import_fd = anv_gem_bo_import_fd,
    .get_bo_tiling = i915_get_bo_tiling,
    .set_bo_tiling = i915_set_bo_tiling,
 };

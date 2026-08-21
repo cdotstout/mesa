@@ -34,12 +34,13 @@ anv_linux_device_map_placed_addr_slab(struct anv_device *device,
                                       void *placed_addr,
                                       void **map_out)
 {
-   int prime_handle = anv_gem_handle_to_fd(device, bo->gem_handle);
+   int prime_handle =
+      device->kmd_backend->linux_sys_driver_ops->bo_export_fd(device, bo);
    VkResult result = VK_SUCCESS;
 
    if (prime_handle < 0) {
       return vk_errorf(device, VK_ERROR_MEMORY_MAP_FAILED,
-                       "anv_gem_handle_to_fd() before mmap failed: %m");
+                       "bo_export_fd() before mmap failed: %m");
    }
 
    offset += (bo->offset - bo->slab_parent->offset);
@@ -83,7 +84,8 @@ anv_linux_device_import_bo(struct anv_device *device,
 
    simple_mtx_lock(&cache->mutex);
 
-   uint32_t gem_handle = anv_gem_fd_to_handle(device, fd);
+   uint32_t gem_handle =
+      device->kmd_backend->linux_sys_driver_ops->bo_import_fd(device, fd);
    if (!gem_handle) {
       simple_mtx_unlock(&cache->mutex);
       return vk_error(device, VK_ERROR_INVALID_EXTERNAL_HANDLE);
@@ -171,7 +173,7 @@ anv_linux_device_export_bo(struct anv_device *device,
     */
    assert(anv_bo_is_external(bo));
 
-   int fd = anv_gem_handle_to_fd(device, bo->gem_handle);
+   int fd = device->kmd_backend->linux_sys_driver_ops->bo_export_fd(device, bo);
    if (fd < 0)
       return vk_error(device, VK_ERROR_TOO_MANY_OBJECTS);
 

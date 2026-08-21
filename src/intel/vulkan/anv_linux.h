@@ -25,6 +25,8 @@ struct vk_instance;
 struct vk_physical_device;
 
 struct anv_linux_sys_driver_ops {
+   int (*bo_export_fd)(struct anv_device *device, struct anv_bo *bo);
+   uint32_t (*bo_import_fd)(struct anv_device *device, int fd);
    VkResult (*get_bo_tiling)(struct anv_device *device, struct anv_bo *bo,
                              enum isl_tiling *tiling_out);
    VkResult (*set_bo_tiling)(struct anv_device *device, struct anv_bo *bo,
@@ -43,3 +45,5 @@ VkResult anv_linux_device_import_bo(struct anv_device *device, int fd,
                                     struct anv_bo **bo);
 VkResult anv_linux_device_export_bo(struct anv_device *device,
                                     struct anv_bo *bo, int *fd_out);
+int anv_gem_bo_export_fd(struct anv_device *device, struct anv_bo *bo);
+uint32_t anv_gem_bo_import_fd(struct anv_device *device, int fd);

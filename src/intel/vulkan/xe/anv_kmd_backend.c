@@ -466,6 +466,8 @@ xe_device_setup_context_or_vm(struct anv_device *device,
 }
 
 static const struct anv_linux_sys_driver_ops xe_linux_sys_driver_ops = {
+   .bo_export_fd = anv_gem_bo_export_fd,
+   .bo_import_fd = anv_gem_bo_import_fd,
 };
 
 const struct anv_kmd_backend *

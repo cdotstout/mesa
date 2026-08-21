@@ -33,10 +33,10 @@
 #include "common/intel_gem.h"
 
 int
-anv_gem_handle_to_fd(struct anv_device *device, uint32_t gem_handle)
+anv_gem_bo_export_fd(struct anv_device *device, struct anv_bo *bo)
 {
    struct drm_prime_handle args = {
-      .handle = gem_handle,
+      .handle = bo->gem_handle,
       .flags = DRM_CLOEXEC | DRM_RDWR,
    };
 
@@ -48,7 +48,7 @@ anv_gem_handle_to_fd(struct anv_device *device, uint32_t gem_handle)
 }
 
 uint32_t
-anv_gem_fd_to_handle(struct anv_device *device, int fd)
+anv_gem_bo_import_fd(struct anv_device *device, int fd)
 {
    struct drm_prime_handle args = {
       .fd = fd,

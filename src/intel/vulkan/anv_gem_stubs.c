@@ -103,15 +103,15 @@ stub_gem_create_userptr(struct anv_device *device, void *mem, uint64_t size)
 }
 
 int
-anv_gem_handle_to_fd(struct anv_device *device, uint32_t gem_handle)
+anv_gem_bo_export_fd(struct anv_device *device, struct anv_bo *bo)
 {
-   UNREACHABLE("Unused");
+   return -1;
 }
 
 uint32_t
-anv_gem_fd_to_handle(struct anv_device *device, int fd)
+anv_gem_bo_import_fd(struct anv_device *device, int fd)
 {
-   UNREACHABLE("Unused");
+   return 0;
 }
 
 static uint32_t
@@ -188,6 +188,8 @@ stub_destroy_engine(struct anv_device *device, struct anv_queue *queue)
 }
 
 static const struct anv_linux_sys_driver_ops stub_linux_sys_driver_ops = {
+   .bo_export_fd = anv_gem_bo_export_fd,
+   .bo_import_fd = anv_gem_bo_import_fd,
 };
 
 const struct anv_kmd_backend *anv_stub_kmd_backend_get(void)
