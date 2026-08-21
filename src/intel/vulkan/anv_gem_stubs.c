@@ -155,6 +155,18 @@ stub_vm_bind_bo(struct anv_device *device, struct anv_bo *bo)
    return VK_SUCCESS;
 }
 
+static int
+stub_gem_handle_to_fd(struct anv_device *device, uint32_t gem_handle)
+{
+   return -1;
+}
+
+static uint32_t
+stub_gem_fd_to_handle(struct anv_device *device, int fd)
+{
+   return 0;
+}
+
 const struct anv_kmd_backend *anv_stub_kmd_backend_get(void)
 {
    static const struct anv_kmd_backend stub_backend = {
@@ -168,6 +180,20 @@ const struct anv_kmd_backend *anv_stub_kmd_backend_get(void)
       .queue_exec_locked = stub_queue_exec_locked,
       .queue_exec_async = stub_queue_exec_async,
       .bo_alloc_flags_to_bo_flags = stub_bo_alloc_flags_to_bo_flags,
+      .gem_handle_to_fd = stub_gem_handle_to_fd,
+      .gem_fd_to_handle = stub_gem_fd_to_handle,
    };
    return &stub_backend;
+}
+
+int
+anv_drm_gem_handle_to_fd(struct anv_device *device, uint32_t gem_handle)
+{
+   return -1;
+}
+
+uint32_t
+anv_drm_gem_fd_to_handle(struct anv_device *device, int fd)
+{
+   return 0;
 }

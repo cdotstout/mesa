@@ -358,6 +358,8 @@ anv_i915_kmd_backend_get(void)
       .queue_exec_locked = i915_queue_exec_locked,
       .queue_exec_async = i915_queue_exec_async,
       .bo_alloc_flags_to_bo_flags = i915_bo_alloc_flags_to_bo_flags,
+      .gem_handle_to_fd = anv_drm_gem_handle_to_fd,
+      .gem_fd_to_handle = anv_drm_gem_fd_to_handle,
    };
    return &i915_backend;
 }

@@ -82,7 +82,7 @@ anv_gem_set_tiling(struct anv_device *device,
 }
 
 int
-anv_gem_handle_to_fd(struct anv_device *device, uint32_t gem_handle)
+anv_drm_gem_handle_to_fd(struct anv_device *device, uint32_t gem_handle)
 {
    struct drm_prime_handle args = {
       .handle = gem_handle,
@@ -97,7 +97,7 @@ anv_gem_handle_to_fd(struct anv_device *device, uint32_t gem_handle)
 }
 
 uint32_t
-anv_gem_fd_to_handle(struct anv_device *device, int fd)
+anv_drm_gem_fd_to_handle(struct anv_device *device, int fd)
 {
    struct drm_prime_handle args = {
       .fd = fd,
@@ -108,6 +108,24 @@ anv_gem_fd_to_handle(struct anv_device *device, int fd)
       return 0;
 
    return args.handle;
+}
+
+int
+anv_gem_handle_to_fd(struct anv_device *device, uint32_t gem_handle)
+{
+   if (device->kmd_backend->gem_handle_to_fd)
+      return device->kmd_backend->gem_handle_to_fd(device, gem_handle);
+
+   return -ENODEV;
+}
+
+uint32_t
+anv_gem_fd_to_handle(struct anv_device *device, int fd)
+{
+   if (device->kmd_backend->gem_fd_to_handle)
+      return device->kmd_backend->gem_fd_to_handle(device, fd);
+
+   return 0;
 }
 
 VkResult

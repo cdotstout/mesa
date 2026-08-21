@@ -128,6 +128,8 @@ struct anv_kmd_backend {
                                 const struct vk_sync_signal *signals);
    uint32_t (*bo_alloc_flags_to_bo_flags)(struct anv_device *device,
                                           enum anv_bo_alloc_flags alloc_flags);
+   int (*gem_handle_to_fd)(struct anv_device *device, uint32_t gem_handle);
+   uint32_t (*gem_fd_to_handle)(struct anv_device *device, int fd);
 };
 
 const struct anv_kmd_backend *anv_kmd_backend_get(enum intel_kmd_type type);
@@ -136,3 +138,7 @@ const struct anv_kmd_backend *anv_kmd_backend_get(enum intel_kmd_type type);
 const struct anv_kmd_backend *anv_i915_kmd_backend_get(void);
 const struct anv_kmd_backend *anv_xe_kmd_backend_get(void);
 const struct anv_kmd_backend *anv_stub_kmd_backend_get(void);
+
+/* DRM PRIME helpers */
+int anv_drm_gem_handle_to_fd(struct anv_device *device, uint32_t gem_handle);
+uint32_t anv_drm_gem_fd_to_handle(struct anv_device *device, int fd);
