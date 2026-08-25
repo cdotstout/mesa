@@ -286,6 +286,13 @@ else
   libanv_files += files('anv_android_stubs.c')
 endif
 
+if with_magma
+  libanv_files += files(
+    'magma/anv_magma.c',
+  )
+  anv_deps += idep_magma_ffi
+endif
+
 anv_deps += idep_intel_driver_ds_headers
 
 libanv_common = static_library(
