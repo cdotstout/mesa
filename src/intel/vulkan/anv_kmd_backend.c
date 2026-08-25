@@ -34,6 +34,10 @@ anv_kmd_backend_get(enum intel_kmd_type type)
       return anv_i915_kmd_backend_get();
    case INTEL_KMD_TYPE_XE:
       return anv_xe_kmd_backend_get();
+#if HAVE_MAGMA
+   case INTEL_KMD_TYPE_MAGMA:
+      return anv_magma_kmd_backend_get();
+#endif
    case INTEL_KMD_TYPE_STUB:
       return anv_stub_kmd_backend_get();
    default:

@@ -31,6 +31,7 @@ enum intel_kmd_type {
    INTEL_KMD_TYPE_INVALID = 0,
    INTEL_KMD_TYPE_I915,
    INTEL_KMD_TYPE_XE,
+   INTEL_KMD_TYPE_MAGMA,
    INTEL_KMD_TYPE_STUB, /* Only used by ANV to run tests */
    INTEL_KMD_TYPE_LAST
 };

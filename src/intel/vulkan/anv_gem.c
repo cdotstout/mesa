@@ -44,6 +44,7 @@ anv_gem_wait(struct anv_device *device, uint32_t gem_handle, int64_t *timeout_ns
    case INTEL_KMD_TYPE_I915:
       return anv_i915_gem_wait(device, gem_handle, timeout_ns);
    case INTEL_KMD_TYPE_XE:
+   case INTEL_KMD_TYPE_MAGMA:
       return -1;
    default:
       UNREACHABLE("missing");
@@ -59,6 +60,7 @@ anv_gem_get_tiling(struct anv_device *device, uint32_t gem_handle)
    case INTEL_KMD_TYPE_I915:
       return anv_i915_gem_get_tiling(device, gem_handle);
    case INTEL_KMD_TYPE_XE:
+   case INTEL_KMD_TYPE_MAGMA:
       return -1;
    default:
       UNREACHABLE("missing");
@@ -74,6 +76,7 @@ anv_gem_set_tiling(struct anv_device *device,
    case INTEL_KMD_TYPE_I915:
       return anv_i915_gem_set_tiling(device, gem_handle, stride, tiling);
    case INTEL_KMD_TYPE_XE:
+   case INTEL_KMD_TYPE_MAGMA:
       return 0;
    default:
       UNREACHABLE("missing");
@@ -140,6 +143,7 @@ anv_gem_import_bo_alloc_flags_to_bo_flags(struct anv_device *device,
                                                             alloc_flags,
                                                             bo_flags);
    case INTEL_KMD_TYPE_XE:
+   case INTEL_KMD_TYPE_MAGMA:
       *bo_flags = device->kmd_backend->bo_alloc_flags_to_bo_flags(device, alloc_flags);
       return VK_SUCCESS;
    default:

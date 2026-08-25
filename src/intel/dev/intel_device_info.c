@@ -1985,6 +1985,9 @@ intel_get_device_info_from_fd(int fd, struct intel_device_info *devinfo, int min
             mesa_logw("Support for this platform is experimental with Xe KMD, bug reports may be ignored.");
       }
       break;
+   case INTEL_KMD_TYPE_MAGMA:
+      ret = true;
+      break;
    default:
       ret = false;
       UNREACHABLE("Missing");

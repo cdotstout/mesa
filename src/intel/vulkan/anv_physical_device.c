@@ -9,6 +9,9 @@
 #include "dev/intel_debug.h"
 #include "i915/anv_device.h"
 #include "xe/anv_device.h"
+#if HAVE_MAGMA
+#include "magma/anv_magma.h"
+#endif
 
 #include "common/intel_common.h"
 #include "common/intel_uuid.h"
@@ -2618,6 +2621,11 @@ anv_physical_device_init_heaps(struct anv_physical_device *device, int fd)
    case INTEL_KMD_TYPE_XE:
       result = anv_xe_physical_device_init_memory_types(device);
       break;
+#if HAVE_MAGMA
+   case INTEL_KMD_TYPE_MAGMA:
+      result = anv_magma_physical_device_init_memory_types(device);
+      break;
+#endif
    case INTEL_KMD_TYPE_I915:
    default:
       result = anv_i915_physical_device_init_memory_types(device);
@@ -2977,6 +2985,10 @@ anv_physical_device_get_parameters(struct anv_physical_device *device)
       return anv_i915_physical_device_get_parameters(device);
    case INTEL_KMD_TYPE_XE:
       return anv_xe_physical_device_get_parameters(device);
+#if HAVE_MAGMA
+   case INTEL_KMD_TYPE_MAGMA:
+      return anv_magma_physical_device_get_parameters(device);
+#endif
    default:
       UNREACHABLE("Missing");
       return VK_ERROR_UNKNOWN;
@@ -2993,6 +3005,11 @@ anv_physical_device_init_sync(struct anv_physical_device *device)
    case INTEL_KMD_TYPE_XE:
       anv_xe_physical_device_init_sync(device);
       break;
+#if HAVE_MAGMA
+   case INTEL_KMD_TYPE_MAGMA:
+      anv_magma_physical_device_init_sync(device);
+      break;
+#endif
    default:
       UNREACHABLE("Missing");
    }
@@ -3179,12 +3196,14 @@ anv_physical_device_create(struct anv_instance *instance,
    device->has_reg_timestamp = fd >= 0 &&
       intel_gem_read_render_timestamp(fd, device->info.kmd_type, &u64_ignore);
 
-   device->uses_relocs = device->info.kmd_type != INTEL_KMD_TYPE_XE;
+   device->uses_relocs = device->info.kmd_type != INTEL_KMD_TYPE_XE &&
+                         device->info.kmd_type != INTEL_KMD_TYPE_MAGMA;
 
    /* While xe.ko can use both vm_bind and TR-TT, i915.ko only has TR-TT. */
    if (!ANV_DEBUG(NO_SPARSE)) {
-      if (device->info.kmd_type == INTEL_KMD_TYPE_XE) {
-         if (ANV_DEBUG(SPARSE_TRTT))
+      if (device->info.kmd_type == INTEL_KMD_TYPE_XE ||
+          device->info.kmd_type == INTEL_KMD_TYPE_MAGMA) {
+         if (device->info.kmd_type == INTEL_KMD_TYPE_XE && ANV_DEBUG(SPARSE_TRTT))
             device->sparse_type = ANV_SPARSE_TYPE_TRTT;
          else
             device->sparse_type = ANV_SPARSE_TYPE_VM_BIND;

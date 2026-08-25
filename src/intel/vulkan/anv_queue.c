@@ -29,6 +29,9 @@
 
 #include "i915/anv_queue.h"
 #include "xe/anv_queue.h"
+#if HAVE_MAGMA
+#include "magma/anv_magma.h"
+#endif
 
 #include "vk_common_entrypoints.h"
 
@@ -42,6 +45,10 @@ anv_create_engine(struct anv_device *device,
       return anv_i915_create_engine(device, queue, pCreateInfo);
    case INTEL_KMD_TYPE_XE:
       return anv_xe_create_engine(device, queue, pCreateInfo);
+#if HAVE_MAGMA
+   case INTEL_KMD_TYPE_MAGMA:
+      return anv_magma_create_engine(device, queue, pCreateInfo);
+#endif
    default:
       UNREACHABLE("Missing");
       return VK_ERROR_UNKNOWN;
@@ -59,6 +66,11 @@ anv_destroy_engine(struct anv_queue *queue)
    case INTEL_KMD_TYPE_XE:
       anv_xe_destroy_engine(device, queue);
       break;
+#if HAVE_MAGMA
+   case INTEL_KMD_TYPE_MAGMA:
+      anv_magma_destroy_engine(device, queue);
+      break;
+#endif
    default:
       UNREACHABLE("Missing");
    }

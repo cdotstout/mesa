@@ -148,6 +148,14 @@ struct intel_perf_query_result;
 #include "anv_types.h"
 #include "isl/isl.h"
 
+#if HAVE_MAGMA
+struct magma_queue;
+typedef struct magma_queue* magma_queue_t;
+struct magma_physical_device;
+typedef struct magma_physical_device* magma_physical_device_t;
+struct anv_magma_device;
+#endif
+
 #include "dev/intel_debug.h"
 #undef MESA_LOG_TAG
 #define MESA_LOG_TAG "MESA-INTEL"
@@ -1712,6 +1720,9 @@ struct anv_physical_device {
     int64_t                                     master_major;
     int64_t                                     master_minor;
     struct intel_query_engine_info *            engine_info;
+#if HAVE_MAGMA
+    magma_physical_device_t                     magma_physical_device;
+#endif
 
     void (*cmd_emit_timestamp)(struct anv_batch *, struct anv_device *, struct anv_address,
                                enum anv_timestamp_capture_type, void *);
@@ -1895,6 +1906,9 @@ struct anv_queue {
       uint32_t                               exec_flags; /* i915 */
       uint32_t                               context_id; /* i915 */
       uint32_t                               exec_queue_id; /* Xe */
+#if HAVE_MAGMA
+      magma_queue_t                          magma_queue;
+#endif
    };
 
    uint32_t                                  bind_queue_id; /* Xe */
@@ -2645,6 +2659,9 @@ struct anv_device {
        uint32_t                                 context_id; /* i915 */
        uint32_t                                 vm_id; /* Xe */
     };
+#if HAVE_MAGMA
+    struct anv_magma_device *                   magma;
+#endif
     int                                         fd;
 
     pthread_mutex_t                             vma_mutex;

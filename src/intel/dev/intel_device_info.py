@@ -171,6 +171,7 @@ Enum("intel_kmd_type",
      ["INTEL_KMD_TYPE_INVALID",
       "INTEL_KMD_TYPE_I915",
       "INTEL_KMD_TYPE_XE",
+      "INTEL_KMD_TYPE_MAGMA",
       "INTEL_KMD_TYPE_STUB",
       "INTEL_KMD_TYPE_LAST"
       ], external=True)

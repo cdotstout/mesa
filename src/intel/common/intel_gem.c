@@ -109,6 +109,8 @@ intel_gem_read_render_timestamp(int fd,
       return i915_gem_read_render_timestamp(fd, value);
    case INTEL_KMD_TYPE_XE:
       return xe_gem_read_render_timestamp(fd, value);
+   case INTEL_KMD_TYPE_MAGMA:
+      return false;
    default:
       UNREACHABLE("Missing");
       return false;
@@ -127,6 +129,7 @@ intel_gem_read_correlate_cpu_gpu_timestamp(int fd,
 {
    switch (kmd_type) {
    case INTEL_KMD_TYPE_I915:
+   case INTEL_KMD_TYPE_MAGMA:
       return false;
    case INTEL_KMD_TYPE_XE:
       return xe_gem_read_correlate_cpu_gpu_timestamp(fd, engine_class,
@@ -156,6 +159,8 @@ intel_gem_supports_protected_context(int fd, enum intel_kmd_type kmd_type)
       return i915_gem_supports_protected_context(fd);
    case INTEL_KMD_TYPE_XE:
       return xe_gem_supports_protected_exec_queue(fd);
+   case INTEL_KMD_TYPE_MAGMA:
+      return false;
    default:
       UNREACHABLE("Missing");
       return false;
@@ -170,6 +175,8 @@ intel_gem_supports_huc(int fd, enum intel_kmd_type kmd_type)
       return i915_gem_supports_huc(fd);
    case INTEL_KMD_TYPE_XE:
       return xe_gem_supports_huc(fd);
+   case INTEL_KMD_TYPE_MAGMA:
+      return false;
    default:
       UNREACHABLE("Missing");
       return false;
@@ -209,6 +216,7 @@ intel_gem_can_render_on_fd(int fd, enum intel_kmd_type kmd_type)
    case INTEL_KMD_TYPE_I915:
       return i915_gem_can_render_on_fd(fd);
    case INTEL_KMD_TYPE_XE:
+   case INTEL_KMD_TYPE_MAGMA:
       return xe_gem_can_render_on_fd(fd);
    default:
       UNREACHABLE("Missing");

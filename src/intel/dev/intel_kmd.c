@@ -45,6 +45,8 @@ intel_get_kmd_type(int fd)
       type = INTEL_KMD_TYPE_I915;
    else if (strcmp(version->name, "xe") == 0)
       type = INTEL_KMD_TYPE_XE;
+   else if (strcmp(version->name, "magma") == 0)
+      type = INTEL_KMD_TYPE_MAGMA;
 
    drmFreeVersion(version);
 

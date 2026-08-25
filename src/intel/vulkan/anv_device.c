@@ -44,6 +44,9 @@
 
 #include "i915/anv_device.h"
 #include "xe/anv_device.h"
+#if HAVE_MAGMA
+#include "magma/anv_magma.h"
+#endif
 
 #include "genxml/gen70_pack.h"
 #include "genxml/genX_bits.h"
@@ -289,6 +292,10 @@ anv_device_setup_context_or_vm(struct anv_device *device,
       return anv_i915_device_setup_context(device, pCreateInfo, num_queues);
    case INTEL_KMD_TYPE_XE:
       return anv_xe_device_setup_vm(device);
+#if HAVE_MAGMA
+   case INTEL_KMD_TYPE_MAGMA:
+      return anv_magma_device_setup_vm(device);
+#endif
    default:
       UNREACHABLE("Missing");
       return VK_ERROR_UNKNOWN;
@@ -306,6 +313,10 @@ anv_device_destroy_context_or_vm(struct anv_device *device)
          return intel_gem_destroy_context(device->fd, device->context_id);
    case INTEL_KMD_TYPE_XE:
       return anv_xe_device_destroy_vm(device);
+#if HAVE_MAGMA
+   case INTEL_KMD_TYPE_MAGMA:
+      return anv_magma_device_destroy_vm(device);
+#endif
    default:
       UNREACHABLE("Missing");
       return false;
@@ -968,6 +979,11 @@ VkResult anv_CreateDevice(
    case INTEL_KMD_TYPE_XE:
       device->vk.check_status = anv_xe_device_check_status;
       break;
+#if HAVE_MAGMA
+   case INTEL_KMD_TYPE_MAGMA:
+      device->vk.check_status = anv_magma_device_check_status;
+      break;
+#endif
    default:
       UNREACHABLE("Missing");
    }
@@ -2630,6 +2646,10 @@ anv_device_alloc_get_vm_faults(struct anv_device *device)
    switch (device->info->kmd_type) {
    case INTEL_KMD_TYPE_XE:
       return anv_xe_device_alloc_get_vm_faults(device);
+#if HAVE_MAGMA
+   case INTEL_KMD_TYPE_MAGMA:
+      return anv_magma_device_alloc_get_vm_faults(device);
+#endif
    default:
       return NULL;
    }
