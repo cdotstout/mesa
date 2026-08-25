@@ -1912,6 +1912,9 @@ struct anv_queue {
    };
 
    uint32_t                                  bind_queue_id; /* Xe */
+#if HAVE_MAGMA
+   magma_queue_t                             magma_bind_queue;
+#endif
 
    /** Context/Engine id which executes companion RCS command buffer */
    uint32_t                                  companion_rcs_id;
