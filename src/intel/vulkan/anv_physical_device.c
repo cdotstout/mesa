@@ -7,6 +7,9 @@
 #include "anv_measure.h"
 
 #include "dev/intel_debug.h"
+#if HAVE_MAGMA
+#include "magma/anv_magma.h"
+#endif
 
 #include "common/intel_common.h"
 #include "common/intel_uuid.h"
@@ -3056,12 +3059,14 @@ anv_physical_device_create(struct anv_instance *instance,
 
    device->vk.pipeline_cache_import_ops = anv_cache_import_ops;
 
-   device->uses_relocs = device->info.kmd_type != INTEL_KMD_TYPE_XE;
+   device->uses_relocs = device->info.kmd_type != INTEL_KMD_TYPE_XE &&
+                         device->info.kmd_type != INTEL_KMD_TYPE_MAGMA;
 
    /* While xe.ko can use both vm_bind and TR-TT, i915.ko only has TR-TT. */
    if (!ANV_DEBUG(NO_SPARSE)) {
-      if (device->info.kmd_type == INTEL_KMD_TYPE_XE) {
-         if (ANV_DEBUG(SPARSE_TRTT))
+      if (device->info.kmd_type == INTEL_KMD_TYPE_XE ||
+          device->info.kmd_type == INTEL_KMD_TYPE_MAGMA) {
+         if (device->info.kmd_type == INTEL_KMD_TYPE_XE && ANV_DEBUG(SPARSE_TRTT))
             device->sparse_type = ANV_SPARSE_TYPE_TRTT;
          else
             device->sparse_type = ANV_SPARSE_TYPE_VM_BIND;

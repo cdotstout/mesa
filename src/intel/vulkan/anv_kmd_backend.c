@@ -25,6 +25,9 @@
 
 #include "anv_kmd_backend.h"
 #include "anv_private.h"
+#if HAVE_MAGMA
+#include "magma/anv_magma.h"
+#endif
 
 const struct anv_kmd_backend *
 anv_kmd_backend_get(enum intel_kmd_type type)
@@ -37,6 +40,10 @@ anv_kmd_backend_get(enum intel_kmd_type type)
       return anv_xe_kmd_backend_get();
    case INTEL_KMD_TYPE_STUB:
       return anv_stub_kmd_backend_get();
+#endif
+#if HAVE_MAGMA
+   case INTEL_KMD_TYPE_MAGMA:
+      return anv_magma_kmd_backend_get();
 #endif
    default:
       return NULL;
