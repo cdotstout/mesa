@@ -23,6 +23,13 @@ if host_machine.system() == 'linux'
   )
 endif
 
+if with_magma
+  files_libintel_dev += files(
+    'magma/intel_device_info.c',
+    'magma/intel_device_info.h',
+  )
+endif
+
 inc_intel_dev_virtio = []
 link_intel_dev_virtio = []
 
@@ -69,7 +76,7 @@ libintel_dev = static_library(
   [files_libintel_dev, sha1_h, [intel_dev_wa_src]],
   include_directories : [inc_include, inc_src, inc_intel, inc_intel_dev_virtio],
   dependencies : [idep_nir, idep_nir_headers, dep_libdrm, idep_mesautil, idep_intel_dev_wa,
-                  idep_intel_dev_info_gen, idep_xmlconfig],
+                  idep_intel_dev_info_gen, idep_xmlconfig, idep_magma_ffi],
   c_args : [no_override_init_args, soong_compat_c_args],
   gnu_symbol_visibility : 'hidden',
   link_with : [link_intel_dev_virtio],
