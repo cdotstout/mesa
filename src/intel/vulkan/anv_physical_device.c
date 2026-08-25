@@ -3214,7 +3214,11 @@ fail_alloc:
 VkResult
 anv_enumerate_physical_devices(struct vk_instance *vk_instance)
 {
+#if HAVE_MAGMA
+   return anv_magma_enumerate_physical_devices(vk_instance);
+#else
    return VK_ERROR_INCOMPATIBLE_DRIVER;
+#endif
 }
 
 void
@@ -3232,6 +3236,10 @@ anv_physical_device_destroy(struct vk_physical_device *vk_device)
    intel_perf_free(device->perf);
    anv_physical_device_finish_drirc(device);
    device->kmd_backend->physical_device_finish_fd(device);
+#if HAVE_MAGMA
+   if (device->magma_physical_device)
+      magma_physical_device_release(&device->magma_physical_device);
+#endif
    vk_physical_device_finish(&device->vk);
    vk_free(&device->instance->vk.alloc, device);
 }
