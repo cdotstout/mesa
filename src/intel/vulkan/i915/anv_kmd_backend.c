@@ -344,6 +344,13 @@ i915_bo_alloc_flags_to_bo_flags(struct anv_device *device,
    return bo_flags;
 }
 
+static void
+i915_gem_munmap(struct anv_device *device, struct anv_bo *bo,
+                void *map, size_t map_size)
+{
+   munmap(map, map_size);
+}
+
 const struct anv_kmd_backend *
 anv_i915_kmd_backend_get(void)
 {
@@ -352,6 +359,7 @@ anv_i915_kmd_backend_get(void)
       .gem_create_userptr = i915_gem_create_userptr,
       .gem_close = i915_gem_close,
       .gem_mmap = i915_gem_mmap,
+      .gem_munmap = i915_gem_munmap,
       .vm_bind = i915_vm_bind,
       .vm_bind_bo = i915_vm_bind_bo,
       .vm_unbind_bo = i915_vm_bind_bo,

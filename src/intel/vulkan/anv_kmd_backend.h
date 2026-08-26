@@ -87,6 +87,8 @@ struct anv_kmd_backend {
    /* Returns MAP_FAILED on error */
    void *(*gem_mmap)(struct anv_device *device, struct anv_bo *bo,
                      uint64_t offset, uint64_t size, void *placed_addr);
+   void (*gem_munmap)(struct anv_device *device, struct anv_bo *bo,
+                      void *map, size_t map_size);
 
    /*
     * Bind things however you want.

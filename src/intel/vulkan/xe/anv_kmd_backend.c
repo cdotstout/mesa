@@ -185,6 +185,13 @@ xe_gem_mmap(struct anv_device *device, struct anv_bo *bo, uint64_t offset,
    return ret;
 }
 
+static void
+xe_gem_munmap(struct anv_device *device, struct anv_bo *bo,
+              void *map, size_t map_size)
+{
+   munmap(map, map_size);
+}
+
 static inline uint32_t
 capture_vm_in_error_dump(struct anv_device *device, struct anv_bo *bo)
 {
@@ -447,6 +454,7 @@ anv_xe_kmd_backend_get(void)
       .gem_create_userptr = xe_gem_create_userptr,
       .gem_close = xe_gem_close,
       .gem_mmap = xe_gem_mmap,
+      .gem_munmap = xe_gem_munmap,
       .vm_bind = xe_vm_bind,
       .vm_bind_bo = xe_vm_bind_bo,
       .vm_unbind_bo = xe_vm_unbind_bo,

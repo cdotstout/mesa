@@ -1907,7 +1907,7 @@ anv_device_unmap_bo(struct anv_device *device,
       }
    } else {
       VG(VALGRIND_FREELIKE_BLOCK(map, 0));
-      munmap(map, map_size);
+      device->kmd_backend->gem_munmap(device, bo, map, map_size);
    }
    return VK_SUCCESS;
 }

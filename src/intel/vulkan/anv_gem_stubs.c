@@ -58,6 +58,13 @@ stub_gem_mmap(struct anv_device *device, struct anv_bo *bo, uint64_t offset,
                offset);
 }
 
+static void
+stub_gem_munmap(struct anv_device *device, struct anv_bo *bo,
+                void *map, size_t map_size)
+{
+   munmap(map, map_size);
+}
+
 static VkResult
 stub_queue_exec_locked(struct anv_queue *queue,
                        uint32_t wait_count,
@@ -174,6 +181,7 @@ const struct anv_kmd_backend *anv_stub_kmd_backend_get(void)
       .gem_create_userptr = stub_gem_create_userptr,
       .gem_close = stub_gem_close,
       .gem_mmap = stub_gem_mmap,
+      .gem_munmap = stub_gem_munmap,
       .vm_bind = stub_vm_bind,
       .vm_bind_bo = stub_vm_bind_bo,
       .vm_unbind_bo = stub_vm_bind_bo,
