@@ -93,6 +93,8 @@ struct anv_kmd_backend {
    /* Returns MAP_FAILED on error */
    void *(*gem_mmap)(struct anv_device *device, struct anv_bo *bo,
                      uint64_t offset, uint64_t size, void *placed_addr);
+   VkResult (*bo_unmap)(struct anv_device *device, struct anv_bo *bo,
+                        void *map, size_t map_size, bool replace);
 
    /*
     * Bind things however you want.

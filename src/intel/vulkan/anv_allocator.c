@@ -1701,19 +1701,8 @@ anv_device_unmap_bo(struct anv_device *device,
       assert(((uintptr_t)map & (page_size - 1)) == 0);
    }
 
-   VG(VALGRIND_FREELIKE_BLOCK(map, 0));
-
-   if (replace) {
-      map = mmap(map, map_size, PROT_NONE,
-                 MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
-      if (map == MAP_FAILED) {
-         return vk_errorf(device, VK_ERROR_MEMORY_MAP_FAILED,
-                          "Failed to map over original mapping");
-      }
-   } else {
-      munmap(map, map_size);
-   }
-   return VK_SUCCESS;
+   return device->kmd_backend->bo_unmap(
+      device, bo, map, map_size, replace);
 }
 
 VkResult

@@ -143,6 +143,18 @@ stub_vm_bind_bo(struct anv_device *device, struct anv_bo *bo)
 }
 
 static VkResult
+stub_bo_unmap(struct anv_device *device, struct anv_bo *bo,
+              void *map, size_t map_size, bool replace)
+{
+   if (replace)
+      return VK_ERROR_MEMORY_MAP_FAILED;
+
+   VG(VALGRIND_FREELIKE_BLOCK(map, 0));
+   munmap(map, map_size);
+   return VK_SUCCESS;
+}
+
+static VkResult
 stub_physical_device_get_parameters(struct anv_physical_device *device)
 {
    return VK_SUCCESS;
@@ -200,6 +212,7 @@ const struct anv_kmd_backend *anv_stub_kmd_backend_get(void)
       .gem_create_userptr = stub_gem_create_userptr,
       .gem_close = stub_gem_close,
       .gem_mmap = stub_gem_mmap,
+      .bo_unmap = stub_bo_unmap,
       .vm_bind = stub_vm_bind,
       .vm_bind_bo = stub_vm_bind_bo,
       .vm_unbind_bo = stub_vm_bind_bo,

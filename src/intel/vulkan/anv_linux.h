@@ -47,3 +47,5 @@ VkResult anv_linux_device_export_bo(struct anv_device *device,
                                     struct anv_bo *bo, int *fd_out);
 int anv_gem_bo_export_fd(struct anv_device *device, struct anv_bo *bo);
 uint32_t anv_gem_bo_import_fd(struct anv_device *device, int fd);
+VkResult anv_linux_bo_unmap(struct anv_device *device, struct anv_bo *bo,
+                            void *map, size_t map_size, bool replace);

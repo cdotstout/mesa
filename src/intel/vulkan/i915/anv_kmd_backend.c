@@ -480,6 +480,7 @@ anv_i915_kmd_backend_get(void)
       .gem_create_userptr = i915_gem_create_userptr,
       .gem_close = i915_gem_close,
       .gem_mmap = i915_gem_mmap,
+      .bo_unmap = anv_linux_bo_unmap,
       .vm_bind = i915_vm_bind,
       .vm_bind_bo = i915_vm_bind_bo,
       .vm_unbind_bo = i915_vm_bind_bo,

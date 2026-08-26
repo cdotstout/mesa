@@ -479,6 +479,7 @@ anv_xe_kmd_backend_get(void)
       .gem_create_userptr = xe_gem_create_userptr,
       .gem_close = xe_gem_close,
       .gem_mmap = xe_gem_mmap,
+      .bo_unmap = anv_linux_bo_unmap,
       .vm_bind = xe_vm_bind,
       .vm_bind_bo = xe_vm_bind_bo,
       .vm_unbind_bo = xe_vm_unbind_bo,
