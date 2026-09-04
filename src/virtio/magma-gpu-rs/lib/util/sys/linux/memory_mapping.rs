@@ -47,7 +47,7 @@ impl Drop for MemoryMapping {
 impl MemoryMapping {
     fn do_mmap(
         descriptor: &OwnedDescriptor,
-        offset: usize,
+        offset: u64,
         size: usize,
         map_info: u32,
     ) -> Result<MemoryMapping> {
@@ -68,7 +68,7 @@ impl MemoryMapping {
                 prot,
                 MapFlags::SHARED,
                 descriptor.as_fd(),
-                offset.try_into().unwrap(),
+                offset,
             )?
         };
 
@@ -85,7 +85,7 @@ impl MemoryMapping {
 
     pub fn from_offset(
         descriptor: &OwnedDescriptor,
-        offset: usize,
+        offset: u64,
         size: usize,
     ) -> Result<MemoryMapping> {
         Self::do_mmap(descriptor, offset, size, MAGMA_MAP_ACCESS_RW)

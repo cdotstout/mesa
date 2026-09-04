@@ -33,7 +33,7 @@ impl MemoryMapping {
 
     pub fn from_offset(
         _descriptor: &OwnedDescriptor,
-        _offset: usize,
+        _offset: u64,
         _size: usize,
     ) -> Result<MemoryMapping> {
         Err(Error::Unsupported)

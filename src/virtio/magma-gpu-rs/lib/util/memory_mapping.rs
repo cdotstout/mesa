@@ -23,7 +23,7 @@ impl MemoryMapping {
 
     pub fn from_offset(
         descriptor: &OwnedDescriptor,
-        offset: usize,
+        offset: u64,
         size: usize,
     ) -> Result<MemoryMapping> {
         let mapping = PlatformMapping::from_offset(descriptor, offset, size)?;

@@ -11,6 +11,7 @@ use std::mem::size_of;
 use zerocopy::FromBytes;
 use zerocopy::Immutable;
 use zerocopy::IntoBytes;
+use zerocopy::TryFromBytes;
 
 pub struct Reader<'slice> {
     data: &'slice [u8],
@@ -46,8 +47,38 @@ impl<'slice> Reader<'slice> {
         Ok(obj.0)
     }
 
+    /// Reads and consumes an object implementing TryFromBytes from the buffer.
+    pub fn read_try_obj<T: TryFromBytes>(&mut self) -> Result<T> {
+        let obj = <T>::try_read_from_prefix(self.data.as_bytes())
+            .map_err(|_e| Error::from(ErrorKind::InvalidData))?;
+        self.consume(size_of::<T>());
+        Ok(obj.0)
+    }
+
+    /// Reads an object implementing TryFromBytes from the buffer without consuming it.
+    pub fn peek_try_obj<T: TryFromBytes>(&self) -> Result<T> {
+        let obj = <T>::try_read_from_prefix(self.data.as_bytes())
+            .map_err(|_e| Error::from(ErrorKind::InvalidData))?;
+        Ok(obj.0)
+    }
+
     pub fn read_exact(&mut self, buf: &mut [u8]) -> Result<()> {
         self.data.read_exact(buf)
+    }
+
+    pub fn read_vec<T: FromBytes + IntoBytes + Default + Clone>(
+        &mut self,
+        count: usize,
+    ) -> Result<Vec<T>> {
+        let byte_len = count
+            .checked_mul(size_of::<T>())
+            .ok_or_else(|| Error::from(ErrorKind::InvalidData))?;
+        if self.available_bytes() < byte_len {
+            return Err(Error::from(ErrorKind::UnexpectedEof));
+        }
+        let mut vec = vec![T::default(); count];
+        self.read_exact(vec.as_mut_bytes())?;
+        Ok(vec)
     }
 
     /// Consumes `amt` bytes from the underlying buffer. If `amt` is larger than the
