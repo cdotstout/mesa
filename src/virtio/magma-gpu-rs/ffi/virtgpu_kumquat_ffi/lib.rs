@@ -77,8 +77,23 @@ type drm_kumquat_transfer_to_host = VirtGpuTransfer;
 #[expect(non_camel_case_types)]
 type drm_kumquat_transfer_from_host = VirtGpuTransfer;
 
+#[repr(C)]
+#[derive(Copy, Clone, Debug, Default)]
 #[expect(non_camel_case_types)]
-type drm_kumquat_execbuffer = VirtGpuExecBuffer;
+pub struct drm_kumquat_execbuffer {
+    pub flags: u32,
+    pub size: u32,
+    pub command: u64,
+    pub bo_handles: u64,
+    pub num_bo_handles: u32,
+    pub fence_handle: i64,
+    pub ring_idx: u32,
+    pub syncobj_stride: u32,
+    pub num_in_syncobjs: u32,
+    pub num_out_syncobjs: u32,
+    pub in_syncobjs: u64,
+    pub out_syncobjs: u64,
+}
 
 #[expect(non_camel_case_types)]
 type drm_kumquat_wait = VirtGpuWait;
@@ -394,6 +409,7 @@ pub unsafe extern "C" fn virtgpu_kumquat_execbuffer(
             cmd.ring_idx,
             in_fences,
             &mut descriptor,
+            &[],
         );
 
         cmd.fence_handle = descriptor as i64;

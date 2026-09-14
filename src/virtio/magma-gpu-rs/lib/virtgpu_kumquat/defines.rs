@@ -14,7 +14,8 @@ pub const VIRTGPU_KUMQUAT_PARAM_CROSS_DEVICE: u64 = 5;
 pub const VIRTGPU_KUMQUAT_PARAM_CONTEXT_INIT: u64 = 6;
 pub const VIRTGPU_KUMQUAT_PARAM_SUPPORTED_CAPSET_IDS: u64 = 7;
 pub const VIRTGPU_KUMQUAT_PARAM_EXPLICIT_DEBUG_NAME: u64 = 8;
-pub const VIRTGPU_KUMQUAT_PARAM_FENCE_PASSING: u64 = 9;
+pub const VIRTGPU_KUMQUAT_PARAM_CREATE_GUEST_HANDLE: u64 = 9;
+pub const VIRTGPU_KUMQUAT_PARAM_FENCE_PASSING: u64 = 10;
 
 pub const VIRTGPU_KUMQUAT_EXECBUF_FENCE_FD_IN: u32 = 0x01;
 pub const VIRTGPU_KUMQUAT_EXECBUF_FENCE_FD_OUT: u32 = 0x02;
@@ -42,6 +43,12 @@ pub const VIRTGPU_BLOB_FLAG_USE_CROSS_DEVICE: u32 = 0x0004;
 pub struct VirtGpuParam {
     pub param: u64,
     pub value: u64,
+}
+
+impl VirtGpuParam {
+    pub const fn new(param: u64) -> VirtGpuParam {
+        VirtGpuParam { param, value: 0 }
+    }
 }
 
 #[repr(C)]
@@ -113,23 +120,6 @@ pub struct VirtGpuResourceCreateBlob {
 pub struct VirtGpuResourceUnref {
     pub bo_handle: u32,
     pub pad: u32,
-}
-
-#[repr(C)]
-#[derive(Copy, Clone, Debug)]
-pub struct VirtGpuExecBuffer {
-    pub flags: u32,
-    pub size: u32,
-    pub command: u64,
-    pub bo_handles: u64,
-    pub num_bo_handles: u32,
-    pub fence_handle: i64,
-    pub ring_idx: u32,
-    pub syncobj_stride: u32,
-    pub num_in_syncobjs: u32,
-    pub num_out_syncobjs: u32,
-    pub in_syncobjs: u64,
-    pub out_syncobjs: u64,
 }
 
 #[repr(C)]
