@@ -67,8 +67,8 @@ struct drm_kumquat_execbuffer {
 #define VIRTGPU_KUMQUAT_PARAM_CONTEXT_INIT 6         /* DRM_VIRTGPU_KUMQUAT_CONTEXT_INIT */
 #define VIRTGPU_KUMQUAT_PARAM_SUPPORTED_CAPSET_IDs 7 /* Bitmask of supported capability set ids */
 #define VIRTGPU_KUMQUAT_PARAM_EXPLICIT_DEBUG_NAME 8  /* Ability to set debug name from userspace */
-#define VIRTGPU_KUMQUAT_PARAM_FENCE_PASSING 9        /* Host shareable fences */
-#define VIRTGPU_KUMQUAT_PARAM_CREATE_GUEST_HANDLE 10
+#define VIRTGPU_KUMQUAT_PARAM_CREATE_GUEST_HANDLE 9
+#define VIRTGPU_KUMQUAT_PARAM_FENCE_PASSING 10        /* Host shareable fences */
 
 struct drm_kumquat_getparam {
     uint64_t param;
