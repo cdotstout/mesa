@@ -111,9 +111,7 @@ vk_image_init(struct vk_device *device,
       vk_find_struct_const(pCreateInfo->pNext, WSI_IMAGE_CREATE_INFO_MESA);
    image->wsi_legacy_scanout = wsi_info && wsi_info->scanout;
 
-#if DETECT_OS_LINUX || DETECT_OS_BSD
    image->drm_format_mod = ((1ULL << 56) - 1) /* DRM_FORMAT_MOD_INVALID */;
-#endif
 
 #ifdef VK_USE_PLATFORM_ANDROID_KHR
    if (image->external_handle_types &
