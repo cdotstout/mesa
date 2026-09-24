@@ -204,6 +204,10 @@ void intel_device_info_update_l3_banks(struct intel_device_info *devinfo);
 uint32_t intel_device_info_get_eu_count_first_subslice(const struct intel_device_info *devinfo);
 void intel_device_info_update_cs_workgroup_threads(struct intel_device_info *devinfo);
 bool intel_device_info_compute_system_memory(struct intel_device_info *devinfo, bool update);
+bool intel_device_info_init_common(int pci_id, bool building, struct intel_device_info *devinfo);
+void intel_device_info_apply_workarounds(struct intel_device_info *devinfo);
+void intel_device_info_adjust_memory(struct intel_device_info *devinfo);
+void intel_device_info_finish_init(struct intel_device_info *devinfo);
 
 #ifdef GFX_VERx10
 #define intel_needs_workaround(devinfo, id)         \

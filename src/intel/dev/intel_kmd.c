@@ -23,10 +23,18 @@
 
 #include <string.h>
 #include "util/libdrm.h"
+#include "util/log.h"
+#include "util/u_debug.h"
 
+#include "common/intel_gem.h"
+#include "i915/intel_device_info.h"
+#include "xe/intel_device_info.h"
 #include "virtio/intel_virtio.h"
 
+#include "intel_device_info.h"
+#include "intel_hwconfig.h"
 #include "intel_kmd.h"
+#include "intel_wa.h"
 
 enum intel_kmd_type
 intel_get_kmd_type(int fd)
@@ -49,4 +57,134 @@ intel_get_kmd_type(int fd)
    drmFreeVersion(version);
 
    return type;
+}
+
+bool
+intel_get_device_info_from_fd(int fd, struct intel_device_info *devinfo, int min_ver, int max_ver)
+{
+   if (NULL != os_get_option("INTEL_STUB_GPU_JSON")) {
+      /* This call will succeed when shim-drm has been initialized with a
+       * serialized intel_device_info structure.
+       */
+      struct drm_intel_stub_devinfo arg = {
+         .addr = (uintptr_t)devinfo,
+         .size = sizeof(*devinfo),
+      };
+      if (0 == intel_ioctl(fd, DRM_IOCTL_INTEL_STUB_DEVINFO, &arg)) {
+         intel_device_info_init_was(devinfo);
+         intel_device_info_apply_workarounds(devinfo);
+         return true;
+      }
+   }
+
+   /* Get PCI info.
+    *
+    * Some callers may already have a valid drm device which holds values of
+    * PCI fields queried here prior to calling this function. But making this
+    * query optional leads to a more cumbersome implementation. These callers
+    * still need to initialize the fields somewhere out of this function and
+    * rely on an ioctl to get PCI device id for the next step when skipping
+    * this drm query.
+    */
+   if (is_intel_virtio_fd(fd)) {
+      if (!intel_virtio_get_pci_device_info(fd, devinfo))
+         return false;
+
+      if (!intel_device_info_init_common(devinfo->pci_device_id,
+                                         false, devinfo))
+         return false;
+
+      devinfo->is_virtio = true;
+   } else {
+      drmDevicePtr drmdev = NULL;
+      if (drmGetDevice2(fd, DRM_DEVICE_GET_PCI_REVISION, &drmdev)) {
+         mesa_loge("Failed to query drm device.");
+         return false;
+      }
+      if (!intel_device_info_init_common(drmdev->deviceinfo.pci->device_id,
+                                         false, devinfo)) {
+         drmFreeDevice(&drmdev);
+         return false;
+      }
+
+      devinfo->pci_domain = drmdev->businfo.pci->domain;
+      devinfo->pci_bus = drmdev->businfo.pci->bus;
+      devinfo->pci_dev = drmdev->businfo.pci->dev;
+      devinfo->pci_func = drmdev->businfo.pci->func;
+      devinfo->pci_device_id = drmdev->deviceinfo.pci->device_id;
+      devinfo->pci_revision_id = drmdev->deviceinfo.pci->revision_id;
+      drmFreeDevice(&drmdev);
+   }
+
+   if ((min_ver > 0 && devinfo->ver < min_ver) || (max_ver > 0 && devinfo->ver > max_ver))
+      return false;
+
+   devinfo->no_hw = debug_get_bool_option("INTEL_NO_HW", false);
+
+   devinfo->kmd_type = intel_get_kmd_type(fd);
+   if (devinfo->kmd_type == INTEL_KMD_TYPE_INVALID) {
+      mesa_loge("Unknown kernel mode driver");
+      return false;
+   }
+
+   /* remaining initialization queries the kernel for device info */
+   if (devinfo->no_hw) {
+      /* Provide some sensible values for NO_HW. */
+      devinfo->gtt_size =
+         devinfo->ver >= 8 ? (1ull << 48) : 2ull * 1024 * 1024 * 1024;
+      intel_device_info_compute_system_memory(devinfo, false);
+      return true;
+   }
+
+   bool ret;
+   switch (devinfo->kmd_type) {
+   case INTEL_KMD_TYPE_I915:
+      ret = intel_device_info_i915_get_info_from_fd(fd, devinfo);
+      break;
+   case INTEL_KMD_TYPE_XE:
+      ret = intel_device_info_xe_get_info_from_fd(fd, devinfo);
+      if (devinfo->verx10 < 200) {
+         if (!debug_get_bool_option("INTEL_XE_IGNORE_EXPERIMENTAL_WARNING", false))
+            mesa_logw("Support for this platform is experimental with Xe KMD, bug reports may be ignored.");
+      }
+      break;
+   default:
+      ret = false;
+      UNREACHABLE("Missing");
+   }
+   if (!ret) {
+      mesa_logw("Could not get intel_device_info.");
+      return false;
+   }
+
+   /* region info is required for lmem support */
+   if (devinfo->has_local_mem && !devinfo->mem.use_class_instance) {
+      mesa_logw("Could not query local memory size.");
+      return false;
+   }
+
+   intel_device_info_finish_init(devinfo);
+
+   return true;
+}
+
+bool
+intel_device_info_update_memory_info(struct intel_device_info *devinfo, int fd)
+{
+   bool ret;
+
+   switch (devinfo->kmd_type) {
+   case INTEL_KMD_TYPE_I915:
+      ret = intel_device_info_i915_query_regions(devinfo, fd, true);
+      break;
+   case INTEL_KMD_TYPE_XE:
+      ret = intel_device_info_xe_query_regions(fd, devinfo, true);
+      break;
+   default:
+      ret = false;
+   }
+
+   if (ret)
+      intel_device_info_adjust_memory(devinfo);
+   return ret;
 }
