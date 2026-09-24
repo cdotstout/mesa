@@ -45,6 +45,9 @@ intel_engines_supported_count(int fd, const struct intel_device_info *info,
                               const struct intel_query_engine_info *engine_info,
                               enum intel_engine_class engine_class);
 
+void
+intel_common_update_device_info(int fd, struct intel_device_info *devinfo);
+
 #ifdef __cplusplus
 }
 #endif

@@ -40,8 +40,6 @@ int intel_engines_count(const struct intel_query_engine_info *info,
                         enum intel_engine_class engine_class);
 const char *intel_engines_class_to_string(enum intel_engine_class engine_class);
 
-void intel_common_update_device_info(int fd, struct intel_device_info *devinfo);
-
 void
 intel_compute_engine_async_threads_limit(const struct intel_device_info *devinfo,
                                          uint32_t hw_threads_in_wg, bool slm_or_barrier_enabled,
