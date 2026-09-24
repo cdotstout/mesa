@@ -25,7 +25,6 @@
 #include <stdarg.h>
 #include <string>
 
-#include "common/intel_gem.h"
 #include "perf/intel_perf.h"
 
 #include "util/hash_table.h"
@@ -37,6 +36,7 @@
 
 #ifdef HAVE_PERFETTO
 
+#include "common/intel_gem.h"
 #include "util/perf/u_perfetto.h"
 #include "util/perf/u_perfetto_renderpass.h"
 
