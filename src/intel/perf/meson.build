@@ -21,17 +21,22 @@ foreach hw : intel_hw_metrics
 endforeach
 
 intel_perf_sources = [
-  'i915/intel_perf.c',
-  'i915/intel_perf.h',
-  'xe/intel_perf.c',
-  'xe/intel_perf.h',
-  'intel_perf_common.c',
-  'intel_perf_common.h',
   'intel_perf.c',
-  'intel_perf_query.c',
   'intel_perf_mdapi.c',
   'intel_perf_metrics_library.cpp',
 ]
+
+if host_machine.system() == 'linux'
+  intel_perf_sources += [
+    'i915/intel_perf.c',
+    'i915/intel_perf.h',
+    'xe/intel_perf.c',
+    'xe/intel_perf.h',
+    'intel_perf_common.c',
+    'intel_perf_common.h',
+    'intel_perf_query.c',
+  ]
+endif
 
 intel_perf_gen_sources = custom_target(
   'intel-perf-sources',

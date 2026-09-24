@@ -166,25 +166,11 @@ foreach _gfx_ver : ['90', '110', '120', '125', '200', '300', '350']
 endforeach
 
 libanv_files = files(
-  'i915/anv_batch_chain.c',
-  'i915/anv_batch_chain.h',
-  'i915/anv_device.c',
-  'i915/anv_device.h',
-  'i915/anv_kmd_backend.c',
-  'i915/anv_queue.c',
-  'i915/anv_queue.h',
   'layers/anv_android_layer.c',
   'layers/anv_doom64.c',
   'layers/anv_furmark.c',
   'layers/anv_hitman3.c',
   'layers/anv_rmv_layer.c',
-  'xe/anv_batch_chain.c',
-  'xe/anv_batch_chain.h',
-  'xe/anv_kmd_backend.c',
-  'xe/anv_device.c',
-  'xe/anv_device.h',
-  'xe/anv_queue.c',
-  'xe/anv_queue.h',
   'anv_allocator.c',
   'anv_android.h',
   'anv_astc_emu.c',
@@ -211,7 +197,6 @@ libanv_files = files(
   'anv_kmd_backend.c',
   'anv_kmd_backend.h',
   'anv_linux.h',
-  'anv_linux.c',
   'anv_measure.c',
   'anv_measure.h',
   'anv_nir.h',
@@ -250,6 +235,29 @@ libanv_files = files(
   'anv_wsi.c',
   'bvh/anv_bvh_defines.h',
 )
+
+if host_machine.system() == 'linux'
+  libanv_files += files(
+    'i915/anv_batch_chain.c',
+    'i915/anv_batch_chain.h',
+    'i915/anv_device.c',
+    'i915/anv_device.h',
+    'i915/anv_kmd_backend.c',
+    'i915/anv_queue.c',
+    'i915/anv_queue.h',
+    'xe/anv_batch_chain.c',
+    'xe/anv_batch_chain.h',
+    'xe/anv_kmd_backend.c',
+    'xe/anv_device.c',
+    'xe/anv_device.h',
+    'xe/anv_queue.c',
+    'xe/anv_queue.h',
+    'anv_linux.c',
+  )
+  anv_gem_files = files('anv_gem.c')
+else
+  anv_gem_files = []
+endif
 
 anv_deps = [
   dep_libdrm,
@@ -307,7 +315,7 @@ libanv_common = static_library(
 
 libvulkan_intel = shared_library(
   'vulkan_intel',
-  [files('anv_gem.c'), anv_entrypoints[0], bvh_spv],
+  [anv_gem_files, anv_entrypoints[0], bvh_spv],
   include_directories : [
     inc_include, inc_src, inc_intel,
   ],
@@ -343,7 +351,7 @@ if with_symbols_check
   )
 endif
 
-if with_tests
+if with_tests and host_machine.system() == 'linux'
   libvulkan_intel_test = static_library(
     'vulkan_intel_test',
     [files('anv_gem_stubs.c'), anv_entrypoints[0]],

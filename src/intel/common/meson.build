@@ -2,21 +2,8 @@
 # SPDX-License-Identifier: MIT
 
 files_libintel_common = files(
-  'i915/intel_engine.c',
-  'i915/intel_engine.h',
-  'i915/intel_gem.c',
-  'i915/intel_gem.h',
-  'xe/intel_device_query.c',
-  'xe/intel_device_query.h',
-  'xe/intel_engine.c',
-  'xe/intel_engine.h',
-  'xe/intel_gem.c',
-  'xe/intel_gem.h',
-  'xe/intel_queue.c',
-  'xe/intel_queue.h',
   'intel_aux_map.c',
   'intel_aux_map.h',
-  'intel_bind_timeline.c',
   'intel_bind_timeline.h',
   'intel_buffer_alloc.h',
   'intel_common.c',
@@ -25,10 +12,6 @@ files_libintel_common = files(
   'intel_compute_slm.h',
   'intel_debug_identifier.h',
   'intel_debug_identifier.c',
-  'intel_engine.c',
-  'intel_engine.h',
-  'intel_gem.c',
-  'intel_gem.h',
   'intel_genX_state_brw.h',
   'intel_genX_state_elk.h',
   'intel_guardband.h',
@@ -46,6 +29,28 @@ files_libintel_common = files(
   'intel_pagefault.c',
   'intel_pagefault.h',
 )
+
+if host_machine.system() == 'linux'
+  files_libintel_common += files(
+    'i915/intel_engine.c',
+    'i915/intel_engine.h',
+    'i915/intel_gem.c',
+    'i915/intel_gem.h',
+    'xe/intel_device_query.c',
+    'xe/intel_device_query.h',
+    'xe/intel_engine.c',
+    'xe/intel_engine.h',
+    'xe/intel_gem.c',
+    'xe/intel_gem.h',
+    'xe/intel_queue.c',
+    'xe/intel_queue.h',
+    'intel_bind_timeline.c',
+    'intel_engine.c',
+    'intel_engine.h',
+    'intel_gem.c',
+    'intel_gem.h',
+  )
+endif
 
 libintel_common_links = [libisl]
 

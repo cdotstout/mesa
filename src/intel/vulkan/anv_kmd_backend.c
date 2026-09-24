@@ -30,12 +30,14 @@ const struct anv_kmd_backend *
 anv_kmd_backend_get(enum intel_kmd_type type)
 {
    switch (type) {
+#if DETECT_OS_LINUX
    case INTEL_KMD_TYPE_I915:
       return anv_i915_kmd_backend_get();
    case INTEL_KMD_TYPE_XE:
       return anv_xe_kmd_backend_get();
    case INTEL_KMD_TYPE_STUB:
       return anv_stub_kmd_backend_get();
+#endif
    default:
       return NULL;
    }

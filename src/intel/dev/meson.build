@@ -4,19 +4,24 @@
 # TODO: android?
 
 files_libintel_dev = files(
-  'i915/intel_device_info.c',
-  'i915/intel_device_info.h',
-  'xe/intel_device_info.c',
-  'xe/intel_device_info.h',
   'intel_debug.c',
   'intel_debug.h',
   'intel_device_info.c',
   'intel_device_info.h',
   'intel_hwconfig.c',
   'intel_hwconfig.h',
-  'intel_kmd.c',
   'intel_kmd.h',
 )
+
+if host_machine.system() == 'linux'
+  files_libintel_dev += files(
+    'i915/intel_device_info.c',
+    'i915/intel_device_info.h',
+    'xe/intel_device_info.c',
+    'xe/intel_device_info.h',
+    'intel_kmd.c',
+  )
+endif
 
 inc_intel_dev_virtio = []
 link_intel_dev_virtio = []
