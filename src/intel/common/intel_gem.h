@@ -33,6 +33,7 @@
 #include <unistd.h>
 #include <sys/ioctl.h>
 
+#include "intel_common.h"
 #include "intel_engine.h"
 #include "drm-uapi/drm.h"
 #include "util/macros.h"
@@ -42,34 +43,6 @@ extern "C" {
 #endif
 
 #define RCS_TIMESTAMP 0x2358
-
-static inline uint64_t
-intel_canonical_address(uint64_t v)
-{
-   /* From the Broadwell PRM Vol. 2a, MI_LOAD_REGISTER_MEM::MemoryAddress:
-    *
-    *    "This field specifies the address of the memory location where the
-    *    register value specified in the DWord above will read from. The
-    *    address specifies the DWord location of the data. Range =
-    *    GraphicsVirtualAddress[63:2] for a DWord register GraphicsAddress
-    *    [63:48] are ignored by the HW and assumed to be in correct
-    *    canonical form [63:48] == [47]."
-    */
-   const int shift = 63 - 47;
-   return (int64_t)(v << shift) >> shift;
-}
-
-/**
- * This returns a 48-bit address with the high 16 bits zeroed.
- *
- * It's the opposite of intel_canonicalize_address.
- */
-static inline uint64_t
-intel_48b_address(uint64_t v)
-{
-   const int shift = 63 - 47;
-   return (uint64_t)(v << shift) >> shift;
-}
 
 #ifdef HAVE_INTEL_VIRTIO
 extern int intel_virtio_ioctl(int fd, unsigned long request, void *arg);

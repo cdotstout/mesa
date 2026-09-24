@@ -80,7 +80,7 @@
  */
 
 #include "intel_aux_map.h"
-#include "intel_gem.h"
+#include "intel_common.h"
 
 #include "dev/intel_device_info.h"
 #include "isl/isl.h"

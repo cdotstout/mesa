@@ -11,6 +11,20 @@
 extern "C" {
 #endif
 
+static inline uint64_t
+intel_canonical_address(uint64_t v)
+{
+   const int shift = 63 - 47;
+   return (int64_t)(v << shift) >> shift;
+}
+
+static inline uint64_t
+intel_48b_address(uint64_t v)
+{
+   const int shift = 63 - 47;
+   return (uint64_t)(v << shift) >> shift;
+}
+
 void intel_common_update_device_info(int fd, struct intel_device_info *devinfo);
 
 void

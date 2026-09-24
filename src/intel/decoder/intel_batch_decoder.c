@@ -23,7 +23,7 @@
 
 #include "intel_decoder.h"
 #include "intel_decoder_private.h"
-#include "intel/common/intel_gem.h"
+#include "intel/common/intel_common.h"
 
 #include "util/macros.h"
 #include "util/u_debug.h"
