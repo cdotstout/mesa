@@ -1561,6 +1561,103 @@ intel_device_info_update_from_masks(struct intel_device_info *devinfo,
                                      slice_masks, subslice_masks, eu_masks);
 }
 
+void
+intel_device_info_update_dss_topology(struct intel_device_info *devinfo,
+                                      const uint8_t *geo_dss_mask,
+                                      uint32_t geo_dss_num_bytes,
+                                      uint64_t eu_per_dss_mask,
+                                      unsigned l3_banks)
+{
+   intel_device_info_topology_reset_masks(devinfo);
+   /* TGL/DG1/ADL-P: 1 slice x 6 dual sub slices
+    * RKL/ADL-S: 1 slice x 2 dual sub slices
+    * DG2: 8 slices x 4 dual sub slices
+    */
+   if (devinfo->verx10 >= 300) {
+      /* was set by hwconfig */
+   } else if (devinfo->verx10 >= 125) {
+      devinfo->max_slices = 8;
+      devinfo->max_subslices_per_slice = 4;
+   } else {
+      devinfo->max_slices = 1;
+      devinfo->max_subslices_per_slice = 6;
+   }
+   devinfo->max_eus_per_subslice = __builtin_popcount(eu_per_dss_mask);
+   devinfo->subslice_slice_stride = DIV_ROUND_UP(devinfo->max_slices, 8);
+   devinfo->eu_slice_stride = DIV_ROUND_UP(devinfo->max_eus_per_subslice * devinfo->max_subslices_per_slice, 8);
+   devinfo->eu_subslice_stride = DIV_ROUND_UP(devinfo->max_eus_per_subslice, 8);
+
+   assert((sizeof(uint32_t) * 8) >= devinfo->max_subslices_per_slice);
+   assert((sizeof(uint32_t) * 8) >= devinfo->max_eus_per_subslice);
+   assert(INTEL_DEVICE_MAX_SLICES >= devinfo->max_slices);
+   assert(INTEL_DEVICE_MAX_SUBSLICES >= devinfo->max_subslices_per_slice);
+
+   const uint32_t dss_mask_in_slice = (1u << devinfo->max_subslices_per_slice) - 1;
+   struct slice {
+      uint32_t dss_mask;
+      struct {
+         bool enabled;
+         uint64_t eu_mask;
+      } dual_subslice[INTEL_DEVICE_MAX_SUBSLICES];
+   } slices[INTEL_DEVICE_MAX_SLICES] = {};
+
+   /* Compute and fill slices */
+   for (unsigned s = 0; s < devinfo->max_slices; s++) {
+      const unsigned first_bit = s * devinfo->max_subslices_per_slice;
+      const unsigned dss_index = first_bit / 8;
+      const unsigned shift = first_bit % 8;
+
+      assert(geo_dss_num_bytes > dss_index);
+
+      const uint32_t *dss_mask_ptr = (const uint32_t *)&geo_dss_mask[dss_index];
+      uint32_t dss_mask = *dss_mask_ptr;
+      dss_mask >>= shift;
+      dss_mask &= dss_mask_in_slice;
+
+      if (dss_mask) {
+         slices[s].dss_mask = dss_mask;
+         for (uint32_t dss = 0; dss < devinfo->max_subslices_per_slice; dss++) {
+            if ((1u << dss) & slices[s].dss_mask) {
+               slices[s].dual_subslice[dss].enabled = true;
+               slices[s].dual_subslice[dss].eu_mask = eu_per_dss_mask;
+            }
+         }
+      }
+   }
+
+   /* Set devinfo masks */
+   for (unsigned s = 0; s < devinfo->max_slices; s++) {
+      if (!slices[s].dss_mask)
+         continue;
+
+      devinfo->slice_masks |= (1u << s);
+
+      for (unsigned ss = 0; ss < devinfo->max_subslices_per_slice; ss++) {
+         if (!slices[s].dual_subslice[ss].eu_mask)
+            continue;
+
+         devinfo->subslice_masks[s * devinfo->subslice_slice_stride +
+                                 ss / 8] |= (1u << (ss % 8));
+
+         for (unsigned eu = 0; eu < devinfo->max_eus_per_subslice; eu++) {
+            if (!(slices[s].dual_subslice[ss].eu_mask & (1ULL << eu)))
+               continue;
+
+            devinfo->eu_masks[s * devinfo->eu_slice_stride +
+                              ss * devinfo->eu_subslice_stride +
+                              eu / 8] |= (1u << (eu % 8));
+         }
+      }
+   }
+
+   intel_device_info_topology_update_counts(devinfo);
+   intel_device_info_update_pixel_pipes(devinfo, devinfo->subslice_masks);
+   if (devinfo->ver != 12)
+      devinfo->l3_banks = l3_banks;
+   else
+      intel_device_info_update_l3_banks(devinfo);
+}
+
 /* Generate mask from the device data. */
 static void
 fill_masks(struct intel_device_info *devinfo)

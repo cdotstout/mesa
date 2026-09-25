@@ -287,6 +287,13 @@ intel_device_info_update_from_masks(struct intel_device_info *devinfo,
                                     uint32_t subslice_mask,
                                     uint32_t n_eus);
 
+void
+intel_device_info_update_dss_topology(struct intel_device_info *devinfo,
+                                      const uint8_t *geo_dss_mask,
+                                      uint32_t geo_dss_num_bytes,
+                                      uint64_t eu_per_dss_mask,
+                                      unsigned l3_banks);
+
 static inline bool
 intel_has_vrt(const struct intel_device_info *devinfo)
 {
