@@ -7,10 +7,12 @@ anv_flags = [
   no_override_init_args,
   sse2_args,
   soong_compat_c_args,
+  gen_compiler_args,
 ]
 
 anv_cpp_flags = [
   soong_compat_cpp_args,
+  gen_compiler_args,
 ]
 
 anv_entrypoints = custom_target(

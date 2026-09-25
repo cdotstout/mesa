@@ -48,12 +48,14 @@ gen_gen_srcs = custom_target('gen_info_*.h',
                                         '--output-dir=@OUTDIR@', '--cpp'],
                              depend_files : files('gen_opcodes.py'))
 
+gen_compiler_args = cc.get_supported_arguments(['-mno-ms-bitfields'])
+
 libintel_compiler_gen = static_library(
   'intel_compiler_gen',
   [libintel_compiler_gen_files, gen_gen_srcs, gen_opcodes[2]],
   include_directories : [inc_include, inc_src, inc_intel, inc_intel_compiler],
-  c_args : [no_override_init_args],
-  cpp_args : ['-Werror=vla'],
+  c_args : [no_override_init_args, gen_compiler_args],
+  cpp_args : ['-Werror=vla', gen_compiler_args],
   gnu_symbol_visibility : 'hidden',
   dependencies : [idep_gen_opcodes_h, idep_mesautil, idep_intel_dev],
   build_by_default : false,
@@ -61,6 +63,7 @@ libintel_compiler_gen = static_library(
 
 idep_intel_compiler_gen = declare_dependency(
   link_with : [libintel_compiler_gen],
+  compile_args : gen_compiler_args,
   dependencies : [
     idep_gen_opcodes_h,
     idep_mesautil,
