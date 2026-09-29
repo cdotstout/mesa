@@ -6,18 +6,6 @@ magma_generated_libs = []
 dep_windows_sys = null_dep
 dep_libc_rs = null_dep
 if host_machine.system() == 'linux' or host_machine.system() == 'android'
-  i915_zerocopy_types = [
-    'drm_i915_gem_memory_class_instance',
-    'drm_i915_memory_region_info',
-    'drm_i915_memory_region_info__bindgen_ty_1',
-    'drm_i915_memory_region_info__bindgen_ty_1__bindgen_ty_1',
-    'drm_i915_query_memory_regions',
-  ]
-  i915_extra_args = ['--flexarray-dst']
-  foreach t : i915_zerocopy_types
-    i915_extra_args += ['--with-derive-custom', t + '=zerocopy::FromBytes,zerocopy::Immutable,zerocopy::KnownLayout']
-  endforeach
-
   xe_zerocopy_types = [
     'drm_xe_mem_region',
     'drm_xe_query_mem_regions',
@@ -36,13 +24,8 @@ if host_machine.system() == 'linux' or host_machine.system() == 'android'
 
   bindgen_configs = [
     ['drm',     drm_h,        ['DRM_.+', 'drm_.+'],               ['drm_.+'],         []],
-    ['amdgpu',  amdgpu_drm_h, ['DRM_AMDGPU_.+', 'AMDGPU_.+'],     ['drm_amdgpu_.+'],  []],
-    ['msm',     msm_drm_h,    ['DRM_MSM_.+', 'MSM_.+'],           ['drm_msm_.+'],     []],
     ['virtgpu', virtgpu_drm_h,['DRM_VIRTGPU_.+', 'VIRTGPU_.+'],   ['drm_virtgpu_.+'], []],
-    ['i915',    i915_drm_h,   ['DRM_I915_.+', 'I915_.+'],         ['drm_i915_.+'],    i915_extra_args],
     ['xe',      xe_drm_h,     ['DRM_XE_.+', 'XE_.+'],             ['drm_xe_.+'],      xe_extra_args],
-    ['panthor', panthor_drm_h,['DRM_PANTHOR_.+', 'PANTHOR_.+'],   ['drm_panthor_.+'], []],
-    ['kgsl',    msm_kgsl_h,   ['KGSL_.+', 'IOCTL_KGSL_.+'],       ['kgsl_.+'],        []]
   ]
 
   foreach config : bindgen_configs

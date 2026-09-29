@@ -31,9 +31,7 @@ use rustix::fs::OFlags;
 use zerocopy::TryFromBytes;
 
 use crate::defines::MagmaPhysicalDeviceInfo;
-use crate::defines::MagmaVendorId;
 use crate::defines::MAGMA_BUS_TYPE_PCI;
-use crate::defines::MAGMA_BUS_TYPE_PLATFORM;
 use crate::device::PhysicalDevice;
 use crate::error::Error;
 use crate::error::Result;
@@ -44,16 +42,10 @@ use crate::sys::linux::drm_ioctl_prime_fd_to_handle;
 use crate::sys::linux::drm_ioctl_prime_handle_to_fd;
 use crate::sys::linux::get_drm_device_name;
 use crate::sys::linux::virtgpu_enumerate_devices;
-use crate::sys::linux::AmdGpuPhysicalDevice;
-use crate::sys::linux::I915PhysicalDevice;
-use crate::sys::linux::KgslPhysicalDevice;
-use crate::sys::linux::MsmPhysicalDevice;
-use crate::sys::linux::PanthorPhysicalDevice;
 use crate::sys::linux::XePhysicalDevice;
 use crate::sys::linux::DRM_DIR_NAME;
 use crate::sys::linux::DRM_RENDER_MINOR_NAME;
 use crate::traits::BackendPhysicalDevice;
-use crate::traits::GenericPhysicalDevice;
 
 const PCI_ATTRS: [&str; 5] = [
     "revision",
@@ -245,11 +237,7 @@ fn enumerate_drm_devices() -> Result<Vec<PhysicalDevice>> {
 
             let name = get_drm_device_name(&descriptor)?;
             let physical_devices: Vec<Arc<dyn BackendPhysicalDevice>> = match name.as_str() {
-                "amdgpu" => vec![Arc::new(AmdGpuPhysicalDevice::new(descriptor))],
                 "xe" => vec![Arc::new(XePhysicalDevice::new(descriptor))],
-                "i915" => vec![Arc::new(I915PhysicalDevice::new(descriptor))],
-                "msm" => vec![Arc::new(MsmPhysicalDevice::new(descriptor))],
-                "panthor" => vec![Arc::new(PanthorPhysicalDevice::new(descriptor))],
                 "virtio_gpu" => virtgpu_enumerate_devices(descriptor, &path)?,
                 _ => return Err(Error::Unimplemented),
             };
@@ -275,44 +263,6 @@ fn enumerate_drm_devices() -> Result<Vec<PhysicalDevice>> {
     Ok(devices)
 }
 
-fn enumerate_downstream_devices() -> Result<Vec<PhysicalDevice>> {
-    let mut devices: Vec<PhysicalDevice> = Vec::new();
-
-    for kgsl_node in ["/dev/kgsl-3d0", "/dev/kgsl"] {
-        let path = Path::new(kgsl_node);
-        if path.exists() {
-            if let Ok(file) = OpenOptions::new().read(true).write(true).open(path) {
-                let descriptor: OwnedDescriptor = file.into();
-                let kgsl_device = Arc::new(KgslPhysicalDevice::new(descriptor));
-                let mut info = MagmaPhysicalDeviceInfo {
-                    bus_type: MAGMA_BUS_TYPE_PLATFORM,
-                    vendor_id: MagmaVendorId::Qualcomm,
-                    device_id: kgsl_device.gpu_id() as u16,
-                    ..Default::default()
-                };
-                if let Ok(queue_families) = kgsl_device.get_queue_family_properties() {
-                    info.queue_family_count =
-                        queue_families.len().min(info.queue_families.len()) as u32;
-                    for (i, qf) in queue_families.iter().enumerate() {
-                        if i >= info.queue_families.len() {
-                            break;
-                        }
-                        info.queue_families[i] = *qf;
-                    }
-                }
-                let physical_device: Arc<dyn BackendPhysicalDevice> = kgsl_device;
-                devices.push(PhysicalDevice::new(physical_device, info));
-                break;
-            }
-        }
-    }
-
-    Ok(devices)
-}
-
 pub fn enumerate_devices() -> Result<Vec<PhysicalDevice>> {
-    let mut devices = enumerate_drm_devices()?;
-    let mut downstream = enumerate_downstream_devices()?;
-    devices.append(&mut downstream);
-    Ok(devices)
+    enumerate_drm_devices()
 }
