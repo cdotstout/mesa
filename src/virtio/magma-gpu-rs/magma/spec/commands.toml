@@ -24,17 +24,6 @@ aspects = [ "common" ]
 response = true
 
 [[commands]]
-name = "MagmaGetMemoryBudget"
-inputs = [
-    { name = "device", type = "Device", direction = "in" },
-    { name = "heap_idx", type = "uint32_t", direction = "in" },
-    { name = "budget", type = "MagmaHeapBudget", direction = "inout" },
-]
-output = "MagmaStatus"
-aspects = [ "common" ]
-response = true
-
-[[commands]]
 name = "MagmaCreateBuffer"
 inputs = [
     { name = "device", type = "Device", direction = "in" },

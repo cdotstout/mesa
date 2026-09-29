@@ -21,7 +21,6 @@ use crate::protocol::CreateQueue;
 use crate::protocol::CreateSyncObj;
 use crate::protocol::MagmaCommandHeader;
 use crate::protocol::MagmaCreateSyncObjInfo;
-use crate::protocol::MagmaHeapBudget;
 use crate::protocol::MagmaSyncObjType;
 use crate::protocol::MagmaVirtCapabilities;
 use crate::protocol::VirtioCreateRing;
@@ -133,17 +132,6 @@ impl<T: VirtioGpuTransport> PlatformDevice for VirtioGpu<T> {}
 impl<T: VirtioGpuTransport> BackendDevice for VirtioGpu<T> {}
 
 impl<T: VirtioGpuTransport> GenericDevice for VirtioGpu<T> {
-    fn get_memory_budget(&self, heap_idx: u32) -> Result<MagmaHeapBudget> {
-        if let Some(heap) = self.transport.device().memory_heaps.get(heap_idx as usize) {
-            Ok(MagmaHeapBudget {
-                budget: heap.heap_size,
-                usage: 0,
-            })
-        } else {
-            Err(Error::InvalidArgs)
-        }
-    }
-
     fn create_queue(
         self: Arc<VirtioGpu<T>>,
         info: &MagmaCreateQueueInfo,

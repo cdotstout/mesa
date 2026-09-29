@@ -295,21 +295,6 @@ pub unsafe extern "C" fn magma_create_device(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn magma_get_memory_budget(
-    device: &mut magma_device,
-    heap_idx: u32,
-    budget: &mut magma_heap_budget,
-) -> i32 {
-    catch_unwind(AssertUnwindSafe(|| {
-        debug!("call: magma_get_memory_budget");
-        let result = device.get_memory_budget(heap_idx);
-        *budget = return_on_error!(result);
-        NO_ERROR
-    }))
-    .unwrap_or(-ESRCH)
-}
-
-#[no_mangle]
 pub unsafe extern "C" fn magma_create_buffer(
     device: &mut magma_device,
     info: &magma_create_buffer_info,

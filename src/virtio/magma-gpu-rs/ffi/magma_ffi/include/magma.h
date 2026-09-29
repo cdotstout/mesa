@@ -294,9 +294,6 @@ magma_status_t magma_enumerate_physical_devices(magma_physical_device_t physical
 
 magma_status_t magma_create_device(magma_physical_device_t physical_device, magma_device_t* device);
 
-magma_status_t magma_get_memory_budget(magma_device_t device, uint32_t heap_idx,
-                                       struct magma_heap_budget* budget);
-
 magma_status_t magma_create_buffer(magma_device_t device,
                                    const struct magma_create_buffer_info* info,
                                    magma_buffer_t* buffer_out);

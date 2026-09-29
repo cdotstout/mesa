@@ -12,7 +12,6 @@ use crate::defines::MagmaCreateBufferInfo;
 use crate::defines::MagmaCreateQueueInfo;
 use crate::defines::MagmaCreateSyncObjInfo;
 use crate::defines::MagmaHeap;
-use crate::defines::MagmaHeapBudget;
 use crate::defines::MagmaImportHandleInfo;
 use crate::defines::MagmaMappedMemoryRange;
 use crate::defines::MagmaMemoryType;
@@ -52,8 +51,6 @@ pub trait GenericPhysicalDevice {
 }
 
 pub trait GenericDevice {
-    fn get_memory_budget(&self, heap_idx: u32) -> Result<MagmaHeapBudget>;
-
     fn map_buffer_gpu(
         &self,
         _buffer: &Arc<dyn BackendBuffer>,

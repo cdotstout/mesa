@@ -119,14 +119,6 @@ static void test_enumerate_and_init(struct test_runner *runner) {
     assert(status == MAGMA_STATUS_SUCCESS);
     assert(runner->device != NULL);
     printf("Successfully created device\n");
-
-    // Query memory budget for heap 0
-    struct magma_heap_budget budget;
-    memset(&budget, 0, sizeof(budget));
-    status = magma_get_memory_budget(runner->device, 0, &budget);
-    assert(status == MAGMA_STATUS_SUCCESS);
-    printf("Heap 0 budget: %lu bytes, usage: %lu bytes\n",
-           (unsigned long)budget.budget, (unsigned long)budget.usage);
 }
 
 static void test_create_resources(struct test_runner *runner) {

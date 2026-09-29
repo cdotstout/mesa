@@ -11,7 +11,6 @@ use crate::defines::MagmaCreateBufferInfo;
 use crate::defines::MagmaCreateQueueInfo;
 use crate::defines::MagmaCreateSyncObjInfo;
 use crate::defines::MagmaHeap;
-use crate::defines::MagmaHeapBudget;
 use crate::defines::MagmaImportHandleInfo;
 use crate::defines::MagmaMemoryType;
 use crate::defines::MagmaPhysicalDeviceInfo;
@@ -157,31 +156,6 @@ impl Xe {
 }
 
 impl GenericDevice for Xe {
-    fn get_memory_budget(&self, heap_idx: u32) -> Result<MagmaHeapBudget> {
-        if heap_idx >= self.mem_heaps.len() as u32 {
-            return Err(Error::InvalidArgs);
-        }
-
-        let fd = self.physical_device.as_fd().unwrap();
-        let memory_info = xe_query_memory_regions(fd)?;
-        let heap = &self.mem_heaps[heap_idx as usize];
-
-        let (budget, usage) = if heap.is_device_local() && heap.is_cpu_visible() {
-            (
-                memory_info.vram_cpu_visible_size,
-                memory_info.vram_cpu_visible_used,
-            )
-        } else if heap.is_device_local() {
-            (memory_info.vram_size, memory_info.vram_used)
-        } else if heap.is_cpu_visible() {
-            (memory_info.sysmem_size, memory_info.sysmem_used)
-        } else {
-            return Err(Error::Unimplemented);
-        };
-
-        Ok(MagmaHeapBudget { budget, usage })
-    }
-
     fn map_buffer_gpu(
         &self,
         buffer: &Arc<dyn BackendBuffer>,

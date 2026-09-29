@@ -9,7 +9,6 @@ use windows_sys::Win32::Foundation::LUID;
 use crate::defines::MagmaCreateBufferInfo;
 use crate::defines::MagmaCreateQueueInfo;
 use crate::defines::MagmaHeap;
-use crate::defines::MagmaHeapBudget;
 use crate::defines::MagmaImportHandleInfo;
 use crate::defines::MagmaMemoryType;
 use crate::defines::MagmaPhysicalDeviceInfo;
@@ -185,14 +184,6 @@ impl WddmDevice {
 }
 
 impl GenericDevice for WddmDevice {
-    fn get_memory_budget(&self, heap_idx: u32) -> Result<MagmaHeapBudget> {
-        let heap = self
-            .mem_heaps
-            .get(heap_idx as usize)
-            .ok_or(Error::InvalidArgs)?;
-        d3dkmt::query_video_memory_info(self.adapter.as_wddm_handle(), heap.is_device_local())
-    }
-
     fn create_queue(
         self: Arc<WddmDevice>,
         _info: &MagmaCreateQueueInfo,

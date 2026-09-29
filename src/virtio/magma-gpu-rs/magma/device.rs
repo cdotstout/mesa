@@ -7,7 +7,6 @@ use crate::defines::MagmaCreateBufferInfo;
 use crate::defines::MagmaCreateQueueInfo;
 use crate::defines::MagmaCreateSyncObjInfo;
 use crate::defines::MagmaHeap;
-use crate::defines::MagmaHeapBudget;
 use crate::defines::MagmaImportHandleInfo;
 use crate::defines::MagmaMemoryType;
 use crate::defines::MagmaPhysicalDeviceInfo;
@@ -77,10 +76,6 @@ impl PhysicalDevice {
 }
 
 impl Device {
-    pub fn get_memory_budget(&self, heap_idx: u32) -> Result<MagmaHeapBudget> {
-        self.device.get_memory_budget(heap_idx)
-    }
-
     pub fn map_buffer_gpu(
         &self,
         buffer: &Buffer,
