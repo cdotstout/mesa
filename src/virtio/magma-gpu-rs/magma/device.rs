@@ -12,8 +12,8 @@ use crate::defines::MagmaImportHandleInfo;
 use crate::defines::MagmaMemoryType;
 use crate::defines::MagmaPhysicalDeviceInfo;
 use crate::defines::MagmaQueueFamilyProperties;
+use crate::protocol::MagmaGpuMapFlags;
 use crate::error::Result;
-use crate::memory::AddressSpace;
 use crate::memory::Buffer;
 use crate::queue::Queue;
 use crate::sync::SyncObj;
@@ -81,20 +81,30 @@ impl Device {
         self.device.get_memory_budget(heap_idx)
     }
 
-    pub fn create_address_space(&self) -> Result<AddressSpace> {
-        let address_space = self.device.clone().create_address_space()?;
-        Ok(AddressSpace::new(address_space))
+    pub fn map_buffer_gpu(
+        &self,
+        buffer: &Buffer,
+        buffer_offset: u64,
+        gpu_va: u64,
+        size: u64,
+        flags: MagmaGpuMapFlags,
+    ) -> Result<()> {
+        self.device.map_buffer_gpu(buffer.inner(), buffer_offset, gpu_va, size, flags)
     }
+
+    pub fn unmap_buffer_gpu(&self, gpu_va: u64, size: u64) -> Result<()> {
+        self.device.unmap_buffer_gpu(gpu_va, size)
+    }
+
 
     pub fn create_queue(
         &self,
-        address_space: &AddressSpace,
         info: &MagmaCreateQueueInfo,
     ) -> Result<Queue> {
         let queue = self
             .device
             .clone()
-            .create_queue(address_space.inner(), info)?;
+            .create_queue(info)?;
         Ok(Queue::new(queue))
     }
 

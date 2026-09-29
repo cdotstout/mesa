@@ -31,7 +31,6 @@ struct util_sync_provider;
 
 struct anv_magma_device {
    magma_device_t device;
-   magma_address_space_t address_space;
 
    simple_mtx_t bo_mutex;
    struct util_idalloc bo_ids;

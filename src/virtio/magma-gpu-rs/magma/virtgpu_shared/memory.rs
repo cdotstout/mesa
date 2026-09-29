@@ -15,12 +15,7 @@ use crate::error::Error;
 use crate::error::Result;
 use crate::protocol::BufferClose;
 use crate::protocol::MagmaCommandHeader;
-use crate::protocol::MagmaGpuMapFlags;
-use crate::protocol::MapBufferGpu;
-use crate::protocol::UnmapBufferGpu;
 use crate::protocol::MAGMA_OPCODE_BUFFER_CLOSE;
-use crate::protocol::MAGMA_OPCODE_MAP_BUFFER_GPU;
-use crate::protocol::MAGMA_OPCODE_UNMAP_BUFFER_GPU;
 use crate::traits::BackendAddressSpace;
 use crate::traits::BackendBuffer;
 use crate::traits::GenericAddressSpace;
@@ -46,44 +41,6 @@ pub struct VirtioGpuBuffer<T: VirtioGpuTransport> {
 impl<T: VirtioGpuTransport> GenericAddressSpace for VirtioGpuAddressSpace<T> {
     fn as_vm_id(&self) -> Option<u32> {
         Some(self.object_id)
-    }
-
-    fn map_buffer_gpu(
-        &self,
-        buffer: &Arc<dyn BackendBuffer>,
-        buffer_offset: u64,
-        gpu_va: u64,
-        size: u64,
-        flags: MagmaGpuMapFlags,
-    ) -> Result<()> {
-        let buf_id = buffer.as_gem_handle().unwrap_or(1);
-        let req = MapBufferGpu {
-            header: MagmaCommandHeader {
-                opcode: MAGMA_OPCODE_MAP_BUFFER_GPU,
-                size: std::mem::size_of::<MapBufferGpu>() as u32,
-            },
-            address_space: self.object_id,
-            buffer: buf_id,
-            buffer_offset,
-            gpu_va,
-            size,
-            flags,
-        };
-        self.device.submit_encoded_cpu_cmd(req.as_bytes())
-    }
-
-    fn unmap_buffer_gpu(&self, gpu_va: u64, size: u64) -> Result<()> {
-        let req = UnmapBufferGpu {
-            header: MagmaCommandHeader {
-                opcode: MAGMA_OPCODE_UNMAP_BUFFER_GPU,
-                size: std::mem::size_of::<UnmapBufferGpu>() as u32,
-            },
-            address_space: self.object_id,
-            _pad0: 0,
-            gpu_va,
-            size,
-        };
-        self.device.submit_encoded_cpu_cmd(req.as_bytes())
     }
 }
 

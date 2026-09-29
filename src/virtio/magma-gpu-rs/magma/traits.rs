@@ -54,11 +54,23 @@ pub trait GenericPhysicalDevice {
 pub trait GenericDevice {
     fn get_memory_budget(&self, heap_idx: u32) -> Result<MagmaHeapBudget>;
 
-    fn create_address_space(self: Arc<Self>) -> Result<Arc<dyn BackendAddressSpace>>;
+    fn map_buffer_gpu(
+        &self,
+        _buffer: &Arc<dyn BackendBuffer>,
+        _buffer_offset: u64,
+        _gpu_va: u64,
+        _size: u64,
+        _flags: MagmaGpuMapFlags,
+    ) -> Result<()> {
+        Err(Error::Unimplemented)
+    }
+
+    fn unmap_buffer_gpu(&self, _gpu_va: u64, _size: u64) -> Result<()> {
+        Err(Error::Unimplemented)
+    }
 
     fn create_queue(
         self: Arc<Self>,
-        address_space: &Arc<dyn BackendAddressSpace>,
         info: &MagmaCreateQueueInfo,
     ) -> Result<Arc<dyn BackendQueue>>;
 

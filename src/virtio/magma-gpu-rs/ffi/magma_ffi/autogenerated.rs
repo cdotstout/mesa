@@ -326,30 +326,14 @@ pub unsafe extern "C" fn magma_create_buffer(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn magma_create_address_space(
-    device: &mut magma_device,
-    address_space: &mut *mut magma_address_space,
-) -> i32 {
-    catch_unwind(AssertUnwindSafe(|| {
-        debug!("call: magma_create_address_space");
-        let result = device.create_address_space();
-        let res = return_on_error!(result);
-        *address_space = Box::into_raw(Box::new(res)) as _;
-        NO_ERROR
-    }))
-    .unwrap_or(-ESRCH)
-}
-
-#[no_mangle]
 pub unsafe extern "C" fn magma_create_queue(
     device: &mut magma_device,
-    address_space: &mut magma_address_space,
     info: &magma_create_queue_info,
     queue: &mut *mut magma_queue,
 ) -> i32 {
     catch_unwind(AssertUnwindSafe(|| {
         debug!("call: magma_create_queue");
-        let result = device.create_queue(address_space, info);
+        let result = device.create_queue(info);
         let res = return_on_error!(result);
         *queue = Box::into_raw(Box::new(res)) as _;
         NO_ERROR
@@ -412,23 +396,8 @@ pub unsafe extern "C" fn magma_queue_close(queue: &mut *mut magma_queue) -> i32 
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn magma_address_space_close(
-    address_space: &mut *mut magma_address_space,
-) -> i32 {
-    catch_unwind(AssertUnwindSafe(|| {
-        debug!("call: magma_address_space_close");
-        if !(*address_space).is_null() {
-            let _ = unsafe { Box::from_raw(*address_space) };
-            *address_space = null_mut();
-        }
-        NO_ERROR
-    }))
-    .unwrap_or(-ESRCH)
-}
-
-#[no_mangle]
 pub unsafe extern "C" fn magma_map_buffer_gpu(
-    address_space: &mut magma_address_space,
+    device: &mut magma_device,
     buffer: &mut magma_buffer,
     buffer_offset: u64,
     gpu_va: u64,
@@ -437,7 +406,7 @@ pub unsafe extern "C" fn magma_map_buffer_gpu(
 ) -> i32 {
     catch_unwind(AssertUnwindSafe(|| {
         debug!("call: magma_map_buffer_gpu");
-        let result = address_space.map_buffer_gpu(buffer, buffer_offset, gpu_va, size, flags);
+        let result = device.map_buffer_gpu(buffer, buffer_offset, gpu_va, size, flags);
         return_result(result)
     }))
     .unwrap_or(-ESRCH)
@@ -445,13 +414,13 @@ pub unsafe extern "C" fn magma_map_buffer_gpu(
 
 #[no_mangle]
 pub unsafe extern "C" fn magma_unmap_buffer_gpu(
-    address_space: &mut magma_address_space,
+    device: &mut magma_device,
     gpu_va: u64,
     size: u64,
 ) -> i32 {
     catch_unwind(AssertUnwindSafe(|| {
         debug!("call: magma_unmap_buffer_gpu");
-        let result = address_space.unmap_buffer_gpu(gpu_va, size);
+        let result = device.unmap_buffer_gpu(gpu_va, size);
         return_result(result)
     }))
     .unwrap_or(-ESRCH)

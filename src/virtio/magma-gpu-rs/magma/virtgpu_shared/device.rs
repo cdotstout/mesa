@@ -15,7 +15,6 @@ use crate::defines::MagmaImportHandleInfo;
 use crate::encoder::Encoder;
 use crate::error::Error;
 use crate::error::Result;
-use crate::protocol::CreateAddressSpace;
 use crate::protocol::CreateBuffer;
 use crate::protocol::CreateDevice;
 use crate::protocol::CreateQueue;
@@ -27,7 +26,6 @@ use crate::protocol::MagmaSyncObjType;
 use crate::protocol::MagmaVirtCapabilities;
 use crate::protocol::VirtioCreateRing;
 use crate::protocol::VirtioPing;
-use crate::protocol::MAGMA_OPCODE_CREATE_ADDRESS_SPACE;
 use crate::protocol::MAGMA_OPCODE_CREATE_BUFFER;
 use crate::protocol::MAGMA_OPCODE_CREATE_DEVICE;
 use crate::protocol::MAGMA_OPCODE_CREATE_QUEUE;
@@ -36,13 +34,11 @@ use crate::protocol::MAGMA_OPCODE_VIRTIO_CREATE_RING;
 use crate::protocol::MAGMA_OPCODE_VIRTIO_PING;
 use crate::ring::MagmaRingBuffer;
 use crate::sys::platform::PlatformDevice;
-use crate::traits::BackendAddressSpace;
 use crate::traits::BackendBuffer;
 use crate::traits::BackendDevice;
 use crate::traits::BackendQueue;
 use crate::traits::BackendSyncObject;
 use crate::traits::GenericDevice;
-use crate::virtgpu_shared::memory::VirtioGpuAddressSpace;
 use crate::virtgpu_shared::memory::VirtioGpuBuffer;
 use crate::virtgpu_shared::queue::VirtioGpuQueue;
 use crate::virtgpu_shared::sync::SyncObjectTracker;
@@ -148,40 +144,19 @@ impl<T: VirtioGpuTransport> GenericDevice for VirtioGpu<T> {
         }
     }
 
-    fn create_address_space(self: Arc<VirtioGpu<T>>) -> Result<Arc<dyn BackendAddressSpace>> {
-        let object_id = self.object_id.fetch_add(1, Ordering::Relaxed);
-        let req = CreateAddressSpace {
-            header: MagmaCommandHeader {
-                opcode: MAGMA_OPCODE_CREATE_ADDRESS_SPACE,
-                size: std::mem::size_of::<CreateAddressSpace>() as u32,
-            },
-            device: 0,
-            address_space: object_id,
-        };
-        self.submit_encoded_cpu_cmd(req.as_bytes())?;
-        Ok(Arc::new(VirtioGpuAddressSpace {
-            device: self,
-            object_id,
-        }))
-    }
-
     fn create_queue(
         self: Arc<VirtioGpu<T>>,
-        address_space: &Arc<dyn BackendAddressSpace>,
         info: &MagmaCreateQueueInfo,
     ) -> Result<Arc<dyn BackendQueue>> {
         let object_id = self.object_id.fetch_add(1, Ordering::Relaxed);
-        let as_id = address_space.as_vm_id().unwrap_or(1);
         let req = CreateQueue {
             header: MagmaCommandHeader {
                 opcode: MAGMA_OPCODE_CREATE_QUEUE,
                 size: std::mem::size_of::<CreateQueue>() as u32,
             },
             device: 0,
-            address_space: as_id,
             info: *info,
             queue: object_id,
-            _padding: 0,
         };
         self.submit_encoded_cpu_cmd(req.as_bytes())?;
 

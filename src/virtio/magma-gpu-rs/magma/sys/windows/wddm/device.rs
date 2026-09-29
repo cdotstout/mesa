@@ -193,13 +193,8 @@ impl GenericDevice for WddmDevice {
         d3dkmt::query_video_memory_info(self.adapter.as_wddm_handle(), heap.is_device_local())
     }
 
-    fn create_address_space(self: Arc<WddmDevice>) -> Result<Arc<dyn BackendAddressSpace>> {
-        Ok(Arc::new(WddmAddressSpace::new(self)))
-    }
-
     fn create_queue(
         self: Arc<WddmDevice>,
-        _address_space: &Arc<dyn BackendAddressSpace>,
         _info: &MagmaCreateQueueInfo,
     ) -> Result<Arc<dyn BackendQueue>> {
         let queue = WddmQueue::new(self)?;

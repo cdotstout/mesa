@@ -46,20 +46,9 @@ aspects = [ "common" ]
 response = true
 
 [[commands]]
-name = "MagmaCreateAddressSpace"
-inputs = [
-    { name = "device", type = "Device", direction = "in" },
-    { name = "address_space", type = "AddressSpace", direction = "inout" },
-]
-output = "MagmaStatus"
-aspects = [ "common" ]
-response = true
-
-[[commands]]
 name = "MagmaCreateQueue"
 inputs = [
     { name = "device", type = "Device", direction = "in" },
-    { name = "address_space", type = "AddressSpace", direction = "in" },
     { name = "info", type = "MagmaCreateQueueInfo", direction = "in" },
     { name = "queue", type = "Queue", direction = "inout" },
 ]
@@ -103,15 +92,6 @@ output = "MagmaStatus"
 aspects = [ "common" ]
 destructor = true
 
-[[commands]]
-name = "magma_address_space_close"
-inputs = [
-    { name = "address_space", type = "AddressSpace", direction = "inout" },
-]
-output = "MagmaStatus"
-aspects = [ "common" ]
-destructor = true
-
 
 [[commands]]
 name = "MagmaVirtioCreateRing"
@@ -125,7 +105,7 @@ aspects = [ "virtio" ]
 [[commands]]
 name = "MagmaMapBufferGpu"
 inputs = [
-    { name = "address_space", type = "AddressSpace", direction = "in" },
+    { name = "device", type = "Device", direction = "in" },
     { name = "buffer", type = "Buffer", direction = "in" },
     { name = "buffer_offset", type = "uint64_t", direction = "in" },
     { name = "gpu_va", type = "uint64_t", direction = "in" },
@@ -139,7 +119,7 @@ response = true
 [[commands]]
 name = "MagmaUnmapBufferGpu"
 inputs = [
-    { name = "address_space", type = "AddressSpace", direction = "in" },
+    { name = "device", type = "Device", direction = "in" },
     { name = "gpu_va", type = "uint64_t", direction = "in" },
     { name = "size", type = "uint64_t", direction = "in" },
 ]

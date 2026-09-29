@@ -36,7 +36,6 @@ struct test_runner {
     uint32_t chosen_mem_type_idx;
 
     magma_device_t device;
-    magma_address_space_t address_space;
     magma_queue_t queue;
 
     magma_buffer_t buffer;
@@ -131,15 +130,11 @@ static void test_enumerate_and_init(struct test_runner *runner) {
 }
 
 static void test_create_resources(struct test_runner *runner) {
-    magma_status_t status = magma_create_address_space(runner->device, &runner->address_space);
-    assert(status == MAGMA_STATUS_SUCCESS);
-    assert(runner->address_space != NULL);
-
     struct magma_create_queue_info queue_info = {
         .queue_family_idx = 0,
         .priority = 0,
     };
-    status = magma_create_queue(runner->device, runner->address_space, &queue_info, &runner->queue);
+    magma_status_t status = magma_create_queue(runner->device, &queue_info, &runner->queue);
     assert(status == MAGMA_STATUS_SUCCESS);
     assert(runner->queue != NULL);
 
@@ -181,7 +176,7 @@ static void test_cpu_buffer_mapping(struct test_runner *runner) {
 
 static void test_gpu_buffer_mapping(struct test_runner *runner) {
     magma_status_t status = magma_map_buffer_gpu(
-        runner->address_space, runner->buffer, 0, runner->gpu_va, runner->buffer_size,
+        runner->device, runner->buffer, 0, runner->gpu_va, runner->buffer_size,
         MAGMA_GPU_MAP_FLAGS_READ | MAGMA_GPU_MAP_FLAGS_WRITE | MAGMA_GPU_MAP_FLAGS_EXECUTE);
     assert(status == MAGMA_STATUS_SUCCESS);
 }
@@ -569,7 +564,7 @@ static void test_buffer_lifecycle_loop(struct test_runner *runner) {
 
         uint64_t temp_va = 0x30000000ULL + (uint64_t)i * 0x10000ULL;
         status = magma_map_buffer_gpu(
-            runner->address_space, temp_buf, 0, temp_va, 65536,
+            runner->device, temp_buf, 0, temp_va, 65536,
             MAGMA_GPU_MAP_FLAGS_READ | MAGMA_GPU_MAP_FLAGS_WRITE);
         assert(status == MAGMA_STATUS_SUCCESS);
 
@@ -589,7 +584,7 @@ static void test_buffer_lifecycle_loop(struct test_runner *runner) {
         assert(handle.os_handle >= 0);
         close((int)handle.os_handle);
 
-        status = magma_unmap_buffer_gpu(runner->address_space, temp_va, 65536);
+        status = magma_unmap_buffer_gpu(runner->device, temp_va, 65536);
         assert(status == MAGMA_STATUS_SUCCESS);
 
         status = magma_buffer_close(&temp_buf);
@@ -601,7 +596,7 @@ static void test_buffer_lifecycle_loop(struct test_runner *runner) {
 
 static void test_cleanup(struct test_runner *runner) {
     magma_status_t status =
-        magma_unmap_buffer_gpu(runner->address_space, runner->gpu_va, runner->buffer_size);
+        magma_unmap_buffer_gpu(runner->device, runner->gpu_va, runner->buffer_size);
     assert(status == MAGMA_STATUS_SUCCESS);
 
     status = magma_buffer_close(&runner->buffer);

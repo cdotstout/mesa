@@ -301,10 +301,7 @@ magma_status_t magma_create_buffer(magma_device_t device,
                                    const struct magma_create_buffer_info* info,
                                    magma_buffer_t* buffer_out);
 
-magma_status_t magma_create_address_space(magma_device_t device,
-                                          magma_address_space_t* address_space);
-
-magma_status_t magma_create_queue(magma_device_t device, magma_address_space_t address_space,
+magma_status_t magma_create_queue(magma_device_t device,
                                   const struct magma_create_queue_info* info, magma_queue_t* queue);
 
 magma_status_t magma_device_close(magma_device_t* device);
@@ -315,14 +312,11 @@ magma_status_t magma_buffer_close(magma_buffer_t* buffer);
 
 magma_status_t magma_queue_close(magma_queue_t* queue);
 
-magma_status_t magma_address_space_close(magma_address_space_t* address_space);
-
-magma_status_t magma_map_buffer_gpu(magma_address_space_t address_space, magma_buffer_t buffer,
+magma_status_t magma_map_buffer_gpu(magma_device_t device, magma_buffer_t buffer,
                                     uint64_t buffer_offset, uint64_t gpu_va, uint64_t size,
                                     magma_gpu_map_flags_t flags);
 
-magma_status_t magma_unmap_buffer_gpu(magma_address_space_t address_space, uint64_t gpu_va,
-                                      uint64_t size);
+magma_status_t magma_unmap_buffer_gpu(magma_device_t device, uint64_t gpu_va, uint64_t size);
 
 magma_status_t magma_submit_command(magma_queue_t queue,
                                     const struct magma_submit_info* submit_info);

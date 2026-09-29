@@ -18,6 +18,7 @@ use crate::defines::MagmaPhysicalDeviceInfo;
 use crate::defines::MagmaQueueFamilyProperties;
 use crate::defines::MagmaQueueFlags;
 use crate::defines::MagmaSyncType;
+use crate::MagmaGpuMapFlags;
 use crate::error::Error;
 use crate::error::Result;
 use crate::sys::linux::bindings::xe_bindings::__u64;
@@ -59,6 +60,7 @@ pub struct Xe {
     mem_heaps: Vec<MagmaHeap>,
     sysmem_instance: u16,
     vram_instance: u16,
+    address_space: Arc<dyn BackendAddressSpace>,
 }
 
 impl XePhysicalDevice {
@@ -139,6 +141,8 @@ impl Xe {
         let memory_info = xe_query_memory_regions(fd)?;
         let (mem_types, mem_heaps) = xe_query_memory(fd)?;
 
+        let address_space = XeAddressSpace::new(physical_device.clone(), 0)?;
+
         Ok(Xe {
             physical_device,
             _gtt_size: gtt_size,
@@ -147,6 +151,7 @@ impl Xe {
             mem_heaps,
             sysmem_instance: memory_info.sysmem_instance,
             vram_instance: memory_info.vram_instance,
+            address_space: Arc::new(address_space),
         })
     }
 }
@@ -177,17 +182,33 @@ impl GenericDevice for Xe {
         Ok(MagmaHeapBudget { budget, usage })
     }
 
-    fn create_address_space(self: Arc<Xe>) -> Result<Arc<dyn BackendAddressSpace>> {
-        let addr_space = XeAddressSpace::new(self.physical_device.clone(), 0)?;
-        Ok(Arc::new(addr_space))
+    fn map_buffer_gpu(
+        &self,
+        buffer: &Arc<dyn BackendBuffer>,
+        buffer_offset: u64,
+        gpu_va: u64,
+        size: u64,
+        flags: MagmaGpuMapFlags,
+    ) -> Result<()> {
+        self.address_space.map_buffer_gpu(
+            buffer,
+            buffer_offset,
+            gpu_va,
+            size,
+            flags,
+        )
+    }
+
+    fn unmap_buffer_gpu(&self, gpu_va: u64, size: u64) -> Result<()> {
+        self.address_space.unmap_buffer_gpu(gpu_va, size)
     }
 
     fn create_queue(
         self: Arc<Xe>,
-        address_space: &Arc<dyn BackendAddressSpace>,
         info: &MagmaCreateQueueInfo,
     ) -> Result<Arc<dyn BackendQueue>> {
-        let queue = XeQueue::new(self.physical_device.clone(), address_space, info)?;
+        let address_space = self.address_space.clone();
+        let queue = XeQueue::new(self.physical_device.clone(), &address_space, info)?;
         Ok(Arc::new(queue))
     }
 

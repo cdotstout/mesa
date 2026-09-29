@@ -706,10 +706,8 @@ pub struct CreateAddressSpaceResp {
 pub struct CreateQueue {
     pub header: MagmaCommandHeader,
     pub device: u32,
-    pub address_space: u32,
     pub info: MagmaCreateQueueInfo,
     pub queue: u32,
-    pub _padding: u32,
 }
 
 #[repr(C)]
@@ -770,7 +768,7 @@ pub struct VirtioCreateRing {
 #[derive(Debug, Default, Copy, Clone, TryFromBytes, IntoBytes, Immutable)]
 pub struct MapBufferGpu {
     pub header: MagmaCommandHeader,
-    pub address_space: u32,
+    pub device: u32,
     pub buffer: u32,
     pub buffer_offset: u64,
     pub gpu_va: u64,
@@ -788,7 +786,7 @@ pub struct MapBufferGpuResp {
 #[derive(Debug, Default, Copy, Clone, TryFromBytes, IntoBytes, Immutable)]
 pub struct UnmapBufferGpu {
     pub header: MagmaCommandHeader,
-    pub address_space: u32,
+    pub device: u32,
     pub _pad0: u32,
     pub gpu_va: u64,
     pub size: u64,

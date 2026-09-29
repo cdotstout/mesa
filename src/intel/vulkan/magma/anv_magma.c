@@ -708,13 +708,6 @@ anv_magma_device_setup_vm(struct anv_device *device)
                        "magma_create_device failed: %d", status);
    }
 
-   status = magma_create_address_space(magma->device, &magma->address_space);
-   if (status != MAGMA_STATUS_SUCCESS) {
-      anv_magma_device_destroy_vm(device);
-      return vk_errorf(device, VK_ERROR_INITIALIZATION_FAILED,
-                       "magma_create_address_space failed: %d", status);
-   }
-
    /*
     * Bind timeline: Asynchronous VM_BIND operations (such as in Linux Xe,
     * WDDM/D3DKMT paging queues, and Magma VM binding) decouple page table
@@ -775,9 +768,6 @@ anv_magma_device_destroy_vm(struct anv_device *device)
    } else {
       simple_mtx_destroy(&device->bind_timeline.mutex);
    }
-
-   if (device->magma->address_space)
-      magma_address_space_close(&device->magma->address_space);
 
    if (device->magma->device) {
       magma_device_close(&device->magma->device);
@@ -854,7 +844,7 @@ anv_magma_create_engine(struct anv_device *device,
                         struct anv_queue *queue,
                         const VkDeviceQueueCreateInfo *pCreateInfo)
 {
-   if (!device->magma || !device->magma->device || !device->magma->address_space)
+   if (!device->magma || !device->magma->device)
       return VK_SUCCESS;
 
    uint32_t flags = 0;
@@ -868,7 +858,6 @@ anv_magma_create_engine(struct anv_device *device,
    };
 
    magma_status_t status = magma_create_queue(device->magma->device,
-                                              device->magma->address_space,
                                               &info,
                                               &queue->magma_queue);
    if (status != MAGMA_STATUS_SUCCESS)
@@ -881,7 +870,6 @@ anv_magma_create_engine(struct anv_device *device,
          .flags = flags | MAGMA_QUEUE_FLAGS_SPARSE_BINDING,
       };
       status = magma_create_queue(device->magma->device,
-                                  device->magma->address_space,
                                   &bind_info,
                                   &queue->magma_bind_queue);
       if (status != MAGMA_STATUS_SUCCESS) {
@@ -1280,7 +1268,7 @@ static VkResult
 magma_vm_bind(struct anv_device *device, struct anv_sparse_submission *submit,
               enum anv_vm_bind_flags flags)
 {
-   if (!device->magma || !device->magma->address_space)
+   if (!device->magma)
       return VK_SUCCESS;
 
    for (uint32_t i = 0; i < submit->binds_len; i++) {
@@ -1290,7 +1278,7 @@ magma_vm_bind(struct anv_device *device, struct anv_sparse_submission *submit,
          if (magma_buf) {
             uint64_t map_flags = MAGMA_GPU_MAP_FLAGS_READ | MAGMA_GPU_MAP_FLAGS_WRITE |
                                  MAGMA_GPU_MAP_FLAGS_EXECUTE;
-            magma_status_t status = magma_map_buffer_gpu(device->magma->address_space,
+            magma_status_t status = magma_map_buffer_gpu(device->magma->device,
                                                          magma_buf,
                                                          bind->bo_offset,
                                                          intel_48b_address(bind->address),
@@ -1301,7 +1289,7 @@ magma_vm_bind(struct anv_device *device, struct anv_sparse_submission *submit,
                                 "magma_map_buffer_gpu failed: %d", status);
          }
       } else if (bind->op == ANV_VM_UNBIND) {
-         magma_status_t status = magma_unmap_buffer_gpu(device->magma->address_space,
+         magma_status_t status = magma_unmap_buffer_gpu(device->magma->device,
                                                         intel_48b_address(bind->address),
                                                         bind->size);
          if (status != MAGMA_STATUS_SUCCESS)
@@ -1309,7 +1297,7 @@ magma_vm_bind(struct anv_device *device, struct anv_sparse_submission *submit,
                              "magma_unmap_buffer_gpu failed: %d", status);
       } else if (bind->op == ANV_VM_UNBIND_ALL) {
          if (bind->bo) {
-            magma_status_t status = magma_unmap_buffer_gpu(device->magma->address_space,
+            magma_status_t status = magma_unmap_buffer_gpu(device->magma->device,
                                                            intel_48b_address(bind->bo->offset),
                                                            bind->bo->actual_size);
             if (status != MAGMA_STATUS_SUCCESS)
