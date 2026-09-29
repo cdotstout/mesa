@@ -49,6 +49,7 @@
 #include "crocus_context.h"
 #include "crocus_resource.h"
 #include "crocus_screen.h"
+#include "common/i915/intel_gem.h"
 #include "intel/dev/intel_debug.h"
 #include "isl/isl.h"
 #include "drm-uapi/drm_fourcc.h"

@@ -22,6 +22,7 @@
  */
 #include "i915/iris_bufmgr.h"
 
+#include "common/i915/intel_gem.h"
 #include "common/intel_gem.h"
 #include "intel/dev/intel_debug.h"
 #include "iris/iris_bufmgr.h"

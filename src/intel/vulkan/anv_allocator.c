@@ -30,6 +30,7 @@
 #include "anv_private.h"
 #include "anv_slab_bo.h"
 
+#include "common/i915/intel_gem.h"
 #include "common/intel_aux_map.h"
 #include "util/futex.h"
 #include "util/os_mman.h"

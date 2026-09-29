@@ -31,6 +31,52 @@
 
 #include <fcntl.h>
 
+uint32_t
+isl_tiling_to_i915_tiling(enum isl_tiling tiling)
+{
+   switch (tiling) {
+   case ISL_TILING_LINEAR:
+      return I915_TILING_NONE;
+
+   case ISL_TILING_X:
+      return I915_TILING_X;
+
+   case ISL_TILING_Y0:
+   case ISL_TILING_HIZ:
+   case ISL_TILING_CCS:
+      return I915_TILING_Y;
+
+   case ISL_TILING_W:
+   case ISL_TILING_SKL_Yf:
+   case ISL_TILING_SKL_Ys:
+   case ISL_TILING_ICL_Yf:
+   case ISL_TILING_ICL_Ys:
+   case ISL_TILING_4:
+   case ISL_TILING_64:
+   case ISL_TILING_64_XE2:
+      return I915_TILING_NONE;
+   }
+
+   UNREACHABLE("Invalid ISL tiling");
+}
+
+enum isl_tiling
+isl_tiling_from_i915_tiling(uint32_t tiling)
+{
+   switch (tiling) {
+   case I915_TILING_NONE:
+      return ISL_TILING_LINEAR;
+
+   case I915_TILING_X:
+      return ISL_TILING_X;
+
+   case I915_TILING_Y:
+      return ISL_TILING_Y0;
+   }
+
+   UNREACHABLE("Invalid i915 tiling");
+}
+
 bool
 i915_gem_create_context(int fd, uint32_t *context_id)
 {

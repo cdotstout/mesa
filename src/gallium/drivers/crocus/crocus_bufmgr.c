@@ -52,6 +52,7 @@
 
 #include "errno.h"
 #include "dev/intel_debug.h"
+#include "common/i915/intel_gem.h"
 #include "common/intel_gem.h"
 #include "dev/intel_device_info.h"
 #include "util/u_debug.h"

@@ -2403,12 +2403,6 @@ isl_tiling_is_standard(enum isl_tiling tiling)
    return (1u << tiling) & ISL_TILING_STANDARD_MASK;
 }
 
-uint32_t
-isl_tiling_to_i915_tiling(enum isl_tiling tiling);
-
-enum isl_tiling
-isl_tiling_from_i915_tiling(uint32_t tiling);
-
 
 /**
  * Return an isl_aux_state to describe an auxiliary surface that is either

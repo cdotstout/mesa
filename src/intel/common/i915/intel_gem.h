@@ -27,9 +27,13 @@
 #include <stdint.h>
 
 #include "common/intel_gem.h"
+#include "isl/isl.h"
 #include "util/os_time.h"
 
 #include "drm-uapi/i915_drm.h"
+
+uint32_t isl_tiling_to_i915_tiling(enum isl_tiling tiling);
+enum isl_tiling isl_tiling_from_i915_tiling(uint32_t tiling);
 
 bool i915_gem_create_context(int fd, uint32_t *context_id);
 bool i915_gem_destroy_context(int fd, uint32_t context_id);

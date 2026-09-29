@@ -29,6 +29,7 @@
 
 #include "anv_private.h"
 
+#include "common/i915/intel_gem.h"
 #include "util/anon_file.h"
 #include "util/futex.h"
 
