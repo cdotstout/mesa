@@ -26,6 +26,7 @@
 #include "anv_private.h"
 
 #include "i915/anv_batch_chain.h"
+#include "i915/anv_device.h"
 
 #include "drm-uapi/i915_drm.h"
 #include "intel/common/i915/intel_gem.h"
@@ -411,6 +412,8 @@ anv_i915_kmd_backend_get(void)
       .queue_exec_async = i915_queue_exec_async,
       .bo_alloc_flags_to_bo_flags = i915_bo_alloc_flags_to_bo_flags,
       .import_bo_alloc_flags_to_bo_flags = i915_import_bo_alloc_flags_to_bo_flags,
+      .physical_device_get_parameters = anv_i915_physical_device_get_parameters,
+      .physical_device_init_memory_types = anv_i915_physical_device_init_memory_types,
    };
    return &i915_backend;
 }

@@ -149,6 +149,18 @@ stub_vm_bind_bo(struct anv_device *device, struct anv_bo *bo)
    return VK_SUCCESS;
 }
 
+static VkResult
+stub_physical_device_get_parameters(struct anv_physical_device *device)
+{
+   return VK_SUCCESS;
+}
+
+static VkResult
+stub_physical_device_init_memory_types(struct anv_physical_device *device)
+{
+   return VK_SUCCESS;
+}
+
 const struct anv_kmd_backend *anv_stub_kmd_backend_get(void)
 {
    static const struct anv_kmd_backend stub_backend = {
@@ -163,6 +175,8 @@ const struct anv_kmd_backend *anv_stub_kmd_backend_get(void)
       .queue_exec_async = stub_queue_exec_async,
       .bo_alloc_flags_to_bo_flags = stub_bo_alloc_flags_to_bo_flags,
       .import_bo_alloc_flags_to_bo_flags = stub_import_bo_alloc_flags_to_bo_flags,
+      .physical_device_get_parameters = stub_physical_device_get_parameters,
+      .physical_device_init_memory_types = stub_physical_device_init_memory_types,
    };
    return &stub_backend;
 }

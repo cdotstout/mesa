@@ -7,8 +7,6 @@
 #include "anv_measure.h"
 
 #include "dev/intel_debug.h"
-#include "i915/anv_device.h"
-#include "xe/anv_device.h"
 
 #include "common/intel_common.h"
 #include "common/intel_uuid.h"
@@ -2643,15 +2641,7 @@ anv_physical_device_init_heaps(struct anv_physical_device *device, int fd)
       };
    }
 
-   switch (device->info.kmd_type) {
-   case INTEL_KMD_TYPE_XE:
-      result = anv_xe_physical_device_init_memory_types(device);
-      break;
-   case INTEL_KMD_TYPE_I915:
-   default:
-      result = anv_i915_physical_device_init_memory_types(device);
-      break;
-   }
+   result = device->kmd_backend->physical_device_init_memory_types(device);
 
    if (device->has_protected_contexts) {
       /* Add a memory type for protected buffers, local and not host
@@ -2995,20 +2985,6 @@ anv_physical_device_init_queue_families(struct anv_physical_device *pdevice)
    pdevice->queue.family_count = family_count;
 }
 
-static VkResult
-anv_physical_device_get_parameters(struct anv_physical_device *device)
-{
-   switch (device->info.kmd_type) {
-   case INTEL_KMD_TYPE_I915:
-      return anv_i915_physical_device_get_parameters(device);
-   case INTEL_KMD_TYPE_XE:
-      return anv_xe_physical_device_get_parameters(device);
-   default:
-      UNREACHABLE("Missing");
-      return VK_ERROR_UNKNOWN;
-   }
-}
-
 VkResult
 anv_physical_device_try_create(struct vk_instance *vk_instance,
                                struct _drmDevice *drm_device,
@@ -3111,9 +3087,10 @@ anv_physical_device_try_create(struct vk_instance *vk_instance,
    snprintf(device->path, ARRAY_SIZE(device->path), "%s", path);
 
    device->info = devinfo;
+   device->kmd_backend = anv_kmd_backend_get(device->info.kmd_type);
 
    device->local_fd = fd;
-   result = anv_physical_device_get_parameters(device);
+   result = device->kmd_backend->physical_device_get_parameters(device);
    if (result != VK_SUCCESS)
       goto fail_base;
 

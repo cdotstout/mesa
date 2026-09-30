@@ -28,6 +28,7 @@
 #include "anv_private.h"
 
 #include "xe/anv_batch_chain.h"
+#include "xe/anv_device.h"
 
 #include "drm-uapi/gpu_scheduler.h"
 #include "drm-uapi/xe_drm.h"
@@ -464,6 +465,8 @@ anv_xe_kmd_backend_get(void)
       .queue_exec_async = xe_queue_exec_async,
       .bo_alloc_flags_to_bo_flags = xe_bo_alloc_flags_to_bo_flags,
       .import_bo_alloc_flags_to_bo_flags = xe_import_bo_alloc_flags_to_bo_flags,
+      .physical_device_get_parameters = anv_xe_physical_device_get_parameters,
+      .physical_device_init_memory_types = anv_xe_physical_device_init_memory_types,
    };
    return &xe_backend;
 }

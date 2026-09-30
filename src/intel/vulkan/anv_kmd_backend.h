@@ -35,6 +35,7 @@ struct anv_bo;
 enum anv_bo_alloc_flags;
 struct anv_cmd_buffer;
 struct anv_device;
+struct anv_physical_device;
 struct anv_queue;
 struct anv_query_pool;
 struct anv_async_submit;
@@ -132,6 +133,8 @@ struct anv_kmd_backend {
                                                  struct anv_bo *bo,
                                                  enum anv_bo_alloc_flags alloc_flags,
                                                  uint32_t *bo_flags);
+   VkResult (*physical_device_get_parameters)(struct anv_physical_device *device);
+   VkResult (*physical_device_init_memory_types)(struct anv_physical_device *device);
 };
 
 const struct anv_kmd_backend *anv_kmd_backend_get(enum intel_kmd_type type);

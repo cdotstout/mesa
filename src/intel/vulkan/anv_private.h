@@ -1497,6 +1497,7 @@ struct anv_physical_device {
     struct anv_instance *                       instance;
     char                                        path[20];
     struct intel_device_info                      info;
+    const struct anv_kmd_backend *              kmd_backend;
 
     struct brw_compiler *                       compiler;
     struct isl_device                           isl_dev;
