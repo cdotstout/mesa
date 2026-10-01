@@ -718,14 +718,6 @@ struct anv_block_pool {
    enum anv_bo_alloc_flags bo_alloc_flags;
 };
 
-/* Block pools are backed by a fixed-size 1GB memfd */
-#define BLOCK_POOL_MEMFD_SIZE (1ul << 30)
-
-/* The center of the block pool is also the middle of the memfd.  This may
- * change in the future if we decide differently for some reason.
- */
-#define BLOCK_POOL_MEMFD_CENTER (BLOCK_POOL_MEMFD_SIZE / 2)
-
 static inline uint32_t
 anv_block_pool_size(struct anv_block_pool *pool)
 {
@@ -761,12 +753,8 @@ struct anv_free_entry {
 
 struct anv_state_table {
    struct anv_device *device;
-   int fd;
-   struct anv_free_entry *map;
-   uint32_t size;
-   uint64_t max_size;
-   struct anv_block_state state;
-   struct u_vector cleanups;
+   struct util_sparse_array map;
+   uint32_t next;
 };
 
 struct anv_state_pool {
@@ -927,7 +915,9 @@ struct anv_state* anv_free_list_pop(union anv_free_list *list,
 static inline struct anv_state *
 anv_state_table_get(struct anv_state_table *table, uint32_t idx)
 {
-   return &table->map[idx].state;
+   struct anv_free_entry *entry =
+      (struct anv_free_entry *)util_sparse_array_get(&table->map, idx);
+   return &entry->state;
 }
 /**
  * Implements a pool of re-usable BOs.  The interface is identical to that

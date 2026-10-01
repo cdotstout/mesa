@@ -31,7 +31,6 @@
 #include "anv_slab_bo.h"
 
 #include "common/intel_aux_map.h"
-#include "util/anon_file.h"
 #include "util/futex.h"
 #include "util/os_mman.h"
 
@@ -50,10 +49,6 @@
 #else
 #define VG_NOACCESS_READ(__ptr) (*(__ptr))
 #define VG_NOACCESS_WRITE(__ptr, __val) (*(__ptr) = (__val))
-#endif
-
-#ifndef MAP_POPULATE
-#define MAP_POPULATE 0
 #endif
 
 /* Design goals:
@@ -108,191 +103,40 @@
 #define PAGE_SIZE 4096
 #endif
 
-struct anv_state_table_cleanup {
-   void *map;
-   size_t size;
-};
-
-#define ANV_STATE_TABLE_CLEANUP_INIT ((struct anv_state_table_cleanup){0})
-#define ANV_STATE_ENTRY_SIZE (sizeof(struct anv_free_entry))
-
-static VkResult
-anv_state_table_expand_range(struct anv_state_table *table, uint32_t size);
-
 VkResult
 anv_state_table_init(struct anv_state_table *table,
-                    struct anv_device *device,
-                    uint32_t initial_entries)
+                     struct anv_device *device,
+                     uint32_t initial_entries)
 {
-   VkResult result;
-
    table->device = device;
-
-   /* Just make it 2GB up-front.  The Linux kernel won't actually back it
-    * with pages until we either map and fault on one of them or we use
-    * userptr and send a chunk of it off to the GPU.
-    */
-   table->fd = os_create_anonymous_file(BLOCK_POOL_MEMFD_SIZE, "state table");
-   if (table->fd == -1)
-      return vk_error(device, VK_ERROR_INITIALIZATION_FAILED);
-
-   if (!u_vector_init(&table->cleanups, 8,
-                      sizeof(struct anv_state_table_cleanup))) {
-      result = vk_error(device, VK_ERROR_INITIALIZATION_FAILED);
-      goto fail_fd;
-   }
-
-   table->state.next = 0;
-   table->state.end = 0;
-   table->size = 0;
-
-   uint32_t initial_size = initial_entries * ANV_STATE_ENTRY_SIZE;
-   result = anv_state_table_expand_range(table, initial_size);
-   if (result != VK_SUCCESS)
-      goto fail_cleanups;
+   table->next = 0;
+   util_sparse_array_init(&table->map, sizeof(struct anv_free_entry),
+                          util_next_power_of_two(MAX2(initial_entries, 2)));
 
    return VK_SUCCESS;
-
- fail_cleanups:
-   u_vector_finish(&table->cleanups);
- fail_fd:
-   close(table->fd);
-
-   return result;
-}
-
-static VkResult
-anv_state_table_expand_range(struct anv_state_table *table, uint32_t size)
-{
-   void *map;
-   struct anv_state_table_cleanup *cleanup;
-
-   /* Assert that we only ever grow the pool */
-   assert(size >= table->state.end);
-
-   /* Make sure that we don't go outside the bounds of the memfd */
-   if (size > BLOCK_POOL_MEMFD_SIZE)
-      return vk_error(table->device, VK_ERROR_OUT_OF_HOST_MEMORY);
-
-   cleanup = u_vector_add(&table->cleanups);
-   if (!cleanup)
-      return vk_error(table->device, VK_ERROR_OUT_OF_HOST_MEMORY);
-
-   *cleanup = ANV_STATE_TABLE_CLEANUP_INIT;
-
-   /* Just leak the old map until we destroy the pool.  We can't munmap it
-    * without races or imposing locking on the block allocate fast path. On
-    * the whole the leaked maps adds up to less than the size of the
-    * current map.  MAP_POPULATE seems like the right thing to do, but we
-    * should try to get some numbers.
-    */
-   map = mmap(NULL, size, PROT_READ | PROT_WRITE,
-              MAP_SHARED | MAP_POPULATE, table->fd, 0);
-   if (map == MAP_FAILED) {
-      return vk_errorf(table->device, VK_ERROR_OUT_OF_HOST_MEMORY,
-                       "mmap failed: %m");
-   }
-
-   cleanup->map = map;
-   cleanup->size = size;
-
-   table->map = map;
-   table->size = size;
-
-   return VK_SUCCESS;
-}
-
-static VkResult
-anv_state_table_grow(struct anv_state_table *table)
-{
-   VkResult result = VK_SUCCESS;
-
-   uint32_t used = align(table->state.next * ANV_STATE_ENTRY_SIZE,
-                         PAGE_SIZE);
-   uint32_t old_size = table->size;
-
-   /* The block pool is always initialized to a nonzero size and this function
-    * is always called after initialization.
-    */
-   assert(old_size > 0);
-
-   uint32_t required = MAX2(used, old_size);
-   if (used * 2 <= required) {
-      /* If we're in this case then this isn't the firsta allocation and we
-       * already have enough space on both sides to hold double what we
-       * have allocated.  There's nothing for us to do.
-       */
-      goto done;
-   }
-
-   uint32_t size = old_size * 2;
-   while (size < required)
-      size *= 2;
-
-   assert(size > table->size);
-
-   result = anv_state_table_expand_range(table, size);
-
- done:
-   return result;
 }
 
 void
 anv_state_table_finish(struct anv_state_table *table)
 {
-   struct anv_state_table_cleanup *cleanup;
-
-   u_vector_foreach(cleanup, &table->cleanups) {
-      if (cleanup->map)
-         munmap(cleanup->map, cleanup->size);
-   }
-
-   u_vector_finish(&table->cleanups);
-
-   close(table->fd);
+   util_sparse_array_finish(&table->map);
 }
 
 VkResult
 anv_state_table_add(struct anv_state_table *table, uint32_t *idx,
                     uint32_t count)
 {
-   struct anv_block_state state, old, new;
-   VkResult result;
-
    assert(idx);
 
-   while(1) {
-      state.u64 = __sync_fetch_and_add(&table->state.u64, count);
-      if (state.next + count <= state.end) {
-         assert(table->map);
-         struct anv_free_entry *entry = &table->map[state.next];
-         for (int i = 0; i < count; i++) {
-            entry[i].state.idx = state.next + i;
-         }
-         *idx = state.next;
-         return VK_SUCCESS;
-      } else if (state.next <= state.end) {
-         /* We allocated the first block outside the pool so we have to grow
-          * the pool.  pool_state->next acts a mutex: threads who try to
-          * allocate now will get block indexes above the current limit and
-          * hit futex_wait below.
-          */
-         new.next = state.next + count;
-         do {
-            result = anv_state_table_grow(table);
-            if (result != VK_SUCCESS)
-               return result;
-            new.end = table->size / ANV_STATE_ENTRY_SIZE;
-         } while (new.end < new.next);
-
-         old.u64 = __sync_lock_test_and_set(&table->state.u64, new.u64);
-         if (old.next != state.next)
-            futex_wake(&table->state.end, INT32_MAX);
-      } else {
-         futex_wait(&table->state.end, state.end, NULL);
-         continue;
-      }
+   uint32_t next = p_atomic_fetch_add(&table->next, count);
+   for (uint32_t i = 0; i < count; i++) {
+      struct anv_free_entry *entry =
+         util_sparse_array_get(&table->map, next + i);
+      entry->state.idx = next + i;
    }
+   *idx = next;
+
+   return VK_SUCCESS;
 }
 
 void
@@ -303,13 +147,16 @@ anv_free_list_push(union anv_free_list *list,
    union anv_free_list current, old, new;
    uint32_t last = first;
 
-   for (uint32_t i = 1; i < count; i++, last++)
-      table->map[last].next = last + 1;
+   for (uint32_t i = 1; i < count; i++, last++) {
+      struct anv_free_entry *entry = util_sparse_array_get(&table->map, last);
+      entry->next = last + 1;
+   }
 
+   struct anv_free_entry *last_entry = util_sparse_array_get(&table->map, last);
    old.u64 = list->u64;
    do {
       current = old;
-      table->map[last].next = current.offset;
+      last_entry->next = current.offset;
       new.offset = first;
       new.count = current.count + 1;
       old.u64 = __sync_val_compare_and_swap(&list->u64, current.u64, new.u64);
@@ -325,13 +172,13 @@ anv_free_list_pop(union anv_free_list *list,
    current.u64 = list->u64;
    while (current.offset != ANV_FREE_LIST_EMPTY_VAL) {
       __sync_synchronize();
-      new.offset = table->map[current.offset].next;
+      struct anv_free_entry *entry =
+         util_sparse_array_get(&table->map, current.offset);
+      new.offset = entry->next;
       new.count = current.count + 1;
       old.u64 = __sync_val_compare_and_swap(&list->u64, current.u64, new.u64);
-      if (old.u64 == current.u64) {
-         struct anv_free_entry *entry = &table->map[current.offset];
+      if (old.u64 == current.u64)
          return &entry->state;
-      }
       current = old;
    }
 
