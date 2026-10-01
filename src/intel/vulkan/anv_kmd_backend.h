@@ -76,6 +76,10 @@ enum anv_vm_bind_flags {
    ANV_VM_BIND_FLAG_SIGNAL_BIND_TIMELINE = 1 << 0,
 };
 
+#ifndef MAP_FAILED
+#define MAP_FAILED ((void *)(intptr_t)-1)
+#endif
+
 struct anv_kmd_backend {
    const struct anv_linux_sys_driver_ops *linux_sys_driver_ops;
 

@@ -25,7 +25,6 @@
 #include <unistd.h>
 #include <limits.h>
 #include <assert.h>
-#include <sys/mman.h>
 
 #include "anv_private.h"
 #include "anv_slab_bo.h"
