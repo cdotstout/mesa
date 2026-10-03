@@ -188,3 +188,44 @@ intel_device_info_update_memory_info(struct intel_device_info *devinfo, int fd)
       intel_device_info_adjust_memory(devinfo);
    return ret;
 }
+
+static struct hwconfig *
+intel_get_hwconfig_table(int fd, struct intel_device_info *devinfo,
+                         int32_t *hwconfig_len)
+{
+   switch (devinfo->kmd_type) {
+   case INTEL_KMD_TYPE_I915:
+      return intel_device_info_i915_query_hwconfig(fd, hwconfig_len);
+   case INTEL_KMD_TYPE_XE:
+      return intel_device_info_xe_query_hwconfig(fd, hwconfig_len);
+   default:
+      UNREACHABLE("unknown kmd type");
+      return NULL;
+   }
+}
+
+void
+intel_get_and_print_hwconfig_table(int fd, struct intel_device_info *devinfo)
+{
+   struct hwconfig *hwconfig;
+   int32_t hwconfig_len = 0;
+
+   hwconfig = intel_get_hwconfig_table(fd, devinfo, &hwconfig_len);
+   if (hwconfig) {
+      intel_print_hwconfig_table(hwconfig, hwconfig_len);
+      free(hwconfig);
+   }
+}
+
+void
+intel_check_hwconfig_items(int fd, struct intel_device_info *devinfo)
+{
+   struct hwconfig *data;
+   int32_t len = 0;
+
+   data = intel_get_hwconfig_table(fd, devinfo, &len);
+   if (data) {
+      intel_check_hwconfig_table(devinfo, data, len);
+      free(data);
+   }
+}
