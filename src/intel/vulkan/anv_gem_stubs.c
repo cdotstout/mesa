@@ -22,7 +22,6 @@
  */
 
 #include <sys/mman.h>
-#include <sys/syscall.h>
 
 #include "util/anon_file.h"
 #include "anv_private.h"

@@ -97,6 +97,7 @@ intel_device_info_xe_query_regions(int fd, struct intel_device_info *devinfo,
 {
    struct drm_xe_query_mem_regions *regions;
    regions = xe_query_alloc_fetch(fd, DRM_XE_DEVICE_QUERY_MEM_REGIONS, NULL);
+   mesa_loge("intel_device_info_xe_query_regions: %p num_regions %d", regions, regions ? regions->num_mem_regions : 0);
    if (!regions)
       return false;
 
@@ -105,6 +106,10 @@ intel_device_info_xe_query_regions(int fd, struct intel_device_info *devinfo,
 
       switch (region->mem_class) {
       case DRM_XE_MEM_REGION_CLASS_SYSMEM: {
+         mesa_loge("xe sysmem %d: %d %d",
+                  i,
+                  (int)region->mem_class,
+                  (int)region->instance);
          if (!update) {
             devinfo->mem.sram.mem.klass = region->mem_class;
             devinfo->mem.sram.mem.instance = region->instance;
@@ -119,6 +124,10 @@ intel_device_info_xe_query_regions(int fd, struct intel_device_info *devinfo,
          break;
       }
       case DRM_XE_MEM_REGION_CLASS_VRAM: {
+         mesa_loge("xe vram %d: %d %d",
+                  i,
+                  (int)region->mem_class,
+                  (int)region->instance);
          if (!update) {
             devinfo->mem.vram.mem.klass = region->mem_class;
             devinfo->mem.vram.mem.instance = region->instance;

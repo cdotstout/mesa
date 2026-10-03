@@ -28,7 +28,7 @@
 #include "util/mesa-blake3.h"
 #include "util/os_misc.h"
 
-#include <xf86drm.h>
+#include "util/libdrm.h"
 #include <fcntl.h>
 #ifdef MAJOR_IN_SYSMACROS
 #include <sys/sysmacros.h>
@@ -3055,6 +3055,9 @@ anv_physical_device_try_create(struct vk_instance *vk_instance,
       }
    }
 
+   mesa_loge("%s:%d\n", __func__, __LINE__);
+   abort();
+
    struct intel_device_info devinfo;
    if (!intel_get_device_info_from_fd(fd, &devinfo, 9, -1)) {
       result = VK_ERROR_INCOMPATIBLE_DRIVER;
@@ -3324,6 +3327,7 @@ anv_physical_device_create(struct anv_instance *instance,
       anv_physical_device_init_perf(device, fd);
 
    /* Gather major/minor before WSI. */
+#if defined(MAJOR_IN_SYSMACROS) || defined(MAJOR_IN_MKDEV)
    struct stat st;
 
    if (primary_path && stat(primary_path, &st) == 0) {
@@ -3345,6 +3349,14 @@ anv_physical_device_create(struct anv_instance *instance,
       device->local_major = 0;
       device->local_minor = 0;
    }
+#else
+   device->has_master = false;
+   device->master_major = 0;
+   device->master_minor = 0;
+   device->has_local = false;
+   device->local_major = 0;
+   device->local_minor = 0;
+#endif
 
    device->has_small_bar = anv_physical_device_has_vram(device) &&
                            device->vram_non_mappable.size != 0;

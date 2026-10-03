@@ -98,6 +98,9 @@ VkResult anv_CreateInstance(
    struct anv_instance *instance;
    VkResult result;
 
+   mesa_loge("%s:%d\n", __func__, __LINE__);
+   fprintf(stderr, "%s:%d\n", __func__, __LINE__);
+   
    assert(pCreateInfo->sType == VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO);
 
    if (pAllocator == NULL)

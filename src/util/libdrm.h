@@ -161,6 +161,12 @@ drmGetVersion(int fd) { return NULL; }
 static inline void
 drmFreeVersion(struct _drmVersion *v) {}
 
+static inline int
+drmIoctl(int fd, unsigned long request, void *arg)
+{
+   return -EINVAL;
+}
+
 #endif
 
 #endif

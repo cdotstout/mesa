@@ -54,7 +54,7 @@ vulkan_lite_runtime_deps = [
   idep_vulkan_util,
 ]
 
-if dep_libdrm.found()
+if dep_libdrm.found() or with_magma
   vulkan_lite_runtime_files += files('vk_drm_syncobj.c')
   vulkan_lite_runtime_deps += dep_libdrm
 endif

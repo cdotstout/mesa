@@ -23,7 +23,7 @@
 
 #include <fcntl.h>
 #include <string.h>
-#include <xf86drm.h>
+#include "util/libdrm.h"
 #include <sys/mman.h>
 
 #include <gtest/gtest.h>

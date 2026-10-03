@@ -24,7 +24,6 @@
 #include "vk_drm_syncobj.h"
 
 #include <sched.h>
-#include <xf86drm.h>
 
 #include "drm-uapi/drm.h"
 

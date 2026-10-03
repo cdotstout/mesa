@@ -144,6 +144,7 @@ is_dir_or_link(const struct dirent *entry, const char *parent_dir)
 static bool
 get_sysfs_dev_dir(struct intel_perf_config *perf, int fd)
 {
+#if defined(MAJOR_IN_SYSMACROS) || defined(MAJOR_IN_MKDEV)
    struct stat sb;
    int min, maj;
    DIR *drmdir;
@@ -204,6 +205,9 @@ get_sysfs_dev_dir(struct intel_perf_config *perf, int fd)
        maj, min);
 
    return false;
+#else
+   return false;
+#endif
 }
 
 static bool
