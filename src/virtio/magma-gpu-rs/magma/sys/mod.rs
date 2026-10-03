@@ -1,6 +1,9 @@
 // Copyright 2026 The Magma GPU Project
 // SPDX-License-Identifier: MIT
 
+#[cfg(target_os = "fuchsia")]
+pub mod fuchsia;
+
 #[cfg(any(target_os = "android", target_os = "linux"))]
 pub mod linux;
 
@@ -12,6 +15,8 @@ cfg_if::cfg_if! {
         pub use linux as platform;
     } else if #[cfg(windows)] {
         pub use windows as platform;
+    } else if #[cfg(target_os = "fuchsia")] {
+        pub use fuchsia as platform;
     } else {
         compile_error!("Unsupported platform");
     }

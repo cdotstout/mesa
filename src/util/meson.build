@@ -358,6 +358,10 @@ if with_sysprof
   deps_for_libmesa_util += dep_sysprof
 endif
 
+if host_machine.system() == 'fuchsia'
+  deps_for_libmesa_util += dependency('zircon')
+endif
+
 u_trace_py = files('perf/u_trace.py')
 
 libmesa_util_simd = static_library(

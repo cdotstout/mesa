@@ -8,6 +8,7 @@ use std::num::TryFromIntError;
 use std::str::Utf8Error;
 
 use remain::sorted;
+#[cfg(any(target_os = "android", target_os = "linux", target_vendor = "apple"))]
 use rustix::io::Errno as RustixError;
 use thiserror::Error;
 
@@ -28,6 +29,7 @@ pub enum Error {
     #[error("int parsing failed: {0}")]
     ParseIntError(ParseIntError),
     /// Rustix crate error.
+    #[cfg(any(target_os = "android", target_os = "linux", target_vendor = "apple"))]
     #[error("The errno is {0}")]
     RustixError(RustixError),
     /// An attempted integer conversion failed.

@@ -482,10 +482,16 @@ if _platforms.contains('auto')
     _platforms = ['windows']
   elif host_machine.system() == 'darwin'
     _platforms = ['x11', 'macos']
+  elif host_machine.system() == 'fuchsia'
+    _platforms = []
   else
     error('Unknown OS @0@. Please pass -Dplatforms to set platforms. Patches gladly accepted to fix this.'.format(
           host_machine.system()))
   endif
+endif
+
+if host_machine.system() == 'fuchsia'
+  subproject('fuchsia-sdk')
 endif
 
 with_platform_android = _platforms.contains('android')
