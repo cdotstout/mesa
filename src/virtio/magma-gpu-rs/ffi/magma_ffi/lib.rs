@@ -10,5 +10,6 @@ pub use handwritten::magma_buffer_import;
 pub use handwritten::magma_enumerate_physical_devices;
 pub use handwritten::magma_get_memory_properties;
 pub use handwritten::magma_get_sync_properties;
+pub use handwritten::magma_init_open_in_namespace_callback;
 pub use handwritten::magma_sync_obj_export;
 pub use handwritten::magma_sync_obj_import;

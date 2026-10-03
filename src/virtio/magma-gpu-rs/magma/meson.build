@@ -87,6 +87,18 @@ elif host_machine.system() == 'windows'
     fallback: ['windows-sys-0.6-rs', 'dep_windows_sys'],
     required: true,
   )
+elif host_machine.system() == 'fuchsia'
+  dep_fuchsia_magma_fidl = [
+    dependency('fuchsia.gpu.magma'),
+    dependency('fuchsia.io'),
+    dependency('zircon'),
+  ]
+  magma_generated_libs += static_library(
+    'magma_gpu_magma_fuchsia_fidl_shim',
+    'sys/fuchsia/fidl_shim.cc',
+    gnu_symbol_visibility : 'hidden',
+    dependencies: dep_fuchsia_magma_fidl,
+  )
 endif
 
 dep_bitflags = dependency('bitflags',
@@ -109,5 +121,5 @@ libmesa_magma = static_library(
 )
 
 dep_libmagma = declare_dependency(
-  link_with : libmesa_magma,
+  link_with : [libmesa_magma, magma_generated_libs],
 )

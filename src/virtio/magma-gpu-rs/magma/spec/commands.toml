@@ -328,4 +328,10 @@ inputs = [
 output = "MagmaStatus"
 aspects = [ "virtio" ]
 
-
+[[commands]]
+name = "magma_init_open_in_namespace_callback"
+inputs = [
+    { name = "callback", type = "void*", direction = "in" },
+]
+aspects = [ "ffi" ]
+manual = true

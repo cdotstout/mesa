@@ -89,3 +89,5 @@ pub use memory::AddressSpace;
 pub use memory::Buffer;
 pub use queue::Queue;
 pub use sync::SyncObj;
+#[cfg(target_os = "fuchsia")]
+pub use sys::platform::init_open_in_namespace_callback;

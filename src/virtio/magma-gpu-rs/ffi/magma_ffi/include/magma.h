@@ -359,6 +359,8 @@ magma_status_t magma_buffer_export(magma_buffer_t buffer, struct magma_handle* h
 magma_status_t magma_buffer_import(magma_device_t device, const struct magma_handle* handle,
                                    magma_buffer_t* buffer_out);
 
+void magma_init_open_in_namespace_callback(void* callback);
+
 #ifdef __cplusplus
 }
 #endif
