@@ -347,6 +347,64 @@ i915_bo_alloc_flags_to_bo_flags(struct anv_device *device,
 }
 
 static VkResult
+i915_get_bo_tiling(struct anv_device *device, struct anv_bo *bo,
+                   enum isl_tiling *tiling_out)
+{
+   if (!device->info->has_tiling_uapi) {
+      return vk_errorf(device, VK_ERROR_INVALID_EXTERNAL_HANDLE,
+                       "failed to get BO tiling: %m");
+   }
+
+   struct drm_i915_gem_get_tiling get_tiling = {
+      .handle = bo->gem_handle,
+   };
+
+   /* FIXME: On discrete platforms we don't have DRM_IOCTL_I915_GEM_GET_TILING
+    * anymore, so we will need another way to get the tiling. Apparently this
+    * is only used in Android code, so we may need some other way to
+    * communicate the tiling mode.
+    */
+   if (intel_ioctl(device->fd, DRM_IOCTL_I915_GEM_GET_TILING, &get_tiling)) {
+      assert(!"Failed to get BO tiling");
+      return vk_errorf(device, VK_ERROR_INVALID_EXTERNAL_HANDLE,
+                       "failed to get BO tiling: %m");
+   }
+
+   *tiling_out = isl_tiling_from_i915_tiling(get_tiling.tiling_mode);
+
+   return VK_SUCCESS;
+}
+
+static VkResult
+i915_set_bo_tiling(struct anv_device *device, struct anv_bo *bo,
+                   uint32_t row_pitch_B, enum isl_tiling tiling)
+{
+   assert(bo->slab_parent == NULL);
+
+   /* On discrete platforms we don't have DRM_IOCTL_I915_GEM_SET_TILING. So
+    * nothing needs to be done.
+    */
+   if (!device->info->has_tiling_uapi)
+      return VK_SUCCESS;
+
+   /* set_tiling overwrites the input on the error path, so we have to open
+    * code intel_ioctl.
+    */
+   struct drm_i915_gem_set_tiling set_tiling = {
+      .handle = bo->gem_handle,
+      .tiling_mode = isl_tiling_to_i915_tiling(tiling),
+      .stride = row_pitch_B,
+   };
+
+   if (intel_ioctl(device->fd, DRM_IOCTL_I915_GEM_SET_TILING, &set_tiling)) {
+      return vk_errorf(device, VK_ERROR_OUT_OF_DEVICE_MEMORY,
+                       "failed to set BO tiling: %m");
+   }
+
+   return VK_SUCCESS;
+}
+
+static VkResult
 i915_import_bo_alloc_flags_to_bo_flags(struct anv_device *device,
                                        struct anv_bo *bo,
                                        enum anv_bo_alloc_flags alloc_flags,
@@ -406,10 +464,16 @@ i915_queue_get_exec_id(struct anv_queue *queue)
           queue->context_id : device->context_id;
 }
 
+static const struct anv_linux_sys_driver_ops i915_linux_sys_driver_ops = {
+   .get_bo_tiling = i915_get_bo_tiling,
+   .set_bo_tiling = i915_set_bo_tiling,
+};
+
 const struct anv_kmd_backend *
 anv_i915_kmd_backend_get(void)
 {
    static const struct anv_kmd_backend i915_backend = {
+      .linux_sys_driver_ops = &i915_linux_sys_driver_ops,
       .gem_create = i915_gem_create,
       .gem_create_userptr = i915_gem_create_userptr,
       .gem_close = i915_gem_close,

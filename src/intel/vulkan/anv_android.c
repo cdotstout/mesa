@@ -174,8 +174,13 @@ anv_image_init_from_gralloc(struct anv_device *device,
     * obtained.
     */
    if (mod_info.drmFormatModifier == DRM_FORMAT_MOD_INVALID) {
+      if (!device->kmd_backend->linux_sys_driver_ops->get_bo_tiling) {
+         return vk_errorf(device, VK_ERROR_INVALID_EXTERNAL_HANDLE,
+                          "failed to get tiling from VkNativeBufferANDROID");
+      }
       /* Fallback to get_tiling API. */
-      result = anv_device_get_bo_tiling(device, bo, &tiling);
+      result = device->kmd_backend->linux_sys_driver_ops->get_bo_tiling(
+         device, bo, &tiling);
       if (result != VK_SUCCESS) {
          return vk_errorf(device, result,
                           "failed to get tiling from VkNativeBufferANDROID");

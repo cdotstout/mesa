@@ -465,10 +465,14 @@ xe_device_setup_context_or_vm(struct anv_device *device,
    return anv_xe_device_setup_vm(device);
 }
 
+static const struct anv_linux_sys_driver_ops xe_linux_sys_driver_ops = {
+};
+
 const struct anv_kmd_backend *
 anv_xe_kmd_backend_get(void)
 {
    static const struct anv_kmd_backend xe_backend = {
+      .linux_sys_driver_ops = &xe_linux_sys_driver_ops,
       .gem_create = xe_gem_create,
       .gem_create_userptr = xe_gem_create_userptr,
       .gem_close = xe_gem_close,

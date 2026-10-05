@@ -103,19 +103,6 @@ stub_gem_create_userptr(struct anv_device *device, void *mem, uint64_t size)
 }
 
 int
-anv_gem_set_tiling(struct anv_device *device,
-                   uint32_t gem_handle, uint32_t stride, uint32_t tiling)
-{
-   return 0;
-}
-
-int
-anv_gem_get_tiling(struct anv_device *device, uint32_t gem_handle)
-{
-   return 0;
-}
-
-int
 anv_gem_handle_to_fd(struct anv_device *device, uint32_t gem_handle)
 {
    UNREACHABLE("Unused");
@@ -200,9 +187,13 @@ stub_destroy_engine(struct anv_device *device, struct anv_queue *queue)
 {
 }
 
+static const struct anv_linux_sys_driver_ops stub_linux_sys_driver_ops = {
+};
+
 const struct anv_kmd_backend *anv_stub_kmd_backend_get(void)
 {
    static const struct anv_kmd_backend stub_backend = {
+      .linux_sys_driver_ops = &stub_linux_sys_driver_ops,
       .gem_create = stub_gem_create,
       .gem_create_userptr = stub_gem_create_userptr,
       .gem_close = stub_gem_close,

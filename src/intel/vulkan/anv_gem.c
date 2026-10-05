@@ -32,38 +32,6 @@
 #include "anv_private.h"
 #include "common/intel_gem.h"
 
-#include "i915/anv_gem.h"
-
-/** Return -1 on error. */
-int
-anv_gem_get_tiling(struct anv_device *device, uint32_t gem_handle)
-{
-   switch (device->info->kmd_type) {
-   case INTEL_KMD_TYPE_I915:
-      return anv_i915_gem_get_tiling(device, gem_handle);
-   case INTEL_KMD_TYPE_XE:
-      return -1;
-   default:
-      UNREACHABLE("missing");
-      return -1;
-   }
-}
-
-int
-anv_gem_set_tiling(struct anv_device *device,
-                   uint32_t gem_handle, uint32_t stride, uint32_t tiling)
-{
-   switch (device->info->kmd_type) {
-   case INTEL_KMD_TYPE_I915:
-      return anv_i915_gem_set_tiling(device, gem_handle, stride, tiling);
-   case INTEL_KMD_TYPE_XE:
-      return 0;
-   default:
-      UNREACHABLE("missing");
-      return -1;
-   }
-}
-
 int
 anv_gem_handle_to_fd(struct anv_device *device, uint32_t gem_handle)
 {

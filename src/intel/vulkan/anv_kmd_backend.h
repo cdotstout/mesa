@@ -30,6 +30,7 @@
 
 #include "dev/intel_device_info.h"
 #include "dev/intel_kmd.h"
+#include "anv_linux.h"
 
 struct anv_bo;
 enum anv_bo_alloc_flags;
@@ -76,6 +77,8 @@ enum anv_vm_bind_flags {
 };
 
 struct anv_kmd_backend {
+   const struct anv_linux_sys_driver_ops *linux_sys_driver_ops;
+
    /*
     * Create a gem buffer.
     * Return the gem handle in case of success otherwise returns 0.

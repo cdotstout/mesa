@@ -1995,14 +1995,14 @@ VkResult anv_AllocateMemory(
    if (result != VK_SUCCESS)
       goto fail;
 
-   if (image && image->vk.wsi_legacy_scanout) {
+   if (image && image->vk.wsi_legacy_scanout &&
+       device->kmd_backend->linux_sys_driver_ops->set_bo_tiling) {
       /* Some legacy (non-modifiers) consumers need the tiling to be set on
        * the BO.  In this case, we have a dedicated allocation.
        */
       const struct isl_surf *surf = &image->planes[0].primary_surface.isl;
-      result = anv_device_set_bo_tiling(device, mem->bo,
-                                        surf->row_pitch_B,
-                                        surf->tiling);
+      result = device->kmd_backend->linux_sys_driver_ops->set_bo_tiling(
+         device, mem->bo, surf->row_pitch_B, surf->tiling);
       if (result != VK_SUCCESS) {
          anv_device_release_bo(device, mem->bo);
          goto fail;

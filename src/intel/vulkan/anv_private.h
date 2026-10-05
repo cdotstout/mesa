@@ -3169,13 +3169,6 @@ VkResult anv_device_import_bo(struct anv_device *device, int fd,
                               struct anv_bo **bo);
 VkResult anv_device_export_bo(struct anv_device *device,
                               struct anv_bo *bo, int *fd_out);
-VkResult anv_device_get_bo_tiling(struct anv_device *device,
-                                  struct anv_bo *bo,
-                                  enum isl_tiling *tiling_out);
-VkResult anv_device_set_bo_tiling(struct anv_device *device,
-                                  struct anv_bo *bo,
-                                  uint32_t row_pitch_B,
-                                  enum isl_tiling tiling);
 void anv_device_release_bo(struct anv_device *device,
                            struct anv_bo *bo);
 
@@ -3233,9 +3226,6 @@ anv_queue_post_submit(struct anv_queue *queue, VkResult submit_result)
    return result;
 }
 
-int anv_gem_set_tiling(struct anv_device *device, uint32_t gem_handle,
-                       uint32_t stride, uint32_t tiling);
-int anv_gem_get_tiling(struct anv_device *device, uint32_t gem_handle);
 int anv_gem_handle_to_fd(struct anv_device *device, uint32_t gem_handle);
 uint32_t anv_gem_fd_to_handle(struct anv_device *device, int fd);
 int anv_gem_set_context_param(int fd, uint32_t context, uint32_t param,
