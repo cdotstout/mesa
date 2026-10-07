@@ -32,7 +32,7 @@
 #include "util/hash_table.h"
 #include "util/bitset.h"
 
-#include "common/intel_engine.h"
+#include "common/intel_common.h"
 
 #ifdef __cplusplus
 extern "C" {

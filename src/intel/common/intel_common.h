@@ -25,6 +25,21 @@ intel_48b_address(uint64_t v)
    return (uint64_t)(v << shift) >> shift;
 }
 
+struct intel_engine_class_instance {
+   enum intel_engine_class engine_class;
+   uint16_t engine_instance;
+   uint16_t gt_id;
+};
+
+struct intel_query_engine_info {
+   uint32_t num_engines;
+   struct intel_engine_class_instance engines[];
+};
+
+int intel_engines_count(const struct intel_query_engine_info *info,
+                        enum intel_engine_class engine_class);
+const char *intel_engines_class_to_string(enum intel_engine_class engine_class);
+
 void intel_common_update_device_info(int fd, struct intel_device_info *devinfo);
 
 void

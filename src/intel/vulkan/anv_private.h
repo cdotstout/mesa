@@ -41,7 +41,7 @@
 
 #include "common/intel_aux_map.h"
 #include "common/intel_bind_timeline.h"
-#include "common/intel_engine.h"
+#include "common/intel_common.h"
 #include "common/intel_gem.h"
 #include "common/intel_l3_config.h"
 #include "common/intel_measure.h"

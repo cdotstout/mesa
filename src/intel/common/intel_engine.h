@@ -25,6 +25,7 @@
 
 #include <stdint.h>
 
+#include "intel_common.h"
 #include "intel/dev/intel_device_info.h"
 #include "intel/dev/intel_kmd.h"
 
@@ -32,22 +33,8 @@
 extern "C" {
 #endif
 
-struct intel_engine_class_instance {
-   enum intel_engine_class engine_class;
-   uint16_t engine_instance;
-   uint16_t gt_id;
-};
-
-struct intel_query_engine_info {
-   uint32_t num_engines;
-   struct intel_engine_class_instance engines[];
-};
-
 struct intel_query_engine_info *
 intel_engine_get_info(int fd, enum intel_kmd_type type);
-int intel_engines_count(const struct intel_query_engine_info *info,
-                        enum intel_engine_class engine_class);
-const char *intel_engines_class_to_string(enum intel_engine_class engine_class);
 
 /* Taking into consideration KMD, platform and debug options check for
  * restrictions and return the number of engines of giving engine class

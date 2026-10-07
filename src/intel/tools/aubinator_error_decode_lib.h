@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include "intel/common/intel_engine.h"
+#include "intel/common/intel_common.h"
 
 enum decode_color {
    DECODE_COLOR_AUTO,

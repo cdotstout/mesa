@@ -43,39 +43,6 @@ intel_engine_get_info(int fd, enum intel_kmd_type type)
    }
 }
 
-int
-intel_engines_count(const struct intel_query_engine_info *info,
-                    enum intel_engine_class engine_class)
-{
-   int count = 0;
-
-   for (int i = 0; i < info->num_engines; i++) {
-      if (info->engines[i].engine_class == engine_class)
-         count++;
-   }
-
-   return count;
-}
-
-const char *
-intel_engines_class_to_string(enum intel_engine_class engine_class)
-{
-   switch (engine_class) {
-   case INTEL_ENGINE_CLASS_RENDER:
-      return "render";
-   case INTEL_ENGINE_CLASS_COPY:
-      return "copy";
-   case INTEL_ENGINE_CLASS_VIDEO:
-      return "video";
-   case INTEL_ENGINE_CLASS_VIDEO_ENHANCE:
-      return "video-enh";
-   case INTEL_ENGINE_CLASS_COMPUTE:
-      return "compute";
-   default:
-      return "unknown";
-   }
-}
-
 static bool
 is_guc_semaphore_functional(int fd, const struct intel_device_info *info)
 {
