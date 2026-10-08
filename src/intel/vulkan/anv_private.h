@@ -1826,7 +1826,11 @@ anv_physical_device_create(struct anv_instance *instance,
                            const struct intel_device_info *devinfo,
                            const char *primary_path,
                            const char *path,
+#if HAVE_MAGMA
+                           magma_physical_device_t magma_physical_device,
+#else
                            int fd,
+#endif
                            struct vk_physical_device **out);
 
 VkResult anv_physical_device_try_create(struct vk_instance *vk_instance,

@@ -92,8 +92,12 @@ anv_drirc_shader_cb(const void *hash_data,
 static VkResult
 anv_physical_device_init_drirc(struct anv_physical_device *device)
 {
+#ifdef __Fuchsia__
+   memset(&device->drirc, 0, sizeof(device->drirc));
+   device->drirc_status = VK_ERROR_OUT_OF_HOST_MEMORY;
+   return VK_SUCCESS;
+#endif
    struct anv_instance *instance = device->instance;
-
    device->drirc_status = VK_SUCCESS;
 
    anv_parse_dri_options(&device->drirc,
@@ -1742,9 +1746,13 @@ get_properties(const struct anv_physical_device *pdevice,
       .dynamicRenderingLocalReadMultisampledAttachments = true,
    };
 
+#if defined(__Fuchsia__)
+   snprintf(props->deviceName, sizeof(props->deviceName), "%s", pdevice->info.name);
+#else
    snprintf(props->deviceName, sizeof(props->deviceName),
             "%s", (strlen(pdevice->drirc.debug.force_vk_devicename) > 0) ?
                   pdevice->drirc.debug.force_vk_devicename : pdevice->info.name);
+#endif
    memcpy(props->pipelineCacheUUID,
           pdevice->shader_binary_uuid, VK_UUID_SIZE);
 
@@ -3020,6 +3028,9 @@ anv_physical_device_try_create(struct vk_instance *vk_instance,
                                struct _drmDevice *drm_device,
                                struct vk_physical_device **out)
 {
+#if HAVE_MAGMA
+   return ENOTSUP;
+#else
    struct anv_instance *instance =
       container_of(vk_instance, struct anv_instance, vk);
 
@@ -3102,6 +3113,7 @@ fail_fd:
    intel_virtio_unref_fd(fd);
    close(fd);
    return result;
+#endif
 }
 
 VkResult
@@ -3109,7 +3121,11 @@ anv_physical_device_create(struct anv_instance *instance,
                            const struct intel_device_info *devinfo,
                            const char *primary_path,
                            const char *path,
+#if HAVE_MAGMA
+                           magma_physical_device_t magma_physical_device,
+#else
                            int fd,
+#endif
                            struct vk_physical_device **out)
 {
    VkResult result;
@@ -3144,6 +3160,12 @@ anv_physical_device_create(struct anv_instance *instance,
    }
 
    device->info = *devinfo;
+
+#if HAVE_MAGMA
+   device->magma_physical_device = magma_physical_device;
+   /* FIXME - this is used in several places below that should use magma_physical_device */
+   int fd = -1;
+#endif
 
    device->local_fd = fd;
    result = anv_physical_device_get_parameters(device);
@@ -3368,9 +3390,11 @@ anv_physical_device_create(struct anv_instance *instance,
    device->memory.heaps_budget =
       get_physical_device_budget(device->local_major, device->local_minor);
 
+#if !defined(__Fuchsia__)
    result = anv_init_wsi(device);
    if (result != VK_SUCCESS)
       goto fail_perf;
+#endif
 
    anv_measure_device_init(device);
 

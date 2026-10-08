@@ -148,7 +148,17 @@ anv_magma_enumerate_physical_devices(struct vk_instance *vk_instance)
       devinfo.pci_revision_id = info.pci_bus_info.revision_id;
       anv_magma_set_device_name(&devinfo);
       devinfo.has_context_isolation = true;
+      /* Intel Gen8+ GPU virtual address space is 48-bit (256 TiB) */
+      devinfo.gtt_size = 1ull << 48;
       devinfo.mem_alignment = devinfo.has_local_mem ? (64 * 1024) : 4096;
+
+      /* Query memory properties from Magma */
+      struct magma_memory_properties props;
+      magma_status_t status = magma_get_memory_properties(phys_devs[i], &props);
+      if (status == MAGMA_STATUS_SUCCESS && props.memory_heap_count > 0) {
+         devinfo.mem.sram.mappable.size = props.memory_heaps[0].heap_size;
+         devinfo.mem.sram.mappable.free = props.memory_heaps[0].heap_size;
+      }
 
       if (devinfo.ver < 9) {
          vk_errorf(instance, VK_ERROR_INCOMPATIBLE_DRIVER,
@@ -168,7 +178,7 @@ anv_magma_enumerate_physical_devices(struct vk_instance *vk_instance)
       }
 
       struct vk_physical_device *pdevice = NULL;
-      VkResult result = anv_physical_device_create(instance, &devinfo, NULL, NULL, -1, &pdevice);
+      VkResult result = anv_physical_device_create(instance, &devinfo, NULL, NULL, phys_devs[i], &pdevice);
       if (result != VK_SUCCESS) {
          magma_physical_device_close(&phys_devs[i]);
          continue;
@@ -279,67 +289,10 @@ anv_magma_physical_device_init_queue_families(struct anv_physical_device *device
 VkResult
 anv_magma_physical_device_get_parameters(struct anv_physical_device *device)
 {
-   if (!device->magma_physical_device) {
-      magma_physical_device_t phys_devs[MAGMA_MAX_PHYSICAL_DEVICES];
-      uint32_t num_devices = 0;
-      magma_status_t status = magma_enumerate_physical_devices(phys_devs, &num_devices);
-      if (status != MAGMA_STATUS_SUCCESS || num_devices == 0)
-         return vk_errorf(device, VK_ERROR_INCOMPATIBLE_DRIVER,
-                          "No Magma physical devices found");
-
-      for (uint32_t i = 0; i < num_devices; i++) {
-         struct magma_physical_device_info info;
-         magma_get_physical_device_info(phys_devs[i], &info);
-
-         /* Verify that the vendor is Intel */
-         if (info.vendor_id != MAGMA_VENDOR_ID_INTEL &&
-             info.vendor_id != (magma_vendor_id_t)0x8086)
-            continue;
-
-         /* Verify that the device ID is a recognized Intel GPU */
-         struct intel_device_info devinfo;
-         if (!intel_get_device_info_from_pci_id(info.device_id, &devinfo))
-            continue;
-
-         /* If physical device already has a PCI ID configured, ensure it matches */
-         if (device->info.pci_device_id &&
-             device->info.pci_device_id != info.device_id)
-            continue;
-
-         device->magma_physical_device = phys_devs[i];
-         break;
-      }
-
-      if (!device->magma_physical_device)
-         return vk_errorf(device, VK_ERROR_INCOMPATIBLE_DRIVER,
-                          "No compatible Intel Magma physical device found");
-   }
-
-   struct magma_physical_device_info pci_info;
-   magma_get_physical_device_info(device->magma_physical_device, &pci_info);
-   device->info.pci_domain = pci_info.pci_bus_info.domain;
-   device->info.pci_bus = pci_info.pci_bus_info.bus;
-   device->info.pci_dev = pci_info.pci_bus_info.device;
-   device->info.pci_func = pci_info.pci_bus_info.function;
-   device->info.pci_device_id = pci_info.device_id;
-   device->info.pci_revision_id = pci_info.pci_bus_info.revision_id;
-
    device->has_vm_control = true;
    device->max_context_priority = VK_QUEUE_GLOBAL_PRIORITY_MEDIUM;
    device->has_protected_contexts = (device->info.ver >= 12);
    device->sparse_type = ANV_SPARSE_TYPE_VM_BIND;
-
-   /* Query memory properties from Magma */
-   struct magma_memory_properties props;
-   magma_status_t status = magma_get_memory_properties(device->magma_physical_device, &props);
-   if (status == MAGMA_STATUS_SUCCESS && props.memory_heap_count > 0) {
-      device->info.mem.sram.mappable.size = props.memory_heaps[0].heap_size;
-      device->info.mem.sram.mappable.free = props.memory_heaps[0].heap_size;
-   }
-
-   /* Intel Gen8+ GPU virtual address space is 48-bit (256 TiB) */
-   device->info.gtt_size = 1ull << 48;
-   device->info.mem_alignment = device->info.has_local_mem ? (64 * 1024) : 4096;
 
    return VK_SUCCESS;
 }
