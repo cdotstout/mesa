@@ -38,6 +38,7 @@
 #include <inttypes.h>
 
 #include "dev/intel_device_info.h"
+#include "util/detect_os.h"
 #include "util/os_time.h"
 #include "util/u_debug.h"
 #include "util/macros.h"
@@ -144,6 +145,7 @@ intel_measure_init(struct intel_measure_device *device)
          config.end_frame = config.start_frame + count_frame;
       }
 
+#if !DETECT_OS_WINDOWS
       if (control_path) {
          control_path += 8;
          if (mkfifoat(AT_FDCWD, control_path, O_CREAT | S_IRUSR | S_IWUSR)) {
@@ -167,6 +169,7 @@ intel_measure_init(struct intel_measure_device *device)
           */
          config.enabled = false;
       }
+#endif
 
       if (interval_s) {
          interval_s += 9;
