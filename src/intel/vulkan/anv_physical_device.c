@@ -3164,9 +3164,6 @@ anv_physical_device_create(struct anv_instance *instance,
 
    anv_physical_device_init_queue_families(device);
 
-   if (fd >= 0)
-      anv_physical_device_init_perf(device, fd);
-
    device->has_small_bar = anv_physical_device_has_vram(device) &&
                            device->vram_non_mappable.size != 0;
 
@@ -3192,8 +3189,8 @@ anv_physical_device_create(struct anv_instance *instance,
 
 fail_perf:
    release_physical_device_budget(device->memory.heaps_budget);
-   intel_perf_free(device->perf);
 fail_disk_cache:
+   intel_perf_free(device->perf);
    free(device->engine_info);
    anv_physical_device_free_disk_cache(device);
 fail_compiler:

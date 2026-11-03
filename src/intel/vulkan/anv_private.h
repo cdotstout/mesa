@@ -7578,7 +7578,6 @@ bool anv_oag_resolve_boundary(struct anv_device *device,
 void anv_oag_resolve_all_pools(struct anv_device *device);
 
 void anv_physical_device_init_va_ranges(struct anv_physical_device *device);
-void anv_physical_device_init_perf(struct anv_physical_device *device, int fd);
 void anv_device_perf_init(struct anv_device *device);
 void anv_device_perf_finish(struct anv_device *device);
 void anv_device_perf_close(struct anv_device *device);

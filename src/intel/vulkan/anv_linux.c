@@ -35,6 +35,7 @@
 #include "common/xe/intel_gem.h"
 #include "dev/intel_wa.h"
 #include "dev/virtio/intel_virtio.h"
+#include "perf/intel_perf.h"
 #include "util/os_mman.h"
 
 VkResult
@@ -133,6 +134,84 @@ fail_fd:
    return result;
 }
 
+static void
+anv_physical_device_init_perf(struct anv_physical_device *device, int fd)
+{
+   struct intel_perf_config *perf = intel_perf_new(NULL);
+
+   intel_perf_init_metrics(perf, &device->info, fd,
+                           false /* pipeline statistics */,
+                           true /* register snapshots */);
+
+   if (!perf->n_queries)
+      goto err;
+
+   /* We need DRM_I915_PERF_PROP_HOLD_PREEMPTION support, only available in
+    * perf revision 2.
+    */
+   if (!INTEL_DEBUG(DEBUG_NO_OACONFIG)) {
+      if (!intel_perf_has_hold_preemption(perf))
+         goto err;
+   }
+
+   device->perf = perf;
+
+   /* Global OAG mode for KHR performance queries. The context-relative (OAR)
+    * path MI_RPC uses cannot report GT-wide counters at all: they always read
+    * back as zero. The uapi this needs (global stream, OA buffer mapping,
+    * whitelisted OAG registers) only exists in the xe KMD, and the resolve
+    * code relies on the Xe2+ report layout and on the kernel making the OA
+    * buffer wrap at report boundaries, which it only does on Xe2+, so i915
+    * and pre-Xe2 parts keep the OAR path. So does INTEL_DEBUG=no-oaconfig:
+    * it never opens a stream, and without one the boundary reports this mode
+    * resolves against are never written.
+    */
+   perf->oag_global_enable =
+      device->info.kmd_type == INTEL_KMD_TYPE_XE &&
+      device->info.verx10 >= 200 &&
+      !INTEL_DEBUG(DEBUG_NO_OACONFIG);
+
+   /* Compute the number of commands we need to implement a performance
+    * query.
+    */
+   const struct intel_perf_query_field_layout *layout = &perf->query_layout;
+   device->n_perf_query_commands = 0;
+   for (uint32_t f = 0; f < layout->n_fields; f++) {
+      struct intel_perf_query_field *field = &layout->fields[f];
+
+      switch (field->type) {
+      case INTEL_PERF_QUERY_FIELD_TYPE_MI_RPC:
+         /* In OAG mode MI_RPC is replaced by a trigger write, which needs no
+          * relocation, plus ANV_OAG_BOUNDARY_STORES stores that do.
+          */
+         device->n_perf_query_commands +=
+            perf->oag_global_enable ? ANV_OAG_BOUNDARY_STORES : 1;
+         break;
+      case INTEL_PERF_QUERY_FIELD_TYPE_SRM_PERFCNT:
+      case INTEL_PERF_QUERY_FIELD_TYPE_SRM_RPSTAT:
+      case INTEL_PERF_QUERY_FIELD_TYPE_SRM_OA_A:
+      case INTEL_PERF_QUERY_FIELD_TYPE_SRM_OA_B:
+      case INTEL_PERF_QUERY_FIELD_TYPE_SRM_OA_C:
+      case INTEL_PERF_QUERY_FIELD_TYPE_SRM_OA_PEC:
+         /* These read the context-relative OAR sub-unit, which is always zero
+          * for GT-wide counters, so OAG mode does not emit them at all.
+          */
+         if (!perf->oag_global_enable)
+            device->n_perf_query_commands += field->size / 4;
+         break;
+      default:
+         UNREACHABLE("Unhandled register type");
+      }
+   }
+   device->n_perf_query_commands *= 2; /* Begin & End */
+   device->n_perf_query_commands += 1; /* availability */
+
+   return;
+
+err:
+   intel_perf_free(perf);
+}
+
 void
 anv_linux_physical_device_init_fd(struct anv_physical_device *device,
                                   const char *primary_path,
@@ -167,6 +246,7 @@ anv_linux_physical_device_init_fd(struct anv_physical_device *device,
    if (fd >= 0) {
       device->engine_info = intel_engine_get_info(fd, device->info.kmd_type);
       intel_common_update_device_info(fd, &device->info);
+      anv_physical_device_init_perf(device, fd);
    }
 
    struct stat st;
