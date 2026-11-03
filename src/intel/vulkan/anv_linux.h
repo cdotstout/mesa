@@ -31,6 +31,9 @@ struct anv_linux_sys_driver_ops {
                              enum isl_tiling *tiling_out);
    VkResult (*set_bo_tiling)(struct anv_device *device, struct anv_bo *bo,
                              uint32_t row_pitch_B, enum isl_tiling tiling);
+   int (*perf_open)(struct anv_device *device, struct anv_queue *queue,
+                    uint64_t metric_id);
+   void (*perf_close)(struct anv_device *device);
 };
 
 VkResult anv_linux_physical_device_try_create(struct vk_instance *vk_instance,
@@ -60,6 +63,9 @@ void anv_linux_physical_device_finish_fd(struct anv_physical_device *device);
 VkResult anv_linux_device_open(struct anv_device *device,
                                const struct anv_physical_device *physical_device);
 void anv_linux_device_close(struct anv_device *device);
+int anv_linux_perf_open(struct anv_device *device, struct anv_queue *queue,
+                        uint64_t metric_id);
+void anv_linux_perf_close(struct anv_device *device);
 bool anv_gem_update_memory_info(struct intel_device_info *devinfo, int fd);
 bool anv_gem_read_render_timestamp(int fd, enum intel_kmd_type kmd_type,
                                    uint64_t *timestamp);

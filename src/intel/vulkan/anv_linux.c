@@ -315,6 +315,95 @@ anv_linux_device_close(struct anv_device *device)
    }
 }
 
+int
+anv_linux_perf_open(struct anv_device *device, struct anv_queue *queue,
+                    uint64_t metric_id)
+{
+   uint64_t period_exponent = 31; /* slowest sampling period */
+   uint32_t exec_id = device->kmd_backend->queue_get_exec_id(queue);
+   int ret;
+
+   /* Binding the OA stream to the submitting context/exec-queue programs the
+    * context-scoped OAR sub-unit, whose GT-wide counters always read zero. In
+    * OAG mode we open the global OAG unit instead. Sampling must stay enabled
+    * for the OA buffer to exist and for the OAG registers to be whitelisted in
+    * userspace batches, but no periodic report is ever consumed, so the
+    * slowest period stays: periodic traffic only steals OA buffer space from
+    * the boundary reports and widens the window they are searched in.
+    */
+   const bool use_global_oag = device->physical->perf->oag_global_enable;
+   if (use_global_oag)
+      exec_id = 0;
+
+   if (intel_perf_has_metric_sync(device->physical->perf)) {
+      if (!intel_bind_timeline_init(&device->perf_timeline, device->fd))
+         return -1;
+   }
+
+   ret = intel_perf_stream_open(device->physical->perf, device->fd,
+                                exec_id,
+                                metric_id, period_exponent, true, true,
+                                &device->perf_timeline);
+   if (ret < 0)
+      goto err_timeline;
+
+   if (use_global_oag) {
+      /* Boundary reports are read back straight out of the OA buffer, so a
+       * mapping is mandatory in OAG mode. It is gated by the same
+       * xe_observation_paranoid check that already allowed the stream open
+       * above, so this is not expected to fail.
+       */
+      uint64_t map_size = 0;
+      void *map = intel_perf_stream_map_oa_buffer(device->physical->perf,
+                                                  ret, &map_size);
+      if (!map)
+         goto err_stream;
+
+      simple_mtx_lock(&device->perf_oag.mutex);
+      device->perf_oag.oa_buffer = map;
+      device->perf_oag.oa_buffer_size = map_size;
+      /* The kernel truncates the ring to a whole number of reports, so it is
+       * generally not a power of two and wrapping has to go through this
+       * value rather than a mask.
+       */
+      device->perf_oag.oa_buffer_circ_size =
+         map_size - (map_size % device->physical->perf->oa_sample_size);
+      simple_mtx_unlock(&device->perf_oag.mutex);
+   }
+
+   device->perf_queue = queue;
+
+   return ret;
+
+ err_stream:
+   close(ret);
+ err_timeline:
+   intel_bind_timeline_finish(&device->perf_timeline, device->fd);
+
+   return -1;
+}
+
+void
+anv_linux_perf_close(struct anv_device *device)
+{
+   simple_mtx_lock(&device->perf_oag.mutex);
+   if (device->perf_oag.oa_buffer) {
+      intel_perf_stream_unmap_oa_buffer(device->perf_oag.oa_buffer,
+                                        device->perf_oag.oa_buffer_size);
+      device->perf_oag.oa_buffer = NULL;
+      device->perf_oag.oa_buffer_size = 0;
+      device->perf_oag.oa_buffer_circ_size = 0;
+   }
+   simple_mtx_unlock(&device->perf_oag.mutex);
+
+   if (device->perf_fd != -1) {
+      if (intel_bind_timeline_get_syncobj(&device->perf_timeline))
+         intel_bind_timeline_finish(&device->perf_timeline, device->fd);
+      close(device->perf_fd);
+      device->perf_fd = -1;
+   }
+}
+
 VkResult
 anv_linux_device_map_placed_addr_slab(struct anv_device *device,
                                       struct anv_bo *bo,

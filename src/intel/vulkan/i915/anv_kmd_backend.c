@@ -471,6 +471,8 @@ static const struct anv_linux_sys_driver_ops i915_linux_sys_driver_ops = {
    .bo_import_fd = anv_gem_bo_import_fd,
    .get_bo_tiling = i915_get_bo_tiling,
    .set_bo_tiling = i915_set_bo_tiling,
+   .perf_open = anv_linux_perf_open,
+   .perf_close = anv_linux_perf_close,
 };
 
 const struct anv_kmd_backend *
