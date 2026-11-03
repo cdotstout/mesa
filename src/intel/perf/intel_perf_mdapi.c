@@ -502,7 +502,6 @@ intel_perf_register_mdapi_oa_query(struct intel_perf_config *perf,
       break;
    }
 
-   query->oa_format = intel_perf_get_oa_format(perf);
    query->kind = INTEL_PERF_QUERY_TYPE_RAW;
    query->name = "Intel_Raw_Hardware_Counters_Set_0_Query";
    query->guid = INTEL_PERF_QUERY_GUID_MDAPI;
@@ -512,6 +511,7 @@ intel_perf_register_mdapi_oa_query(struct intel_perf_config *perf,
       const struct intel_perf_query_info *copy_query =
          &perf->queries[0];
 
+      query->oa_format = copy_query->oa_format;
       query->gpu_time_offset = copy_query->gpu_time_offset;
       query->gpu_clock_offset = copy_query->gpu_clock_offset;
       query->a_offset = copy_query->a_offset;

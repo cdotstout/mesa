@@ -36,6 +36,12 @@ static inline uint64_t to_const_user_pointer(const void *ptr)
    return (uintptr_t) ptr;
 }
 
+static inline bool
+can_use_mi_rpc_bc_counters(const struct intel_device_info *devinfo)
+{
+   return devinfo->ver <= 11;
+}
+
 static inline void
 intel_perf_query_add_stat_reg(struct intel_perf_query_info *query, uint32_t reg,
                               uint32_t numerator, uint32_t denominator,
