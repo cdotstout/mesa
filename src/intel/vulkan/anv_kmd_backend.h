@@ -135,6 +135,10 @@ struct anv_kmd_backend {
                                                  uint32_t *bo_flags);
    VkResult (*physical_device_get_parameters)(struct anv_physical_device *device);
    VkResult (*physical_device_init_memory_types)(struct anv_physical_device *device);
+   VkResult (*device_setup_context_or_vm)(struct anv_device *device,
+                                          const VkDeviceCreateInfo *pCreateInfo,
+                                          const uint32_t num_queues);
+   bool (*device_destroy_context_or_vm)(struct anv_device *device);
 };
 
 const struct anv_kmd_backend *anv_kmd_backend_get(enum intel_kmd_type type);

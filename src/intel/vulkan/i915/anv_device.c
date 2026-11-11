@@ -408,6 +408,15 @@ anv_i915_device_destroy_vm(struct anv_device *device)
    return intel_ioctl(device->fd, DRM_IOCTL_I915_GEM_VM_DESTROY, &destroy) == 0;
 }
 
+bool
+anv_i915_device_destroy_context(struct anv_device *device)
+{
+   if (device->physical->has_vm_control)
+      return anv_i915_device_destroy_vm(device);
+
+   return intel_gem_destroy_context(device->fd, device->context_id);
+}
+
 VkResult
 anv_i915_device_setup_vm(struct anv_device *device)
 {

@@ -450,6 +450,14 @@ xe_import_bo_alloc_flags_to_bo_flags(struct anv_device *device,
    return VK_SUCCESS;
 }
 
+static VkResult
+xe_device_setup_context_or_vm(struct anv_device *device,
+                              const VkDeviceCreateInfo *pCreateInfo,
+                              const uint32_t num_queues)
+{
+   return anv_xe_device_setup_vm(device);
+}
+
 const struct anv_kmd_backend *
 anv_xe_kmd_backend_get(void)
 {
@@ -467,6 +475,8 @@ anv_xe_kmd_backend_get(void)
       .import_bo_alloc_flags_to_bo_flags = xe_import_bo_alloc_flags_to_bo_flags,
       .physical_device_get_parameters = anv_xe_physical_device_get_parameters,
       .physical_device_init_memory_types = anv_xe_physical_device_init_memory_types,
+      .device_setup_context_or_vm = xe_device_setup_context_or_vm,
+      .device_destroy_context_or_vm = anv_xe_device_destroy_vm,
    };
    return &xe_backend;
 }

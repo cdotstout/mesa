@@ -252,39 +252,6 @@ static struct intel_mapped_pinned_buffer_alloc aux_map_allocator = {
 };
 
 static VkResult
-anv_device_setup_context_or_vm(struct anv_device *device,
-                               const VkDeviceCreateInfo *pCreateInfo,
-                               const uint32_t num_queues)
-{
-   switch (device->info->kmd_type) {
-   case INTEL_KMD_TYPE_I915:
-      return anv_i915_device_setup_context(device, pCreateInfo, num_queues);
-   case INTEL_KMD_TYPE_XE:
-      return anv_xe_device_setup_vm(device);
-   default:
-      UNREACHABLE("Missing");
-      return VK_ERROR_UNKNOWN;
-   }
-}
-
-static bool
-anv_device_destroy_context_or_vm(struct anv_device *device)
-{
-   switch (device->info->kmd_type) {
-   case INTEL_KMD_TYPE_I915:
-      if (device->physical->has_vm_control)
-         return anv_i915_device_destroy_vm(device);
-      else
-         return intel_gem_destroy_context(device->fd, device->context_id);
-   case INTEL_KMD_TYPE_XE:
-      return anv_xe_device_destroy_vm(device);
-   default:
-      UNREACHABLE("Missing");
-      return false;
-   }
-}
-
-static VkResult
 anv_device_init_trtt(struct anv_device *device)
 {
    if (device->physical->sparse_type != ANV_SPARSE_TYPE_TRTT ||
@@ -963,7 +930,7 @@ VkResult anv_CreateDevice(
    for (uint32_t i = 0; i < pCreateInfo->queueCreateInfoCount; i++)
       num_queues += pCreateInfo->pQueueCreateInfos[i].queueCount;
 
-   result = anv_device_setup_context_or_vm(device, pCreateInfo, num_queues);
+   result = device->kmd_backend->device_setup_context_or_vm(device, pCreateInfo, num_queues);
    if (result != VK_SUCCESS)
       goto fail_fd;
 
@@ -1468,7 +1435,7 @@ VkResult anv_CreateDevice(
  fail_queues_alloc:
    vk_free(&device->vk.alloc, device->queues);
  fail_context_id:
-   anv_device_destroy_context_or_vm(device);
+   device->kmd_backend->device_destroy_context_or_vm(device);
  fail_fd:
    intel_virtio_unref_fd(device->fd);
    close(device->fd);
@@ -1615,7 +1582,7 @@ void anv_DestroyDevice(
 
    ralloc_free(device->fp64_nir);
 
-   anv_device_destroy_context_or_vm(device);
+   device->kmd_backend->device_destroy_context_or_vm(device);
 
    if (INTEL_DEBUG(DEBUG_BATCH) || INTEL_DEBUG(DEBUG_BATCH_STATS)) {
       for (unsigned i = 0; i < pdevice->queue.family_count; i++) {
