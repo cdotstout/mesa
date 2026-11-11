@@ -143,6 +143,10 @@ struct anv_kmd_backend {
    bool (*device_destroy_context_or_vm)(struct anv_device *device);
    VkResult (*device_check_status)(struct vk_device *vk_device);
    struct intel_pagefault_buffer *(*device_alloc_get_vm_faults)(struct anv_device *device);
+   VkResult (*create_engine)(struct anv_device *device,
+                             struct anv_queue *queue,
+                             const VkDeviceQueueCreateInfo *pCreateInfo);
+   void (*destroy_engine)(struct anv_device *device, struct anv_queue *queue);
 };
 
 const struct anv_kmd_backend *anv_kmd_backend_get(enum intel_kmd_type type);

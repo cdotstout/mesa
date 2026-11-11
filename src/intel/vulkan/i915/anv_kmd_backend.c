@@ -27,6 +27,7 @@
 
 #include "i915/anv_batch_chain.h"
 #include "i915/anv_device.h"
+#include "i915/anv_queue.h"
 
 #include "drm-uapi/i915_drm.h"
 #include "intel/common/i915/intel_gem.h"
@@ -417,6 +418,8 @@ anv_i915_kmd_backend_get(void)
       .device_setup_context_or_vm = anv_i915_device_setup_context,
       .device_destroy_context_or_vm = anv_i915_device_destroy_context,
       .device_check_status = anv_i915_device_check_status,
+      .create_engine = anv_i915_create_engine,
+      .destroy_engine = anv_i915_destroy_engine,
    };
    return &i915_backend;
 }

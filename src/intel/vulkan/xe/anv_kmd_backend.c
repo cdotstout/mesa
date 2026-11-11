@@ -29,6 +29,7 @@
 
 #include "xe/anv_batch_chain.h"
 #include "xe/anv_device.h"
+#include "xe/anv_queue.h"
 
 #include "drm-uapi/gpu_scheduler.h"
 #include "drm-uapi/xe_drm.h"
@@ -479,6 +480,8 @@ anv_xe_kmd_backend_get(void)
       .device_destroy_context_or_vm = anv_xe_device_destroy_vm,
       .device_check_status = anv_xe_device_check_status,
       .device_alloc_get_vm_faults = anv_xe_device_alloc_get_vm_faults,
+      .create_engine = anv_xe_create_engine,
+      .destroy_engine = anv_xe_destroy_engine,
    };
    return &xe_backend;
 }
