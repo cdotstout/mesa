@@ -451,6 +451,12 @@ xe_import_bo_alloc_flags_to_bo_flags(struct anv_device *device,
    return VK_SUCCESS;
 }
 
+static uint32_t
+xe_queue_get_exec_id(struct anv_queue *queue)
+{
+   return queue->exec_queue_id;
+}
+
 static VkResult
 xe_device_setup_context_or_vm(struct anv_device *device,
                               const VkDeviceCreateInfo *pCreateInfo,
@@ -472,6 +478,7 @@ anv_xe_kmd_backend_get(void)
       .vm_unbind_bo = xe_vm_unbind_bo,
       .queue_exec_locked = xe_queue_exec_locked,
       .queue_exec_async = xe_queue_exec_async,
+      .queue_get_exec_id = xe_queue_get_exec_id,
       .bo_alloc_flags_to_bo_flags = xe_bo_alloc_flags_to_bo_flags,
       .import_bo_alloc_flags_to_bo_flags = xe_import_bo_alloc_flags_to_bo_flags,
       .physical_device_get_parameters = anv_xe_physical_device_get_parameters,

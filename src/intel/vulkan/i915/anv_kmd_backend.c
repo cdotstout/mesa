@@ -398,6 +398,14 @@ i915_import_bo_alloc_flags_to_bo_flags(struct anv_device *device,
    return VK_SUCCESS;
 }
 
+static uint32_t
+i915_queue_get_exec_id(struct anv_queue *queue)
+{
+   struct anv_device *device = queue->device;
+   return device->physical->has_vm_control ?
+          queue->context_id : device->context_id;
+}
+
 const struct anv_kmd_backend *
 anv_i915_kmd_backend_get(void)
 {
@@ -411,6 +419,7 @@ anv_i915_kmd_backend_get(void)
       .vm_unbind_bo = i915_vm_bind_bo,
       .queue_exec_locked = i915_queue_exec_locked,
       .queue_exec_async = i915_queue_exec_async,
+      .queue_get_exec_id = i915_queue_get_exec_id,
       .bo_alloc_flags_to_bo_flags = i915_bo_alloc_flags_to_bo_flags,
       .import_bo_alloc_flags_to_bo_flags = i915_import_bo_alloc_flags_to_bo_flags,
       .physical_device_get_parameters = anv_i915_physical_device_get_parameters,

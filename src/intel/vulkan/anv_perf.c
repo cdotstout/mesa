@@ -362,35 +362,12 @@ anv_QueueWaitIdle(VkQueue _queue)
    return result;
 }
 
-static uint32_t
-anv_device_perf_get_queue_context_or_exec_queue_id(struct anv_queue *queue)
-{
-   struct anv_device *device = queue->device;
-   uint32_t context_or_exec_queue_id;
-
-   switch (device->physical->info.kmd_type) {
-   case INTEL_KMD_TYPE_I915:
-      context_or_exec_queue_id = device->physical->has_vm_control ?
-                                 queue->context_id : device->context_id;
-      break;
-   case INTEL_KMD_TYPE_XE:
-      context_or_exec_queue_id = queue->exec_queue_id;
-      break;
-   default:
-      UNREACHABLE("missing");
-      context_or_exec_queue_id = 0;
-   }
-
-   return context_or_exec_queue_id;
-}
-
 static int
 anv_device_perf_open(struct anv_device *device, struct anv_queue *queue,
                      uint64_t metric_id)
 {
    uint64_t period_exponent = 31; /* slowest sampling period */
-   uint32_t exec_id =
-      anv_device_perf_get_queue_context_or_exec_queue_id(queue);
+   uint32_t exec_id = device->kmd_backend->queue_get_exec_id(queue);
    int ret;
 
    /* Binding the OA stream to the submitting context/exec-queue programs the

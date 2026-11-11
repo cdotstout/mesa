@@ -127,6 +127,12 @@ anv_gem_fd_to_handle(struct anv_device *device, int fd)
    UNREACHABLE("Unused");
 }
 
+static uint32_t
+stub_queue_get_exec_id(struct anv_queue *queue)
+{
+   return 0;
+}
+
 static VkResult
 stub_import_bo_alloc_flags_to_bo_flags(struct anv_device *device,
                                        struct anv_bo *bo,
@@ -206,6 +212,7 @@ const struct anv_kmd_backend *anv_stub_kmd_backend_get(void)
       .vm_unbind_bo = stub_vm_bind_bo,
       .queue_exec_locked = stub_queue_exec_locked,
       .queue_exec_async = stub_queue_exec_async,
+      .queue_get_exec_id = stub_queue_get_exec_id,
       .bo_alloc_flags_to_bo_flags = stub_bo_alloc_flags_to_bo_flags,
       .import_bo_alloc_flags_to_bo_flags = stub_import_bo_alloc_flags_to_bo_flags,
       .physical_device_get_parameters = stub_physical_device_get_parameters,

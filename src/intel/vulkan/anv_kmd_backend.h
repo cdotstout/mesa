@@ -129,6 +129,7 @@ struct anv_kmd_backend {
                                 const struct vk_sync_wait *waits,
                                 uint32_t signal_count,
                                 const struct vk_sync_signal *signals);
+   uint32_t (*queue_get_exec_id)(struct anv_queue *queue);
    uint32_t (*bo_alloc_flags_to_bo_flags)(struct anv_device *device,
                                           enum anv_bo_alloc_flags alloc_flags);
    VkResult (*import_bo_alloc_flags_to_bo_flags)(struct anv_device *device,
