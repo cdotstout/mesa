@@ -478,6 +478,7 @@ anv_xe_kmd_backend_get(void)
       .device_setup_context_or_vm = xe_device_setup_context_or_vm,
       .device_destroy_context_or_vm = anv_xe_device_destroy_vm,
       .device_check_status = anv_xe_device_check_status,
+      .device_alloc_get_vm_faults = anv_xe_device_alloc_get_vm_faults,
    };
    return &xe_backend;
 }

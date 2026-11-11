@@ -46,8 +46,6 @@
 #include "common/intel_common.h"
 #include "common/intel_debug_identifier.h"
 
-#include "xe/anv_device.h"
-
 #include "genxml/gen70_pack.h"
 #include "genxml/genX_bits.h"
 #include "wsi_common_private.h"
@@ -2559,12 +2557,8 @@ anv_device_get_pat_entry(struct anv_device *device,
 struct intel_pagefault_buffer *
 anv_device_alloc_get_vm_faults(struct anv_device *device)
 {
-   if (!device->physical->can_get_vm_faults)
+   if (!device->physical->can_get_vm_faults ||
+       !device->kmd_backend->device_alloc_get_vm_faults)
       return NULL;
-   switch (device->info->kmd_type) {
-   case INTEL_KMD_TYPE_XE:
-      return anv_xe_device_alloc_get_vm_faults(device);
-   default:
-      return NULL;
-   }
+   return device->kmd_backend->device_alloc_get_vm_faults(device);
 }
