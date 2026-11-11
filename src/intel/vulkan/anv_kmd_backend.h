@@ -41,6 +41,7 @@ struct anv_query_pool;
 struct anv_async_submit;
 struct anv_utrace_submit;
 struct anv_sparse_submission;
+struct vk_device;
 
 enum anv_vm_bind_op {
    /* bind vma specified in anv_vm_bind */
@@ -139,6 +140,7 @@ struct anv_kmd_backend {
                                           const VkDeviceCreateInfo *pCreateInfo,
                                           const uint32_t num_queues);
    bool (*device_destroy_context_or_vm)(struct anv_device *device);
+   VkResult (*device_check_status)(struct vk_device *vk_device);
 };
 
 const struct anv_kmd_backend *anv_kmd_backend_get(enum intel_kmd_type type);

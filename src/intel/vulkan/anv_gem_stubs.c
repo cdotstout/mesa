@@ -175,6 +175,12 @@ stub_device_destroy_context_or_vm(struct anv_device *device)
    return true;
 }
 
+static VkResult
+stub_device_check_status(struct vk_device *vk_device)
+{
+   return VK_SUCCESS;
+}
+
 const struct anv_kmd_backend *anv_stub_kmd_backend_get(void)
 {
    static const struct anv_kmd_backend stub_backend = {
@@ -193,6 +199,7 @@ const struct anv_kmd_backend *anv_stub_kmd_backend_get(void)
       .physical_device_init_memory_types = stub_physical_device_init_memory_types,
       .device_setup_context_or_vm = stub_device_setup_context_or_vm,
       .device_destroy_context_or_vm = stub_device_destroy_context_or_vm,
+      .device_check_status = stub_device_check_status,
    };
    return &stub_backend;
 }

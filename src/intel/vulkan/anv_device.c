@@ -46,7 +46,6 @@
 #include "common/intel_common.h"
 #include "common/intel_debug_identifier.h"
 
-#include "i915/anv_device.h"
 #include "xe/anv_device.h"
 
 #include "genxml/gen70_pack.h"
@@ -907,16 +906,7 @@ VkResult anv_CreateDevice(
       goto fail_fd;
    }
 
-   switch (device->info->kmd_type) {
-   case INTEL_KMD_TYPE_I915:
-      device->vk.check_status = anv_i915_device_check_status;
-      break;
-   case INTEL_KMD_TYPE_XE:
-      device->vk.check_status = anv_xe_device_check_status;
-      break;
-   default:
-      UNREACHABLE("Missing");
-   }
+   device->vk.check_status = device->kmd_backend->device_check_status;
 
    device->vk.copy_sync_payloads = vk_drm_syncobj_copy_payloads;
    device->vk.command_buffer_ops = &anv_cmd_buffer_ops;

@@ -416,6 +416,7 @@ anv_i915_kmd_backend_get(void)
       .physical_device_init_memory_types = anv_i915_physical_device_init_memory_types,
       .device_setup_context_or_vm = anv_i915_device_setup_context,
       .device_destroy_context_or_vm = anv_i915_device_destroy_context,
+      .device_check_status = anv_i915_device_check_status,
    };
    return &i915_backend;
 }
