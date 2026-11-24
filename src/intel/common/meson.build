@@ -79,7 +79,7 @@ if install_intel_gpu_tests and not with_tests
   error('`install-intel-gpu-tests` requires `build-tests`')
 endif
 
-if with_tests and not with_platform_android
+if with_tests and not with_platform_android and host_machine.system() == 'linux'
   foreach g : [['70', 'gfx7'], ['75', 'hsw'], ['80', 'gfx8'],
                ['90', 'gfx9'], ['110', 'gfx11'], ['120', 'gfx12'],
                ['125', 'gfx125'], ['200', 'gfx20'], ['300', 'gfx30']]

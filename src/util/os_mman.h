@@ -40,7 +40,7 @@
 
 #include "util/detect_os.h"
 
-#if DETECT_OS_POSIX
+#if DETECT_OS_POSIX_LITE
 #  include <sys/mman.h>
 #else
 #  error Unsupported OS

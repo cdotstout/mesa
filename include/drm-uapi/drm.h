@@ -45,7 +45,7 @@ typedef unsigned int drm_handle_t;
 
 #include <stdint.h>
 #include <sys/types.h>
-#if defined(__GNU__)
+#if defined(__GNU__) || defined(__Fuchsia__)
 #include <sys/ioctl.h>
 #else
 #include <sys/ioccom.h>

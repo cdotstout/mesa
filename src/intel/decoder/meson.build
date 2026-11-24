@@ -74,7 +74,7 @@ else
   idep_intel_decoder_elk = null_dep
 endif
 
-if with_tests and not with_platform_android
+if with_tests and not with_platform_android and dep_expat.found()
   gentest_xml = 'tests/gentest.xml'
   _name = 'gentest_pack.h'
   gentest_pack = custom_target(
