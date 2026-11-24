@@ -83,6 +83,11 @@ anv_drirc_shader_cb(const void *hash_data,
 static VkResult
 anv_physical_device_init_drirc(struct anv_physical_device *device)
 {
+#ifdef __Fuchsia__
+   memset(&device->drirc, 0, sizeof(device->drirc));
+   device->drirc_status = VK_ERROR_OUT_OF_HOST_MEMORY;
+   return VK_SUCCESS;
+#endif
    struct anv_instance *instance = device->instance;
 
    device->drirc_status = VK_SUCCESS;
@@ -1762,9 +1767,13 @@ get_properties(const struct anv_physical_device *pdevice,
       .dynamicRenderingLocalReadMultisampledAttachments = true,
    };
 
+#if defined(__Fuchsia__)
+   snprintf(props->deviceName, sizeof(props->deviceName), "%s", pdevice->info.name);
+#else
    snprintf(props->deviceName, sizeof(props->deviceName),
             "%s", (strlen(pdevice->drirc.debug.force_vk_devicename) > 0) ?
                   pdevice->drirc.debug.force_vk_devicename : pdevice->info.name);
+#endif
    memcpy(props->pipelineCacheUUID,
           pdevice->shader_binary_uuid, VK_UUID_SIZE);
 
@@ -3179,9 +3188,11 @@ anv_physical_device_create(struct anv_instance *instance,
    device->memory.heaps_budget =
       get_physical_device_budget(device->local_major, device->local_minor);
 
+#if !defined(__Fuchsia__)
    result = anv_init_wsi(device);
    if (result != VK_SUCCESS)
       goto fail_perf;
+#endif
 
    anv_measure_device_init(device);
 
