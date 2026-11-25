@@ -5,9 +5,9 @@ use std::os::fd::AsFd;
 use std::sync::Arc;
 
 use magma_gpu::util::OwnedDescriptor;
+use zerocopy::IntoBytes;
 
 use crate::defines::MagmaAddressSpaceProperties;
-use crate::defines::MagmaArmDeviceInfo;
 use crate::defines::MagmaCreateBufferInfo;
 use crate::defines::MagmaCreateQueueInfo;
 use crate::defines::MagmaCreateSemaphoreInfo;
@@ -41,6 +41,9 @@ use crate::traits::BackendQueue;
 use crate::traits::BackendSemaphore;
 use crate::traits::GenericDevice;
 use crate::traits::GenericPhysicalDevice;
+use crate::traits::MagmaVendorQueryResult;
+use crate::vendor::arm::MagmaArmDeviceInfo;
+use crate::vendor::arm::MAGMA_ARM_QUERY_DEVICE_INFO;
 use crate::traits::GenericSemaphore;
 
 #[allow(dead_code)]
@@ -139,32 +142,50 @@ impl GenericPhysicalDevice for PanthorPhysicalDevice {
         Ok(MagmaTimestampProperties::new(ts_info.timestamp_frequency))
     }
 
-    fn get_arm_device_info(&self) -> Result<MagmaArmDeviceInfo> {
-        let g = &self.gpu_info;
-        let c = &self.csif_info;
-        Ok(MagmaArmDeviceInfo::new(
-            g.shader_present,
-            g.tiler_present,
-            g.l2_present,
-            g.gpu_id,
-            g.gpu_rev,
-            g.csf_id,
-            g.l2_features,
-            g.tiler_features,
-            g.mem_features,
-            g.mmu_features,
-            g.thread_features,
-            g.max_threads,
-            g.thread_max_workgroup_size,
-            g.thread_max_barrier_size,
-            g.coherency_features,
-            g.selected_coherency,
-            g.as_present,
-            c.csg_slot_count,
-            c.cs_slot_count,
-            c.cs_reg_count,
-            c.scoreboard_slot_count,
-        ))
+    fn query_vendor(
+        &self,
+        query_id: u64,
+        buffer: Option<&mut [u8]>,
+    ) -> Result<MagmaVendorQueryResult> {
+        match query_id {
+            MAGMA_ARM_QUERY_DEVICE_INFO => {
+                let g = &self.gpu_info;
+                let c = &self.csif_info;
+                let info = MagmaArmDeviceInfo {
+                    shader_present: g.shader_present,
+                    tiler_present: g.tiler_present,
+                    l2_present: g.l2_present,
+                    gpu_id: g.gpu_id,
+                    gpu_rev: g.gpu_rev,
+                    csf_id: g.csf_id,
+                    l2_features: g.l2_features,
+                    tiler_features: g.tiler_features,
+                    mem_features: g.mem_features,
+                    mmu_features: g.mmu_features,
+                    thread_features: g.thread_features,
+                    max_threads: g.max_threads,
+                    thread_max_workgroup_size: g.thread_max_workgroup_size,
+                    thread_max_barrier_size: g.thread_max_barrier_size,
+                    coherency_features: g.coherency_features,
+                    selected_coherency: g.selected_coherency,
+                    as_present: g.as_present,
+                    csg_slot_count: c.csg_slot_count,
+                    cs_slot_count: c.cs_slot_count,
+                    cs_reg_count: c.cs_reg_count,
+                    scoreboard_slot_count: c.scoreboard_slot_count,
+                };
+                let bytes = info.as_bytes();
+                let Some(buf) = buffer else {
+                    return Ok(MagmaVendorQueryResult::Buffer(bytes.len()));
+                };
+                if buf.len() < bytes.len() {
+                    return Err(Error::InvalidArgs);
+                }
+                buf[..bytes.len()].copy_from_slice(bytes);
+                Ok(MagmaVendorQueryResult::Buffer(bytes.len()))
+            }
+            _ => Err(Error::Unimplemented),
+        }
     }
 }
 

@@ -23,6 +23,18 @@ pub const MAGMA_BUS_TYPE_UNKNOWN: u32 = 0;
 pub const MAGMA_BUS_TYPE_PCI: u32 = 1;
 pub const MAGMA_BUS_TYPE_PLATFORM: u32 = 2;
 
+pub const MAGMA_STRUCTURE_TYPE_VENDOR_QUERY: u32 = 0x00000013;
+
+#[repr(C)]
+#[derive(Copy, Clone, Debug)]
+pub struct MagmaVendorQuery {
+    pub header: MagmaStructureTypeHeader,
+    pub query_id: u64,
+    pub result: u64,
+    pub buffer: *mut c_void,
+    pub buffer_size: u64,
+}
+
 // Same as PCI id
 pub const MAGMA_VENDOR_ID_INTEL: u16 = 0x8086;
 pub const MAGMA_VENDOR_ID_AMD: u16 = 0x1002;

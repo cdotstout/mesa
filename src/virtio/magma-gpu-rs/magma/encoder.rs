@@ -166,26 +166,6 @@ impl<W: std::io::Write> Encoder<W> {
                     ext.header.p_next = if next != 0 { 1 } else { 0 };
                     self.write_bytes(zerocopy::IntoBytes::as_bytes(&ext))?;
                 }
-                MAGMA_STRUCTURE_TYPE_INTEL_DEVICE_INFO => {
-                    let mut ext = unsafe { *(curr as *const MagmaIntelDeviceInfo) };
-                    ext.header.p_next = if next != 0 { 1 } else { 0 };
-                    self.write_bytes(zerocopy::IntoBytes::as_bytes(&ext))?;
-                }
-                MAGMA_STRUCTURE_TYPE_ADRENO_DEVICE_INFO => {
-                    let mut ext = unsafe { *(curr as *const MagmaAdrenoDeviceInfo) };
-                    ext.header.p_next = if next != 0 { 1 } else { 0 };
-                    self.write_bytes(zerocopy::IntoBytes::as_bytes(&ext))?;
-                }
-                MAGMA_STRUCTURE_TYPE_ARM_DEVICE_INFO => {
-                    let mut ext = unsafe { *(curr as *const MagmaArmDeviceInfo) };
-                    ext.header.p_next = if next != 0 { 1 } else { 0 };
-                    self.write_bytes(zerocopy::IntoBytes::as_bytes(&ext))?;
-                }
-                MAGMA_STRUCTURE_TYPE_AMDGPU_DEVICE_INFO => {
-                    let mut ext = unsafe { *(curr as *const MagmaAmdgpuDeviceInfo) };
-                    ext.header.p_next = if next != 0 { 1 } else { 0 };
-                    self.write_bytes(zerocopy::IntoBytes::as_bytes(&ext))?;
-                }
                 MAGMA_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_TYPE => {
                     let mut ext = unsafe { *(curr as *const MagmaPhysicalDeviceMemoryType) };
                     ext.header.p_next = if next != 0 { 1 } else { 0 };
@@ -426,52 +406,6 @@ impl<W: std::io::Write> Encoder<W> {
     pub fn encode_timestamp_properties(
         &mut self,
         msg: &MagmaTimestampProperties,
-    ) -> std::io::Result<()> {
-        let mut obj = *msg;
-        let p_next = obj.header.p_next as usize as u64;
-        obj.header.p_next = if p_next != 0 { 1 } else { 0 };
-        self.write_bytes(zerocopy::IntoBytes::as_bytes(&obj))?;
-        if p_next != 0 {
-            self.encode_extensible_chain(p_next)?;
-        }
-        Ok(())
-    }
-    pub fn encode_intel_device_info(&mut self, msg: &MagmaIntelDeviceInfo) -> std::io::Result<()> {
-        let mut obj = *msg;
-        let p_next = obj.header.p_next as usize as u64;
-        obj.header.p_next = if p_next != 0 { 1 } else { 0 };
-        self.write_bytes(zerocopy::IntoBytes::as_bytes(&obj))?;
-        if p_next != 0 {
-            self.encode_extensible_chain(p_next)?;
-        }
-        Ok(())
-    }
-    pub fn encode_adreno_device_info(
-        &mut self,
-        msg: &MagmaAdrenoDeviceInfo,
-    ) -> std::io::Result<()> {
-        let mut obj = *msg;
-        let p_next = obj.header.p_next as usize as u64;
-        obj.header.p_next = if p_next != 0 { 1 } else { 0 };
-        self.write_bytes(zerocopy::IntoBytes::as_bytes(&obj))?;
-        if p_next != 0 {
-            self.encode_extensible_chain(p_next)?;
-        }
-        Ok(())
-    }
-    pub fn encode_arm_device_info(&mut self, msg: &MagmaArmDeviceInfo) -> std::io::Result<()> {
-        let mut obj = *msg;
-        let p_next = obj.header.p_next as usize as u64;
-        obj.header.p_next = if p_next != 0 { 1 } else { 0 };
-        self.write_bytes(zerocopy::IntoBytes::as_bytes(&obj))?;
-        if p_next != 0 {
-            self.encode_extensible_chain(p_next)?;
-        }
-        Ok(())
-    }
-    pub fn encode_amdgpu_device_info(
-        &mut self,
-        msg: &MagmaAmdgpuDeviceInfo,
     ) -> std::io::Result<()> {
         let mut obj = *msg;
         let p_next = obj.header.p_next as usize as u64;
@@ -839,10 +773,6 @@ impl<W: std::io::Write> Encoder<W> {
             MagmaExtensibleStruct::TimestampProperties(msg) => {
                 self.encode_timestamp_properties(msg)
             }
-            MagmaExtensibleStruct::IntelDeviceInfo(msg) => self.encode_intel_device_info(msg),
-            MagmaExtensibleStruct::AdrenoDeviceInfo(msg) => self.encode_adreno_device_info(msg),
-            MagmaExtensibleStruct::ArmDeviceInfo(msg) => self.encode_arm_device_info(msg),
-            MagmaExtensibleStruct::AmdgpuDeviceInfo(msg) => self.encode_amdgpu_device_info(msg),
             MagmaExtensibleStruct::PhysicalDeviceMemoryType(msg) => {
                 self.encode_physical_device_memory_type(msg)
             }

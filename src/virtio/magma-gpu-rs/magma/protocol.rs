@@ -54,7 +54,6 @@ pub const MAGMA_MAX_PHYSICAL_DEVICES: usize = 8;
 pub const MAGMA_MAX_MEMORY_HEAPS: usize = 32;
 pub const MAGMA_MAX_MEMORY_TYPES: usize = 16;
 pub const MAGMA_MAX_QUEUES: usize = 16;
-pub const MAGMA_MAX_HW_CONFIG_DWORDS: usize = 256;
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, TryFromBytes, IntoBytes, Immutable)]
 #[repr(u16)]
@@ -228,22 +227,6 @@ bitflags! {
     }
 }
 
-#[derive(
-    Copy, Clone, Default, Debug, PartialEq, Eq, IntoBytes, FromBytes, Immutable, KnownLayout,
-)]
-#[repr(transparent)]
-pub struct MagmaIntelConfigFlag(u32);
-bitflags! {
-    impl MagmaIntelConfigFlag: u32 {
-        const HasVram = 1;
-        const HasLowLatency = 2;
-        const HasCpuAddrMirror = 4;
-        const HasNoCompressionHint = 8;
-        const HasStateCachePerfFix = 16;
-        const HasPurgingSupport = 32;
-    }
-}
-
 #[derive(Debug, Default, Clone, Copy, TryFromBytes, IntoBytes, Immutable)]
 #[repr(C)]
 pub struct MagmaHeap {
@@ -310,10 +293,6 @@ pub const MAGMA_STRUCTURE_TYPE_VIRT_CAPABILITIES: u32 = 65537;
 pub const MAGMA_STRUCTURE_TYPE_PHYSICAL_DEVICE_INFO: u32 = 65538;
 pub const MAGMA_STRUCTURE_TYPE_ADDRESS_SPACE_PROPERTIES: u32 = 12;
 pub const MAGMA_STRUCTURE_TYPE_TIMESTAMP_PROPERTIES: u32 = 13;
-pub const MAGMA_STRUCTURE_TYPE_INTEL_DEVICE_INFO: u32 = 14;
-pub const MAGMA_STRUCTURE_TYPE_ADRENO_DEVICE_INFO: u32 = 15;
-pub const MAGMA_STRUCTURE_TYPE_ARM_DEVICE_INFO: u32 = 16;
-pub const MAGMA_STRUCTURE_TYPE_AMDGPU_DEVICE_INFO: u32 = 17;
 pub const MAGMA_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_TYPE: u32 = 65539;
 pub const MAGMA_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_HEAP: u32 = 65540;
 pub const MAGMA_STRUCTURE_TYPE_VIRTIO_SEQNO_INFO: u32 = 65541;
@@ -337,10 +316,6 @@ pub enum MagmaStructureType {
     PhysicalDeviceInfo = 65538,
     AddressSpaceProperties = 12,
     TimestampProperties = 13,
-    IntelDeviceInfo = 14,
-    AdrenoDeviceInfo = 15,
-    ArmDeviceInfo = 16,
-    AmdgpuDeviceInfo = 17,
     PhysicalDeviceMemoryType = 65539,
     PhysicalDeviceMemoryHeap = 65540,
     VirtioSeqnoInfo = 65541,
@@ -788,155 +763,6 @@ unsafe impl MagmaTaggedStructure for MagmaTimestampProperties {
     }
 }
 unsafe impl MagmaExtends<MagmaPhysicalDeviceInfo> for MagmaTimestampProperties {}
-#[derive(Debug, Clone, Copy, TryFromBytes, IntoBytes, Immutable)]
-#[repr(C)]
-pub struct MagmaIntelDeviceInfo {
-    pub header: MagmaStructureTypeHeader,
-    pub hw_config_count: u32,
-    pub l3_banks: u32,
-    pub geo_dss_mask: u64,
-    pub eu_per_dss_mask: u64,
-    pub geo_dss_num_bytes: u32,
-    pub ip_ver_major: u32,
-    pub ip_ver_minor: u32,
-    pub ip_ver_rev: u32,
-    pub config_flags: MagmaIntelConfigFlag,
-    pub hw_config_data: [u32; MAGMA_MAX_HW_CONFIG_DWORDS],
-    pub _padding: u32,
-}
-
-impl Default for MagmaIntelDeviceInfo {
-    fn default() -> Self {
-        Self {
-            header: Default::default(),
-            hw_config_count: Default::default(),
-            l3_banks: Default::default(),
-            geo_dss_mask: Default::default(),
-            eu_per_dss_mask: Default::default(),
-            geo_dss_num_bytes: Default::default(),
-            ip_ver_major: Default::default(),
-            ip_ver_minor: Default::default(),
-            ip_ver_rev: Default::default(),
-            config_flags: Default::default(),
-            hw_config_data: [Default::default(); MAGMA_MAX_HW_CONFIG_DWORDS],
-            _padding: Default::default(),
-        }
-    }
-}
-
-unsafe impl MagmaTaggedStructure for MagmaIntelDeviceInfo {
-    const STRUCTURE_TYPE: MagmaStructureType = MagmaStructureType::IntelDeviceInfo;
-
-    fn header(&self) -> &MagmaStructureTypeHeader {
-        &self.header
-    }
-
-    fn header_mut(&mut self) -> &mut MagmaStructureTypeHeader {
-        &mut self.header
-    }
-}
-unsafe impl MagmaExtends<MagmaPhysicalDeviceInfo> for MagmaIntelDeviceInfo {}
-#[derive(Debug, Default, Clone, Copy, TryFromBytes, IntoBytes, Immutable)]
-#[repr(C)]
-pub struct MagmaAdrenoDeviceInfo {
-    pub header: MagmaStructureTypeHeader,
-    pub chip_id: u64,
-    pub gmem_size: u64,
-    pub gmem_base: u64,
-    pub gpu_id: u32,
-    pub highest_bank_bit: u32,
-    pub ubwc_swizzle: u32,
-    pub macrotile_mode: u32,
-    pub raytracing: u32,
-    pub flags: u32,
-}
-
-unsafe impl MagmaTaggedStructure for MagmaAdrenoDeviceInfo {
-    const STRUCTURE_TYPE: MagmaStructureType = MagmaStructureType::AdrenoDeviceInfo;
-
-    fn header(&self) -> &MagmaStructureTypeHeader {
-        &self.header
-    }
-
-    fn header_mut(&mut self) -> &mut MagmaStructureTypeHeader {
-        &mut self.header
-    }
-}
-unsafe impl MagmaExtends<MagmaPhysicalDeviceInfo> for MagmaAdrenoDeviceInfo {}
-#[derive(Debug, Default, Clone, Copy, TryFromBytes, IntoBytes, Immutable)]
-#[repr(C)]
-pub struct MagmaArmDeviceInfo {
-    pub header: MagmaStructureTypeHeader,
-    pub shader_present: u64,
-    pub tiler_present: u64,
-    pub l2_present: u64,
-    pub gpu_id: u32,
-    pub gpu_rev: u32,
-    pub csf_id: u32,
-    pub l2_features: u32,
-    pub tiler_features: u32,
-    pub mem_features: u32,
-    pub mmu_features: u32,
-    pub thread_features: u32,
-    pub max_threads: u32,
-    pub thread_max_workgroup_size: u32,
-    pub thread_max_barrier_size: u32,
-    pub coherency_features: u32,
-    pub selected_coherency: u32,
-    pub as_present: u32,
-    pub csg_slot_count: u32,
-    pub cs_slot_count: u32,
-    pub cs_reg_count: u32,
-    pub scoreboard_slot_count: u32,
-}
-
-unsafe impl MagmaTaggedStructure for MagmaArmDeviceInfo {
-    const STRUCTURE_TYPE: MagmaStructureType = MagmaStructureType::ArmDeviceInfo;
-
-    fn header(&self) -> &MagmaStructureTypeHeader {
-        &self.header
-    }
-
-    fn header_mut(&mut self) -> &mut MagmaStructureTypeHeader {
-        &mut self.header
-    }
-}
-unsafe impl MagmaExtends<MagmaPhysicalDeviceInfo> for MagmaArmDeviceInfo {}
-#[derive(Debug, Default, Clone, Copy, TryFromBytes, IntoBytes, Immutable)]
-#[repr(C)]
-pub struct MagmaAmdgpuDeviceInfo {
-    pub header: MagmaStructureTypeHeader,
-    pub max_engine_clock: u64,
-    pub max_memory_clock: u64,
-    pub ids_flags: u64,
-    pub chip_rev: u32,
-    pub external_rev: u32,
-    pub family: u32,
-    pub num_shader_engines: u32,
-    pub num_shader_arrays_per_engine: u32,
-    pub cu_active_number: u32,
-    pub enabled_rb_pipes_mask: u32,
-    pub num_rb_pipes: u32,
-    pub vram_type: u32,
-    pub vram_bit_width: u32,
-    pub wave_front_size: u32,
-    pub num_shader_visible_vgprs: u32,
-    pub num_cu_per_sh: u32,
-    pub num_tcc_blocks: u32,
-}
-
-unsafe impl MagmaTaggedStructure for MagmaAmdgpuDeviceInfo {
-    const STRUCTURE_TYPE: MagmaStructureType = MagmaStructureType::AmdgpuDeviceInfo;
-
-    fn header(&self) -> &MagmaStructureTypeHeader {
-        &self.header
-    }
-
-    fn header_mut(&mut self) -> &mut MagmaStructureTypeHeader {
-        &mut self.header
-    }
-}
-unsafe impl MagmaExtends<MagmaPhysicalDeviceInfo> for MagmaAmdgpuDeviceInfo {}
 #[derive(Debug, Default, Clone, Copy, TryFromBytes, IntoBytes, Immutable)]
 #[repr(C)]
 pub struct MagmaPhysicalDeviceMemoryType {
@@ -1016,10 +842,6 @@ pub enum MagmaExtensibleStruct {
     PhysicalDeviceInfo(MagmaPhysicalDeviceInfo),
     AddressSpaceProperties(MagmaAddressSpaceProperties),
     TimestampProperties(MagmaTimestampProperties),
-    IntelDeviceInfo(MagmaIntelDeviceInfo),
-    AdrenoDeviceInfo(MagmaAdrenoDeviceInfo),
-    ArmDeviceInfo(MagmaArmDeviceInfo),
-    AmdgpuDeviceInfo(MagmaAmdgpuDeviceInfo),
     PhysicalDeviceMemoryType(MagmaPhysicalDeviceMemoryType),
     PhysicalDeviceMemoryHeap(MagmaPhysicalDeviceMemoryHeap),
     VirtioSeqnoInfo(MagmaVirtioSeqnoInfo),

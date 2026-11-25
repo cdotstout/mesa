@@ -10,9 +10,9 @@ use magma_gpu::log_status;
 use magma_gpu::util::Handle as MagmaGpuHandle;
 use magma_gpu::util::MemoryMapping;
 use magma_gpu::util::OwnedDescriptor;
+use zerocopy::IntoBytes;
 
 use crate::defines::MagmaAddressSpaceProperties;
-use crate::defines::MagmaAdrenoDeviceInfo;
 use crate::defines::MagmaCreateBufferInfo;
 use crate::defines::MagmaCreateQueueInfo;
 use crate::defines::MagmaCreateSemaphoreInfo;
@@ -50,6 +50,9 @@ use crate::traits::BackendQueue;
 use crate::traits::BackendSemaphore;
 use crate::traits::GenericDevice;
 use crate::traits::GenericPhysicalDevice;
+use crate::traits::MagmaVendorQueryResult;
+use crate::vendor::adreno::MagmaAdrenoDeviceInfo;
+use crate::vendor::adreno::MAGMA_ADRENO_QUERY_DEVICE_INFO;
 
 #[derive(Debug)]
 #[allow(dead_code)]
@@ -182,23 +185,41 @@ impl GenericPhysicalDevice for KgslPhysicalDevice {
         Ok(MagmaTimestampProperties::new(19_200_000))
     }
 
-    fn get_adreno_device_info(&self) -> Result<MagmaAdrenoDeviceInfo> {
-        let fd = self.descriptor.as_fd();
-        let info = ioctl::get_devinfo(fd).unwrap_or_default();
-        let ubwc_mode = ioctl::get_u32_prop(fd, KGSL_PROP_UBWC_MODE).unwrap_or(0);
-        let highest_bank_bit = ioctl::get_u32_prop(fd, KGSL_PROP_HIGHEST_BANK_BIT).unwrap_or(0);
-
-        Ok(MagmaAdrenoDeviceInfo::new(
-            self.chip_id,
-            self.gmem_size,
-            info.gmem_gpubaseaddr,
-            self.gpu_id,
-            highest_bank_bit,
-            ubwc_mode,
-            0,
-            0,
-            0,
-        ))
+    fn query_vendor(
+        &self,
+        query_id: u64,
+        buffer: Option<&mut [u8]>,
+    ) -> Result<MagmaVendorQueryResult> {
+        match query_id {
+            MAGMA_ADRENO_QUERY_DEVICE_INFO => {
+                let fd = self.descriptor.as_fd();
+                let dev_info = ioctl::get_devinfo(fd).unwrap_or_default();
+                let ubwc_mode = ioctl::get_u32_prop(fd, KGSL_PROP_UBWC_MODE).unwrap_or(0);
+                let highest_bank_bit =
+                    ioctl::get_u32_prop(fd, KGSL_PROP_HIGHEST_BANK_BIT).unwrap_or(0);
+                let info = MagmaAdrenoDeviceInfo {
+                    chip_id: self.chip_id,
+                    gmem_size: self.gmem_size,
+                    gmem_base: dev_info.gmem_gpubaseaddr,
+                    gpu_id: self.gpu_id,
+                    highest_bank_bit,
+                    ubwc_swizzle: ubwc_mode,
+                    macrotile_mode: 0,
+                    raytracing: 0,
+                    flags: 0,
+                };
+                let bytes = info.as_bytes();
+                let Some(buf) = buffer else {
+                    return Ok(MagmaVendorQueryResult::Buffer(bytes.len()));
+                };
+                if buf.len() < bytes.len() {
+                    return Err(Error::InvalidArgs);
+                }
+                buf[..bytes.len()].copy_from_slice(bytes);
+                Ok(MagmaVendorQueryResult::Buffer(bytes.len()))
+            }
+            _ => Err(Error::Unimplemented),
+        }
     }
 }
 

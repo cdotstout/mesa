@@ -66,30 +66,25 @@ use magma_gpu::util::RawDescriptor;
 use magma_gpu_magma::Buffer;
 use magma_gpu_magma::Device;
 use magma_gpu_magma::MagmaAddressSpaceProperties;
-use magma_gpu_magma::MagmaAdrenoDeviceInfo;
-use magma_gpu_magma::MagmaAmdgpuDeviceInfo;
-use magma_gpu_magma::MagmaArmDeviceInfo;
 use magma_gpu_magma::MagmaHandle;
 use magma_gpu_magma::MagmaImportHandleInfo;
-use magma_gpu_magma::MagmaIntelDeviceInfo;
 use magma_gpu_magma::MagmaMemoryProperties;
 use magma_gpu_magma::MagmaPhysicalDeviceInfo;
 use magma_gpu_magma::MagmaStructureTypeHeader;
 use magma_gpu_magma::MagmaSyncCapability;
 use magma_gpu_magma::MagmaSyncProperties;
 use magma_gpu_magma::MagmaTimestampProperties;
+use magma_gpu_magma::MagmaVendorQuery;
+use magma_gpu_magma::MagmaVendorQueryResult;
 use magma_gpu_magma::Semaphore;
 use magma_gpu_magma::MAGMA_MAX_MEMORY_HEAPS;
 use magma_gpu_magma::MAGMA_MAX_MEMORY_TYPES;
 use magma_gpu_magma::MAGMA_STRUCTURE_TYPE_ADDRESS_SPACE_PROPERTIES;
-use magma_gpu_magma::MAGMA_STRUCTURE_TYPE_ADRENO_DEVICE_INFO;
-use magma_gpu_magma::MAGMA_STRUCTURE_TYPE_AMDGPU_DEVICE_INFO;
-use magma_gpu_magma::MAGMA_STRUCTURE_TYPE_ARM_DEVICE_INFO;
-use magma_gpu_magma::MAGMA_STRUCTURE_TYPE_INTEL_DEVICE_INFO;
 use magma_gpu_magma::MAGMA_STRUCTURE_TYPE_MEMORY_PROPERTIES;
 use magma_gpu_magma::MAGMA_STRUCTURE_TYPE_PHYSICAL_DEVICE_INFO;
 use magma_gpu_magma::MAGMA_STRUCTURE_TYPE_SYNC_PROPERTIES;
 use magma_gpu_magma::MAGMA_STRUCTURE_TYPE_TIMESTAMP_PROPERTIES;
+use magma_gpu_magma::MAGMA_STRUCTURE_TYPE_VENDOR_QUERY;
 use std::ffi::c_void;
 
 #[allow(non_camel_case_types)]
@@ -237,24 +232,26 @@ pub unsafe extern "C" fn magma_physical_device_query(
                     *out = return_on_error!(physical_device.get_timestamp_properties());
                     out.header.p_next = next as u64;
                 }
-                MAGMA_STRUCTURE_TYPE_INTEL_DEVICE_INFO => {
-                    let out = &mut *(curr as *mut MagmaIntelDeviceInfo);
-                    *out = return_on_error!(physical_device.get_intel_device_info());
-                    out.header.p_next = next as u64;
-                }
-                MAGMA_STRUCTURE_TYPE_ADRENO_DEVICE_INFO => {
-                    let out = &mut *(curr as *mut MagmaAdrenoDeviceInfo);
-                    *out = return_on_error!(physical_device.get_adreno_device_info());
-                    out.header.p_next = next as u64;
-                }
-                MAGMA_STRUCTURE_TYPE_ARM_DEVICE_INFO => {
-                    let out = &mut *(curr as *mut MagmaArmDeviceInfo);
-                    *out = return_on_error!(physical_device.get_arm_device_info());
-                    out.header.p_next = next as u64;
-                }
-                MAGMA_STRUCTURE_TYPE_AMDGPU_DEVICE_INFO => {
-                    let out = &mut *(curr as *mut MagmaAmdgpuDeviceInfo);
-                    *out = return_on_error!(physical_device.get_amdgpu_device_info());
+                MAGMA_STRUCTURE_TYPE_VENDOR_QUERY => {
+                    let out = &mut *(curr as *mut MagmaVendorQuery);
+                    let res = if out.buffer.is_null() {
+                        return_on_error!(physical_device.query_vendor(out.query_id, None))
+                    } else {
+                        let buf = from_raw_parts_mut(
+                            out.buffer as *mut u8,
+                            out.buffer_size as usize,
+                        );
+                        return_on_error!(physical_device.query_vendor(out.query_id, Some(buf)))
+                    };
+                    match res {
+                        MagmaVendorQueryResult::Simple(val) => {
+                            out.result = val;
+                            out.buffer_size = 0;
+                        }
+                        MagmaVendorQueryResult::Buffer(len) => {
+                            out.buffer_size = len as u64;
+                        }
+                    }
                     out.header.p_next = next as u64;
                 }
                 _ => return -EINVAL,

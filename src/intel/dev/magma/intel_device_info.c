@@ -4,9 +4,11 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include <magma.h>
+#include <magma_intel.h>
 
 #include "dev/magma/intel_device_info.h"
 #include "dev/intel_device_info.h"
@@ -42,18 +44,22 @@ intel_device_info_magma_get_info(magma_physical_device_t pdev,
                                  struct intel_device_info *devinfo,
                                  int min_ver, int max_ver)
 {
-   struct magma_intel_device_info intel_info = {
+   struct magma_intel_device_info intel_info = { 0 };
+   struct magma_vendor_query intel_query = {
       .header = {
-         .s_type = MAGMA_STRUCTURE_TYPE_INTEL_DEVICE_INFO,
-         .size = sizeof(intel_info),
+         .s_type = MAGMA_STRUCTURE_TYPE_VENDOR_QUERY,
+         .size = sizeof(intel_query),
          .p_next = NULL,
       },
+      .query_id = MAGMA_INTEL_QUERY_DEVICE_INFO,
+      .buffer = &intel_info,
+      .buffer_size = sizeof(intel_info),
    };
    struct magma_timestamp_properties ts_props = {
       .header = {
          .s_type = MAGMA_STRUCTURE_TYPE_TIMESTAMP_PROPERTIES,
          .size = sizeof(ts_props),
-         .p_next = &intel_info,
+         .p_next = &intel_query,
       },
    };
    struct magma_address_space_properties as_props = {
@@ -109,17 +115,46 @@ intel_device_info_magma_get_info(magma_physical_device_t pdev,
    devinfo->kmd_type = INTEL_KMD_TYPE_MAGMA;
    magma_set_device_name(devinfo);
 
-   if (intel_info.hw_config_count > 0) {
-      intel_hwconfig_process_table(devinfo, intel_info.hw_config_data,
-                                   intel_info.hw_config_count * sizeof(uint32_t));
-      for (uint32_t i = 0; i + 2 < intel_info.hw_config_count; ) {
-         uint32_t key = intel_info.hw_config_data[i];
-         uint32_t len = intel_info.hw_config_data[i + 1];
-         if ((key == INTEL_HWCONFIG_MAX_EU_PER_SUBSLICE ||
-              key == INTEL_HWCONFIG_MAX_NUM_EU_PER_DSS) && len >= 1) {
-            devinfo->max_eus_per_subslice = intel_info.hw_config_data[i + 2];
+   struct magma_vendor_query hwconfig_size_query = {
+      .header = {
+         .s_type = MAGMA_STRUCTURE_TYPE_VENDOR_QUERY,
+         .size = sizeof(hwconfig_size_query),
+         .p_next = NULL,
+      },
+      .query_id = MAGMA_INTEL_QUERY_HWCONFIG,
+      .buffer = NULL,
+      .buffer_size = 0,
+   };
+   if (magma_physical_device_query(pdev, &hwconfig_size_query) == MAGMA_STATUS_SUCCESS &&
+       hwconfig_size_query.buffer_size >= sizeof(uint32_t)) {
+      uint32_t *hw_config_data = malloc(hwconfig_size_query.buffer_size);
+      if (hw_config_data) {
+         struct magma_vendor_query hwconfig_query = {
+            .header = {
+               .s_type = MAGMA_STRUCTURE_TYPE_VENDOR_QUERY,
+               .size = sizeof(hwconfig_query),
+               .p_next = NULL,
+            },
+            .query_id = MAGMA_INTEL_QUERY_HWCONFIG,
+            .buffer = hw_config_data,
+            .buffer_size = hwconfig_size_query.buffer_size,
+         };
+         if (magma_physical_device_query(pdev, &hwconfig_query) == MAGMA_STATUS_SUCCESS &&
+             hwconfig_query.buffer_size >= sizeof(uint32_t)) {
+            uint32_t hw_config_count = hwconfig_query.buffer_size / sizeof(uint32_t);
+            intel_hwconfig_process_table(devinfo, hw_config_data,
+                                         hw_config_count * sizeof(uint32_t));
+            for (uint32_t i = 0; i + 2 < hw_config_count; ) {
+               uint32_t key = hw_config_data[i];
+               uint32_t len = hw_config_data[i + 1];
+               if ((key == INTEL_HWCONFIG_MAX_EU_PER_SUBSLICE ||
+                    key == INTEL_HWCONFIG_MAX_NUM_EU_PER_DSS) && len >= 1) {
+                  devinfo->max_eus_per_subslice = hw_config_data[i + 2];
+               }
+               i += 2 + len;
+            }
          }
-         i += 2 + len;
+         free(hw_config_data);
       }
    }
 

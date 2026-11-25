@@ -22,7 +22,6 @@ extern "C" {
 #define MAGMA_MAX_MEMORY_HEAPS 32
 #define MAGMA_MAX_MEMORY_TYPES 16
 #define MAGMA_MAX_QUEUES 16
-#define MAGMA_MAX_HW_CONFIG_DWORDS 256
 
 struct magma_queue;
 typedef struct magma_queue* magma_queue_t;
@@ -145,16 +144,6 @@ enum {
     MAGMA_HEAP_FLAG_CPU_VISIBLE_BIT = 0x0000000000000010,
 };
 
-typedef uint32_t magma_intel_config_flag_t;
-enum {
-    MAGMA_INTEL_CONFIG_FLAG_HAS_VRAM = 0x00000001,
-    MAGMA_INTEL_CONFIG_FLAG_HAS_LOW_LATENCY = 0x00000002,
-    MAGMA_INTEL_CONFIG_FLAG_HAS_CPU_ADDR_MIRROR = 0x00000004,
-    MAGMA_INTEL_CONFIG_FLAG_HAS_NO_COMPRESSION_HINT = 0x00000008,
-    MAGMA_INTEL_CONFIG_FLAG_HAS_STATE_CACHE_PERF_FIX = 0x00000010,
-    MAGMA_INTEL_CONFIG_FLAG_HAS_PURGING_SUPPORT = 0x00000020,
-};
-
 struct magma_heap {
     uint64_t heap_size;
     uint64_t heap_flags;
@@ -219,10 +208,7 @@ typedef enum {
     MAGMA_STRUCTURE_TYPE_PHYSICAL_DEVICE_INFO = 0x00010002,
     MAGMA_STRUCTURE_TYPE_ADDRESS_SPACE_PROPERTIES = 0x0000000C,
     MAGMA_STRUCTURE_TYPE_TIMESTAMP_PROPERTIES = 0x0000000D,
-    MAGMA_STRUCTURE_TYPE_INTEL_DEVICE_INFO = 0x0000000E,
-    MAGMA_STRUCTURE_TYPE_ADRENO_DEVICE_INFO = 0x0000000F,
-    MAGMA_STRUCTURE_TYPE_ARM_DEVICE_INFO = 0x00000010,
-    MAGMA_STRUCTURE_TYPE_AMDGPU_DEVICE_INFO = 0x00000011,
+    MAGMA_STRUCTURE_TYPE_VENDOR_QUERY = 0x00000013,
 } magma_structure_type_t;
 
 struct magma_structure_type_header {
@@ -341,78 +327,12 @@ struct magma_timestamp_properties {
     uint64_t timestamp_frequency;
 };
 
-struct magma_intel_device_info {
+struct magma_vendor_query {
     struct magma_structure_type_header header;
-    uint32_t hw_config_count;
-    uint32_t l3_banks;
-    uint64_t geo_dss_mask;
-    uint64_t eu_per_dss_mask;
-    uint32_t geo_dss_num_bytes;
-    uint32_t ip_ver_major;
-    uint32_t ip_ver_minor;
-    uint32_t ip_ver_rev;
-    magma_intel_config_flag_t config_flags;
-    uint32_t hw_config_data[MAGMA_MAX_HW_CONFIG_DWORDS];
-    uint32_t _padding;
-};
-
-struct magma_adreno_device_info {
-    struct magma_structure_type_header header;
-    uint64_t chip_id;
-    uint64_t gmem_size;
-    uint64_t gmem_base;
-    uint32_t gpu_id;
-    uint32_t highest_bank_bit;
-    uint32_t ubwc_swizzle;
-    uint32_t macrotile_mode;
-    uint32_t raytracing;
-    uint32_t flags;
-};
-
-struct magma_arm_device_info {
-    struct magma_structure_type_header header;
-    uint64_t shader_present;
-    uint64_t tiler_present;
-    uint64_t l2_present;
-    uint32_t gpu_id;
-    uint32_t gpu_rev;
-    uint32_t csf_id;
-    uint32_t l2_features;
-    uint32_t tiler_features;
-    uint32_t mem_features;
-    uint32_t mmu_features;
-    uint32_t thread_features;
-    uint32_t max_threads;
-    uint32_t thread_max_workgroup_size;
-    uint32_t thread_max_barrier_size;
-    uint32_t coherency_features;
-    uint32_t selected_coherency;
-    uint32_t as_present;
-    uint32_t csg_slot_count;
-    uint32_t cs_slot_count;
-    uint32_t cs_reg_count;
-    uint32_t scoreboard_slot_count;
-};
-
-struct magma_amdgpu_device_info {
-    struct magma_structure_type_header header;
-    uint64_t max_engine_clock;
-    uint64_t max_memory_clock;
-    uint64_t ids_flags;
-    uint32_t chip_rev;
-    uint32_t external_rev;
-    uint32_t family;
-    uint32_t num_shader_engines;
-    uint32_t num_shader_arrays_per_engine;
-    uint32_t cu_active_number;
-    uint32_t enabled_rb_pipes_mask;
-    uint32_t num_rb_pipes;
-    uint32_t vram_type;
-    uint32_t vram_bit_width;
-    uint32_t wave_front_size;
-    uint32_t num_shader_visible_vgprs;
-    uint32_t num_cu_per_sh;
-    uint32_t num_tcc_blocks;
+    uint64_t query_id;
+    uint64_t result;
+    void* buffer;
+    uint64_t buffer_size;
 };
 
 magma_status_t magma_enumerate_physical_devices(magma_physical_device_t physical_devices[MAGMA_MAX_PHYSICAL_DEVICES],

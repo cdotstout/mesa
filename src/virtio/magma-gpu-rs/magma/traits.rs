@@ -9,16 +9,12 @@ use magma_gpu::util::MappedRegion;
 use magma_gpu::virtgpu_kumquat::VirtGpuKumquat;
 
 use crate::defines::MagmaAddressSpaceProperties;
-use crate::defines::MagmaAdrenoDeviceInfo;
-use crate::defines::MagmaAmdgpuDeviceInfo;
-use crate::defines::MagmaArmDeviceInfo;
 use crate::defines::MagmaCreateBufferInfo;
 use crate::defines::MagmaCreateQueueInfo;
 use crate::defines::MagmaCreateSemaphoreInfo;
 use crate::defines::MagmaHeap;
 use crate::defines::MagmaHeapBudget;
 use crate::defines::MagmaImportHandleInfo;
-use crate::defines::MagmaIntelDeviceInfo;
 use crate::defines::MagmaMappedMemoryRange;
 use crate::defines::MagmaMemoryType;
 use crate::defines::MagmaPhysicalDeviceInfo;
@@ -38,6 +34,12 @@ pub trait AsVirtGpu {
     fn as_virtgpu(&self) -> Option<&Mutex<VirtGpuKumquat>> {
         None
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MagmaVendorQueryResult {
+    Simple(u64),
+    Buffer(usize),
 }
 
 pub trait GenericPhysicalDevice {
@@ -64,19 +66,11 @@ pub trait GenericPhysicalDevice {
         Ok(MagmaTimestampProperties::new(0))
     }
 
-    fn get_intel_device_info(&self) -> Result<MagmaIntelDeviceInfo> {
-        Err(Error::Unimplemented)
-    }
-
-    fn get_adreno_device_info(&self) -> Result<MagmaAdrenoDeviceInfo> {
-        Err(Error::Unimplemented)
-    }
-
-    fn get_arm_device_info(&self) -> Result<MagmaArmDeviceInfo> {
-        Err(Error::Unimplemented)
-    }
-
-    fn get_amdgpu_device_info(&self) -> Result<MagmaAmdgpuDeviceInfo> {
+    fn query_vendor(
+        &self,
+        _query_id: u64,
+        _buffer: Option<&mut [u8]>,
+    ) -> Result<MagmaVendorQueryResult> {
         Err(Error::Unimplemented)
     }
 }

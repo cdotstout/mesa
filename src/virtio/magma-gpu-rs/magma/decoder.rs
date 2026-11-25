@@ -273,18 +273,6 @@ pub fn decode_extensible_struct(reader: &mut Reader) -> Option<MagmaExtensibleSt
         MAGMA_STRUCTURE_TYPE_TIMESTAMP_PROPERTIES => Some(
             MagmaExtensibleStruct::TimestampProperties(reader.read_try_obj().ok()?),
         ),
-        MAGMA_STRUCTURE_TYPE_INTEL_DEVICE_INFO => Some(MagmaExtensibleStruct::IntelDeviceInfo(
-            reader.read_try_obj().ok()?,
-        )),
-        MAGMA_STRUCTURE_TYPE_ADRENO_DEVICE_INFO => Some(MagmaExtensibleStruct::AdrenoDeviceInfo(
-            reader.read_try_obj().ok()?,
-        )),
-        MAGMA_STRUCTURE_TYPE_ARM_DEVICE_INFO => Some(MagmaExtensibleStruct::ArmDeviceInfo(
-            reader.read_try_obj().ok()?,
-        )),
-        MAGMA_STRUCTURE_TYPE_AMDGPU_DEVICE_INFO => Some(MagmaExtensibleStruct::AmdgpuDeviceInfo(
-            reader.read_try_obj().ok()?,
-        )),
         MAGMA_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_TYPE => Some(
             MagmaExtensibleStruct::PhysicalDeviceMemoryType(reader.read_try_obj().ok()?),
         ),

@@ -27,9 +27,6 @@ use magma_gpu_magma::AddressSpace;
 use magma_gpu_magma::Buffer;
 use magma_gpu_magma::Device;
 use magma_gpu_magma::MagmaAddressSpaceProperties;
-use magma_gpu_magma::MagmaAdrenoDeviceInfo;
-use magma_gpu_magma::MagmaAmdgpuDeviceInfo;
-use magma_gpu_magma::MagmaArmDeviceInfo;
 use magma_gpu_magma::MagmaBufferFlag;
 use magma_gpu_magma::MagmaCreateBufferInfo;
 use magma_gpu_magma::MagmaCreateQueueInfo;
@@ -41,8 +38,6 @@ use magma_gpu_magma::MagmaHandleType;
 use magma_gpu_magma::MagmaHeap;
 use magma_gpu_magma::MagmaHeapBudget;
 use magma_gpu_magma::MagmaHeapFlag;
-use magma_gpu_magma::MagmaIntelConfigFlag;
-use magma_gpu_magma::MagmaIntelDeviceInfo;
 use magma_gpu_magma::MagmaMapping;
 use magma_gpu_magma::MagmaMemoryProperties;
 use magma_gpu_magma::MagmaMemoryProperty;
@@ -66,6 +61,7 @@ use magma_gpu_magma::MagmaSubmitUnmapBufferInfo;
 use magma_gpu_magma::MagmaSyncCapability;
 use magma_gpu_magma::MagmaSyncProperties;
 use magma_gpu_magma::MagmaTimestampProperties;
+use magma_gpu_magma::MagmaVendorQuery;
 use magma_gpu_magma::PhysicalDevice;
 use magma_gpu_magma::Queue;
 use magma_gpu_magma::Semaphore;
@@ -99,7 +95,6 @@ pub const MAGMA_MAX_PHYSICAL_DEVICES: usize = 8;
 pub const MAGMA_MAX_MEMORY_HEAPS: usize = 32;
 pub const MAGMA_MAX_MEMORY_TYPES: usize = 16;
 pub const MAGMA_MAX_QUEUES: usize = 16;
-pub const MAGMA_MAX_HW_CONFIG_DWORDS: usize = 256;
 #[allow(non_camel_case_types)]
 pub type magma_queue = Queue;
 
@@ -147,9 +142,6 @@ pub type magma_handle_type = MagmaHandleType;
 
 #[allow(non_camel_case_types)]
 pub type magma_heap_flag = MagmaHeapFlag;
-
-#[allow(non_camel_case_types)]
-pub type magma_intel_config_flag = MagmaIntelConfigFlag;
 
 #[allow(non_camel_case_types)]
 pub type magma_heap = MagmaHeap;
@@ -476,16 +468,7 @@ pub type magma_address_space_properties = MagmaAddressSpaceProperties;
 pub type magma_timestamp_properties = MagmaTimestampProperties;
 
 #[allow(non_camel_case_types)]
-pub type magma_intel_device_info = MagmaIntelDeviceInfo;
-
-#[allow(non_camel_case_types)]
-pub type magma_adreno_device_info = MagmaAdrenoDeviceInfo;
-
-#[allow(non_camel_case_types)]
-pub type magma_arm_device_info = MagmaArmDeviceInfo;
-
-#[allow(non_camel_case_types)]
-pub type magma_amdgpu_device_info = MagmaAmdgpuDeviceInfo;
+pub type magma_vendor_query = MagmaVendorQuery;
 
 #[no_mangle]
 pub unsafe extern "C" fn magma_physical_device_create_device(

@@ -5,9 +5,9 @@ use std::os::fd::AsFd;
 use std::sync::Arc;
 
 use magma_gpu::util::OwnedDescriptor;
+use zerocopy::IntoBytes;
 
 use crate::defines::MagmaAddressSpaceProperties;
-use crate::defines::MagmaAmdgpuDeviceInfo;
 use crate::defines::MagmaCreateBufferInfo;
 use crate::defines::MagmaCreateQueueInfo;
 use crate::defines::MagmaCreateSemaphoreInfo;
@@ -53,6 +53,9 @@ use crate::traits::BackendQueue;
 use crate::traits::BackendSemaphore;
 use crate::traits::GenericDevice;
 use crate::traits::GenericPhysicalDevice;
+use crate::traits::MagmaVendorQueryResult;
+use crate::vendor::amdgpu::MagmaAmdgpuDeviceInfo;
+use crate::vendor::amdgpu::MAGMA_AMDGPU_QUERY_DEVICE_INFO;
 use crate::traits::GenericSemaphore;
 
 #[derive(Debug)]
@@ -202,27 +205,45 @@ impl GenericPhysicalDevice for AmdGpuPhysicalDevice {
         ))
     }
 
-    fn get_amdgpu_device_info(&self) -> Result<MagmaAmdgpuDeviceInfo> {
-        let dev = amdgpu_info_dev(self.descriptor.as_fd())?;
-        Ok(MagmaAmdgpuDeviceInfo::new(
-            dev.max_engine_clock,
-            dev.max_memory_clock,
-            dev.ids_flags,
-            dev.chip_rev,
-            dev.external_rev,
-            dev.family,
-            dev.num_shader_engines,
-            dev.num_shader_arrays_per_engine,
-            dev.cu_active_number,
-            dev.enabled_rb_pipes_mask,
-            dev.num_rb_pipes,
-            dev.vram_type,
-            dev.vram_bit_width,
-            dev.wave_front_size,
-            dev.num_shader_visible_vgprs,
-            dev.num_cu_per_sh,
-            dev.num_tcc_blocks,
-        ))
+    fn query_vendor(
+        &self,
+        query_id: u64,
+        buffer: Option<&mut [u8]>,
+    ) -> Result<MagmaVendorQueryResult> {
+        match query_id {
+            MAGMA_AMDGPU_QUERY_DEVICE_INFO => {
+                let dev = amdgpu_info_dev(self.descriptor.as_fd())?;
+                let info = MagmaAmdgpuDeviceInfo {
+                    max_engine_clock: dev.max_engine_clock,
+                    max_memory_clock: dev.max_memory_clock,
+                    ids_flags: dev.ids_flags,
+                    chip_rev: dev.chip_rev,
+                    external_rev: dev.external_rev,
+                    family: dev.family,
+                    num_shader_engines: dev.num_shader_engines,
+                    num_shader_arrays_per_engine: dev.num_shader_arrays_per_engine,
+                    cu_active_number: dev.cu_active_number,
+                    enabled_rb_pipes_mask: dev.enabled_rb_pipes_mask,
+                    num_rb_pipes: dev.num_rb_pipes,
+                    vram_type: dev.vram_type,
+                    vram_bit_width: dev.vram_bit_width,
+                    wave_front_size: dev.wave_front_size,
+                    num_shader_visible_vgprs: dev.num_shader_visible_vgprs,
+                    num_cu_per_sh: dev.num_cu_per_sh,
+                    num_tcc_blocks: dev.num_tcc_blocks,
+                };
+                let bytes = info.as_bytes();
+                let Some(buf) = buffer else {
+                    return Ok(MagmaVendorQueryResult::Buffer(bytes.len()));
+                };
+                if buf.len() < bytes.len() {
+                    return Err(Error::InvalidArgs);
+                }
+                buf[..bytes.len()].copy_from_slice(bytes);
+                Ok(MagmaVendorQueryResult::Buffer(bytes.len()))
+            }
+            _ => Err(Error::Unimplemented),
+        }
     }
 }
 

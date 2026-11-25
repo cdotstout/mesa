@@ -244,96 +244,14 @@ members = [
 ]
 
 [[extensible_structs]]
-name = 'MagmaIntelDeviceInfo'
-extends = 'MagmaPhysicalDeviceInfo'
-rust_member_name = 'intel_device_info'
-aspects = [ "common" ]
-stype = { name = "IntelDeviceInfo", value = 0x0000000e }
+name = 'MagmaVendorQuery'
+aspects = [ "ffi" ]
+stype = { name = "VendorQuery", value = 0x00000013 }
 members = [
-    { name = "hw_config_count", type = "u32" },
-    { name = "l3_banks", type = "u32" },
-    { name = "geo_dss_mask", type = "u64" },
-    { name = "eu_per_dss_mask", type = "u64" },
-    { name = "geo_dss_num_bytes", type = "u32" },
-    { name = "ip_ver_major", type = "u32" },
-    { name = "ip_ver_minor", type = "u32" },
-    { name = "ip_ver_rev", type = "u32" },
-    { name = "config_flags", type = "MagmaIntelConfigFlag" },
-    { name = "hw_config_data", type = "u32", array = { size = "MAGMA_MAX_HW_CONFIG_DWORDS" } },
-]
-
-[[extensible_structs]]
-name = 'MagmaAdrenoDeviceInfo'
-extends = 'MagmaPhysicalDeviceInfo'
-rust_member_name = 'adreno_device_info'
-aspects = [ "common" ]
-stype = { name = "AdrenoDeviceInfo", value = 0x0000000f }
-members = [
-    { name = "chip_id", type = "u64" },
-    { name = "gmem_size", type = "u64" },
-    { name = "gmem_base", type = "u64" },
-    { name = "gpu_id", type = "u32" },
-    { name = "highest_bank_bit", type = "u32" },
-    { name = "ubwc_swizzle", type = "u32" },
-    { name = "macrotile_mode", type = "u32" },
-    { name = "raytracing", type = "u32" },
-    { name = "flags", type = "u32" },
-]
-
-[[extensible_structs]]
-name = 'MagmaArmDeviceInfo'
-extends = 'MagmaPhysicalDeviceInfo'
-rust_member_name = 'arm_device_info'
-aspects = [ "common" ]
-stype = { name = "ArmDeviceInfo", value = 0x00000010 }
-members = [
-    { name = "shader_present", type = "u64" },
-    { name = "tiler_present", type = "u64" },
-    { name = "l2_present", type = "u64" },
-    { name = "gpu_id", type = "u32" },
-    { name = "gpu_rev", type = "u32" },
-    { name = "csf_id", type = "u32" },
-    { name = "l2_features", type = "u32" },
-    { name = "tiler_features", type = "u32" },
-    { name = "mem_features", type = "u32" },
-    { name = "mmu_features", type = "u32" },
-    { name = "thread_features", type = "u32" },
-    { name = "max_threads", type = "u32" },
-    { name = "thread_max_workgroup_size", type = "u32" },
-    { name = "thread_max_barrier_size", type = "u32" },
-    { name = "coherency_features", type = "u32" },
-    { name = "selected_coherency", type = "u32" },
-    { name = "as_present", type = "u32" },
-    { name = "csg_slot_count", type = "u32" },
-    { name = "cs_slot_count", type = "u32" },
-    { name = "cs_reg_count", type = "u32" },
-    { name = "scoreboard_slot_count", type = "u32" },
-]
-
-[[extensible_structs]]
-name = 'MagmaAmdgpuDeviceInfo'
-extends = 'MagmaPhysicalDeviceInfo'
-rust_member_name = 'amdgpu_device_info'
-aspects = [ "common" ]
-stype = { name = "AmdgpuDeviceInfo", value = 0x00000011 }
-members = [
-    { name = "max_engine_clock", type = "u64" },
-    { name = "max_memory_clock", type = "u64" },
-    { name = "ids_flags", type = "u64" },
-    { name = "chip_rev", type = "u32" },
-    { name = "external_rev", type = "u32" },
-    { name = "family", type = "u32" },
-    { name = "num_shader_engines", type = "u32" },
-    { name = "num_shader_arrays_per_engine", type = "u32" },
-    { name = "cu_active_number", type = "u32" },
-    { name = "enabled_rb_pipes_mask", type = "u32" },
-    { name = "num_rb_pipes", type = "u32" },
-    { name = "vram_type", type = "u32" },
-    { name = "vram_bit_width", type = "u32" },
-    { name = "wave_front_size", type = "u32" },
-    { name = "num_shader_visible_vgprs", type = "u32" },
-    { name = "num_cu_per_sh", type = "u32" },
-    { name = "num_tcc_blocks", type = "u32" },
+    { name = "query_id", type = "u64" },
+    { name = "result", type = "u64" },
+    { name = "buffer", type = "void*" },
+    { name = "buffer_size", type = "u64" },
 ]
 
 [[extensible_structs]]

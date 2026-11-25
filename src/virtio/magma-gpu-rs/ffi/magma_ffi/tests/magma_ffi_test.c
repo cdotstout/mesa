@@ -9,6 +9,8 @@
 #include <unistd.h>
 
 #include "magma.h"
+#include "magma_amdgpu.h"
+#include "magma_intel.h"
 
 struct vendor_noop_entry {
     magma_vendor_id_t vendor_id;
@@ -146,30 +148,38 @@ static void test_enumerate_and_init(struct test_runner *runner) {
            (unsigned long)ts_props.timestamp_frequency);
 
     if (runner->dev_info.vendor_id == MAGMA_VENDOR_ID_AMD) {
-        struct magma_amdgpu_device_info amd_info = {
+        struct magma_amdgpu_device_info amd_info = { 0 };
+        struct magma_vendor_query amd_query = {
             .header = {
-                .s_type = MAGMA_STRUCTURE_TYPE_AMDGPU_DEVICE_INFO,
-                .size = sizeof(amd_info),
+                .s_type = MAGMA_STRUCTURE_TYPE_VENDOR_QUERY,
+                .size = sizeof(amd_query),
                 .p_next = NULL,
             },
+            .query_id = MAGMA_AMDGPU_QUERY_DEVICE_INFO,
+            .buffer = &amd_info,
+            .buffer_size = sizeof(amd_info),
         };
-        status = magma_physical_device_query(runner->physical_devices[0], &amd_info);
+        status = magma_physical_device_query(runner->physical_devices[0], &amd_query);
         assert(status == MAGMA_STATUS_SUCCESS);
         printf("  AMDGPU Device Info: family %u, chip_rev %u, cu_active %u\n",
                amd_info.family, amd_info.chip_rev, amd_info.cu_active_number);
     } else if (runner->dev_info.vendor_id == MAGMA_VENDOR_ID_INTEL) {
-        struct magma_intel_device_info intel_info = {
+        struct magma_intel_device_info intel_info = { 0 };
+        struct magma_vendor_query intel_query = {
             .header = {
-                .s_type = MAGMA_STRUCTURE_TYPE_INTEL_DEVICE_INFO,
-                .size = sizeof(intel_info),
+                .s_type = MAGMA_STRUCTURE_TYPE_VENDOR_QUERY,
+                .size = sizeof(intel_query),
                 .p_next = NULL,
             },
+            .query_id = MAGMA_INTEL_QUERY_DEVICE_INFO,
+            .buffer = &intel_info,
+            .buffer_size = sizeof(intel_info),
         };
-        status = magma_physical_device_query(runner->physical_devices[0], &intel_info);
+        status = magma_physical_device_query(runner->physical_devices[0], &intel_query);
         assert(status == MAGMA_STATUS_SUCCESS);
-        printf("  Intel Device Info: ip_ver %u.%u.%u, hw_config_count %u\n",
+        printf("  Intel Device Info: ip_ver %u.%u.%u, geo_dss_mask 0x%lx\n",
                intel_info.ip_ver_major, intel_info.ip_ver_minor,
-               intel_info.ip_ver_rev, intel_info.hw_config_count);
+               intel_info.ip_ver_rev, (unsigned long)intel_info.geo_dss_mask);
     }
 
     runner->chosen_mem_type_idx = 0;

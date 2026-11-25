@@ -4,16 +4,12 @@
 use std::sync::Arc;
 
 use crate::defines::MagmaAddressSpaceProperties;
-use crate::defines::MagmaAdrenoDeviceInfo;
-use crate::defines::MagmaAmdgpuDeviceInfo;
-use crate::defines::MagmaArmDeviceInfo;
 use crate::defines::MagmaCreateBufferInfo;
 use crate::defines::MagmaCreateQueueInfo;
 use crate::defines::MagmaCreateSemaphoreInfo;
 use crate::defines::MagmaHeap;
 use crate::defines::MagmaHeapBudget;
 use crate::defines::MagmaImportHandleInfo;
-use crate::defines::MagmaIntelDeviceInfo;
 use crate::defines::MagmaMemoryType;
 use crate::defines::MagmaPhysicalDeviceInfo;
 use crate::defines::MagmaQueueFamilyProperties;
@@ -26,6 +22,7 @@ use crate::semaphore::Semaphore;
 use crate::sys::platform::enumerate_devices as platform_enumerate_devices;
 use crate::traits::BackendDevice;
 use crate::traits::BackendPhysicalDevice;
+use crate::traits::MagmaVendorQueryResult;
 use crate::virtgpu_shared::kumquat::enumerate_devices as kumquat_enumerate_devices;
 
 const VIRTGPU_KUMQUAT_ENABLED: &str = "VIRTGPU_KUMQUAT";
@@ -84,20 +81,12 @@ impl PhysicalDevice {
         self.physical_device.get_timestamp_properties()
     }
 
-    pub fn get_intel_device_info(&self) -> Result<MagmaIntelDeviceInfo> {
-        self.physical_device.get_intel_device_info()
-    }
-
-    pub fn get_adreno_device_info(&self) -> Result<MagmaAdrenoDeviceInfo> {
-        self.physical_device.get_adreno_device_info()
-    }
-
-    pub fn get_arm_device_info(&self) -> Result<MagmaArmDeviceInfo> {
-        self.physical_device.get_arm_device_info()
-    }
-
-    pub fn get_amdgpu_device_info(&self) -> Result<MagmaAmdgpuDeviceInfo> {
-        self.physical_device.get_amdgpu_device_info()
+    pub fn query_vendor(
+        &self,
+        query_id: u64,
+        buffer: Option<&mut [u8]>,
+    ) -> Result<MagmaVendorQueryResult> {
+        self.physical_device.query_vendor(query_id, buffer)
     }
 
     pub fn create_device(&self) -> Result<Device> {

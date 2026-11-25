@@ -29,11 +29,6 @@ name = "MAGMA_MAX_QUEUES"
 type = "usize"
 value = 16
 
-[[constants]]
-name = "MAGMA_MAX_HW_CONFIG_DWORDS"
-type = "usize"
-value = 256
-
 [[enums]]
 name = 'MagmaVendorId'
 type = "u16"
@@ -159,14 +154,3 @@ aspects = ["common"]
 [flags.entries]
 DeviceLocalBit = 0x00000001
 CpuVisibleBit = 0x00000010
-
-[[flags]]
-name = 'MagmaIntelConfigFlag'
-type = "u32"
-[flags.entries]
-HasVram = 0x00000001
-HasLowLatency = 0x00000002
-HasCpuAddrMirror = 0x00000004
-HasNoCompressionHint = 0x00000008
-HasStateCachePerfFix = 0x00000010
-HasPurgingSupport = 0x00000020

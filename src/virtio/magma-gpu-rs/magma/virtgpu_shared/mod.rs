@@ -30,11 +30,7 @@ use magma_gpu::virtgpu_kumquat::defines::VIRTGPU_KUMQUAT_PARAM_SUPPORTED_CAPSET_
 
 use crate::decoder::decode_extensible_struct;
 use crate::defines::MagmaAddressSpaceProperties;
-use crate::defines::MagmaAdrenoDeviceInfo;
-use crate::defines::MagmaAmdgpuDeviceInfo;
-use crate::defines::MagmaArmDeviceInfo;
 use crate::defines::MagmaHeap;
-use crate::defines::MagmaIntelDeviceInfo;
 use crate::defines::MagmaMemoryType;
 use crate::defines::MagmaPhysicalDeviceInfo;
 use crate::defines::MagmaQueueFamilyProperties;
@@ -79,10 +75,6 @@ pub struct DecodedPhysicalDevice {
     pub memory_heaps: Vec<MagmaHeap>,
     pub address_space_properties: Option<MagmaAddressSpaceProperties>,
     pub timestamp_properties: Option<MagmaTimestampProperties>,
-    pub intel_device_info: Option<MagmaIntelDeviceInfo>,
-    pub adreno_device_info: Option<MagmaAdrenoDeviceInfo>,
-    pub arm_device_info: Option<MagmaArmDeviceInfo>,
-    pub amdgpu_device_info: Option<MagmaAmdgpuDeviceInfo>,
 }
 
 pub trait VirtioGpuTransport: Send + Sync + 'static {
@@ -215,26 +207,6 @@ pub fn decode_capabilities(buf: &[u8]) -> Result<DecodedCapabilities> {
                     dev.timestamp_properties = Some(tsp);
                 }
             }
-            MagmaExtensibleStruct::IntelDeviceInfo(idi) => {
-                if let Some(ref mut dev) = current_device {
-                    dev.intel_device_info = Some(idi);
-                }
-            }
-            MagmaExtensibleStruct::AdrenoDeviceInfo(adi) => {
-                if let Some(ref mut dev) = current_device {
-                    dev.adreno_device_info = Some(adi);
-                }
-            }
-            MagmaExtensibleStruct::ArmDeviceInfo(adi) => {
-                if let Some(ref mut dev) = current_device {
-                    dev.arm_device_info = Some(adi);
-                }
-            }
-            MagmaExtensibleStruct::AmdgpuDeviceInfo(amdi) => {
-                if let Some(ref mut dev) = current_device {
-                    dev.amdgpu_device_info = Some(amdi);
-                }
-            }
             _ => {}
         }
     }
@@ -290,21 +262,5 @@ impl<T: VirtioGpuTransport> GenericPhysicalDevice for T {
             .device()
             .timestamp_properties
             .unwrap_or_else(|| MagmaTimestampProperties::new(0)))
-    }
-
-    fn get_intel_device_info(&self) -> Result<MagmaIntelDeviceInfo> {
-        self.device().intel_device_info.ok_or(Error::Unimplemented)
-    }
-
-    fn get_adreno_device_info(&self) -> Result<MagmaAdrenoDeviceInfo> {
-        self.device().adreno_device_info.ok_or(Error::Unimplemented)
-    }
-
-    fn get_arm_device_info(&self) -> Result<MagmaArmDeviceInfo> {
-        self.device().arm_device_info.ok_or(Error::Unimplemented)
-    }
-
-    fn get_amdgpu_device_info(&self) -> Result<MagmaAmdgpuDeviceInfo> {
-        self.device().amdgpu_device_info.ok_or(Error::Unimplemented)
     }
 }

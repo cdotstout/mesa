@@ -1,11 +1,11 @@
 // Copyright 2026 The Magma GPU Project
 // SPDX-License-Identifier: MIT
 
-use std::cmp::min;
 use std::os::fd::AsFd;
 use std::sync::Arc;
 
 use magma_gpu::util::OwnedDescriptor;
+use zerocopy::IntoBytes;
 
 use crate::defines::MagmaAddressSpaceProperties;
 use crate::defines::MagmaCreateBufferInfo;
@@ -14,7 +14,6 @@ use crate::defines::MagmaCreateSemaphoreInfo;
 use crate::defines::MagmaHeap;
 use crate::defines::MagmaHeapBudget;
 use crate::defines::MagmaImportHandleInfo;
-use crate::defines::MagmaIntelDeviceInfo;
 use crate::defines::MagmaMemoryType;
 use crate::defines::MagmaPhysicalDeviceInfo;
 use crate::defines::MagmaQueueFamilyProperties;
@@ -46,6 +45,10 @@ use crate::traits::BackendSemaphore;
 use crate::traits::GenericDevice;
 use crate::traits::GenericPhysicalDevice;
 use crate::traits::GenericSemaphore;
+use crate::traits::MagmaVendorQueryResult;
+use crate::vendor::intel::MagmaIntelDeviceInfo;
+use crate::vendor::intel::MAGMA_INTEL_QUERY_DEVICE_INFO;
+use crate::vendor::intel::MAGMA_INTEL_QUERY_HWCONFIG;
 
 #[derive(Debug)]
 pub struct XePhysicalDevice {
@@ -130,30 +133,52 @@ impl GenericPhysicalDevice for XePhysicalDevice {
         Ok(MagmaTimestampProperties::new(reference_clock as u64))
     }
 
-    fn get_intel_device_info(&self) -> Result<MagmaIntelDeviceInfo> {
+    fn query_vendor(
+        &self,
+        query_id: u64,
+        buffer: Option<&mut [u8]>,
+    ) -> Result<MagmaVendorQueryResult> {
         let fd = self.descriptor.as_fd();
-        let (_, _, raw_flags) = xe_query_config(fd)?;
-        let (_, ip_ver_major, ip_ver_minor, ip_ver_rev) = xe_query_gt_list(fd)?;
-        let (geo_dss_mask, geo_dss_num_bytes, eu_per_dss_mask, l3_banks) =
-            xe_query_gt_topology(fd)?;
-        let hwconfig_vec = xe_query_hwconfig(fd)?;
-
-        let mut hw_config_data = [0u32; crate::defines::MAGMA_MAX_HW_CONFIG_DWORDS];
-        let count = min(hwconfig_vec.len(), hw_config_data.len());
-        hw_config_data[..count].copy_from_slice(&hwconfig_vec[..count]);
-
-        Ok(MagmaIntelDeviceInfo::new(
-            count as u32,
-            l3_banks,
-            geo_dss_mask,
-            eu_per_dss_mask,
-            geo_dss_num_bytes,
-            ip_ver_major as u32,
-            ip_ver_minor as u32,
-            ip_ver_rev as u32,
-            crate::protocol::MagmaIntelConfigFlag::from_bits_retain(raw_flags),
-            hw_config_data,
-        ))
+        match query_id {
+            MAGMA_INTEL_QUERY_DEVICE_INFO => {
+                let (_, _, raw_flags) = xe_query_config(fd)?;
+                let (_, ip_ver_major, ip_ver_minor, ip_ver_rev) = xe_query_gt_list(fd)?;
+                let (geo_dss_mask, geo_dss_num_bytes, eu_per_dss_mask, l3_banks) =
+                    xe_query_gt_topology(fd)?;
+                let info = MagmaIntelDeviceInfo {
+                    l3_banks,
+                    geo_dss_num_bytes,
+                    geo_dss_mask,
+                    eu_per_dss_mask,
+                    ip_ver_major: ip_ver_major as u32,
+                    ip_ver_minor: ip_ver_minor as u32,
+                    ip_ver_rev: ip_ver_rev as u32,
+                    config_flags: raw_flags,
+                };
+                let bytes = info.as_bytes();
+                let Some(buf) = buffer else {
+                    return Ok(MagmaVendorQueryResult::Buffer(bytes.len()));
+                };
+                if buf.len() < bytes.len() {
+                    return Err(Error::InvalidArgs);
+                }
+                buf[..bytes.len()].copy_from_slice(bytes);
+                Ok(MagmaVendorQueryResult::Buffer(bytes.len()))
+            }
+            MAGMA_INTEL_QUERY_HWCONFIG => {
+                let hwconfig_vec = xe_query_hwconfig(fd)?;
+                let bytes = hwconfig_vec.as_bytes();
+                let Some(buf) = buffer else {
+                    return Ok(MagmaVendorQueryResult::Buffer(bytes.len()));
+                };
+                if buf.len() < bytes.len() {
+                    return Err(Error::InvalidArgs);
+                }
+                buf[..bytes.len()].copy_from_slice(bytes);
+                Ok(MagmaVendorQueryResult::Buffer(bytes.len()))
+            }
+            _ => Err(Error::Unimplemented),
+        }
     }
 }
 
