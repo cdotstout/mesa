@@ -732,7 +732,11 @@ impl GenericAddressSpace for FuchsiaAddressSpace {
     fn unmap_buffer_gpu(&self, gpu_va: u64, _size: u64) -> Result<()> {
         let mapped = {
             let mut mappings = self.mappings.lock().map_err(|_| Error::InternalError)?;
-            mappings.remove(&gpu_va).ok_or(Error::InvalidArgs)?
+            mappings.remove(&gpu_va)
+        };
+
+        let Some(mapped) = mapped else {
+            return Ok(());
         };
 
         self.connection.with_flow_control(0, |ch| unsafe {
