@@ -366,6 +366,14 @@ magma_status_t magma_queue_release(magma_queue_t* queue);
 
 magma_status_t magma_address_space_release(magma_address_space_t* address_space);
 
+magma_status_t magma_address_space_map_buffer(magma_address_space_t address_space,
+                                              magma_buffer_t buffer, uint64_t buffer_offset,
+                                              uint64_t gpu_va, uint64_t size,
+                                              magma_gpu_map_flags_t flags);
+
+magma_status_t magma_address_space_unmap_buffer(magma_address_space_t address_space,
+                                                uint64_t gpu_va, uint64_t size);
+
 magma_status_t magma_queue_submit(magma_queue_t queue, const struct magma_submit_info* submit_info);
 
 magma_status_t magma_device_create_semaphore(magma_device_t device,

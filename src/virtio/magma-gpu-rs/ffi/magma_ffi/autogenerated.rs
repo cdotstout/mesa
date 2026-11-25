@@ -618,6 +618,37 @@ pub unsafe extern "C" fn magma_address_space_release(
 }
 
 #[no_mangle]
+pub unsafe extern "C" fn magma_address_space_map_buffer(
+    address_space: &mut magma_address_space,
+    buffer: &mut magma_buffer,
+    buffer_offset: u64,
+    gpu_va: u64,
+    size: u64,
+    flags: magma_gpu_map_flags,
+) -> i32 {
+    catch_unwind(AssertUnwindSafe(|| {
+        debug!("call: magma_address_space_map_buffer");
+        let result = address_space.map_buffer_gpu(buffer, buffer_offset, gpu_va, size, flags);
+        return_result(result)
+    }))
+    .unwrap_or(-ESRCH)
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn magma_address_space_unmap_buffer(
+    address_space: &mut magma_address_space,
+    gpu_va: u64,
+    size: u64,
+) -> i32 {
+    catch_unwind(AssertUnwindSafe(|| {
+        debug!("call: magma_address_space_unmap_buffer");
+        let result = address_space.unmap_buffer_gpu(gpu_va, size);
+        return_result(result)
+    }))
+    .unwrap_or(-ESRCH)
+}
+
+#[no_mangle]
 pub unsafe extern "C" fn magma_queue_submit(
     queue: &mut magma_queue,
     submit_info: &magma_submit_info,

@@ -12,6 +12,7 @@ use crate::defines::MagmaMappedMemoryRange;
 use crate::defines::MagmaMapping;
 use crate::error::Error;
 use crate::error::Result;
+use crate::protocol::MagmaGpuMapFlags;
 use crate::traits::BackendAddressSpace;
 use crate::traits::BackendBuffer;
 
@@ -33,6 +34,22 @@ impl AddressSpace {
 
     pub fn inner(&self) -> &Arc<dyn BackendAddressSpace> {
         &self.address_space
+    }
+
+    pub fn map_buffer_gpu(
+        &self,
+        buffer: &Buffer,
+        buffer_offset: u64,
+        gpu_va: u64,
+        size: u64,
+        flags: MagmaGpuMapFlags,
+    ) -> Result<()> {
+        self.address_space
+            .map_buffer_gpu(buffer.inner(), buffer_offset, gpu_va, size, flags)
+    }
+
+    pub fn unmap_buffer_gpu(&self, gpu_va: u64, size: u64) -> Result<()> {
+        self.address_space.unmap_buffer_gpu(gpu_va, size)
     }
 }
 

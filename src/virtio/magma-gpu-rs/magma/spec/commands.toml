@@ -112,6 +112,31 @@ output = "MagmaStatus"
 aspects = [ "common" ]
 destructor = true
 
+[[commands]]
+name = "MagmaAddressSpaceMapBuffer"
+target = "map_buffer_gpu"
+inputs = [
+    { name = "address_space", type = "AddressSpace", direction = "in" },
+    { name = "buffer", type = "Buffer", direction = "in" },
+    { name = "buffer_offset", type = "uint64_t", direction = "in" },
+    { name = "gpu_va", type = "uint64_t", direction = "in" },
+    { name = "size", type = "uint64_t", direction = "in" },
+    { name = "flags", type = "MagmaGpuMapFlags", direction = "in" },
+]
+output = "MagmaStatus"
+aspects = [ "ffi" ]
+
+[[commands]]
+name = "MagmaAddressSpaceUnmapBuffer"
+target = "unmap_buffer_gpu"
+inputs = [
+    { name = "address_space", type = "AddressSpace", direction = "in" },
+    { name = "gpu_va", type = "uint64_t", direction = "in" },
+    { name = "size", type = "uint64_t", direction = "in" },
+]
+output = "MagmaStatus"
+aspects = [ "ffi" ]
+
 
 [[commands]]
 name = "MagmaVirtioCreateRing"
