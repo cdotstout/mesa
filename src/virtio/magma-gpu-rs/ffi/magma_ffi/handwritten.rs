@@ -263,3 +263,17 @@ pub unsafe extern "C" fn magma_physical_device_query(
     }))
     .unwrap_or(-ESRCH)
 }
+
+#[no_mangle]
+pub unsafe extern "C" fn magma_init_open_in_namespace_callback(callback: *mut c_void) {
+    #[cfg(target_os = "fuchsia")]
+    {
+        let _ = catch_unwind(AssertUnwindSafe(|| {
+            magma_gpu_magma::init_open_in_namespace_callback(callback);
+        }));
+    }
+    #[cfg(not(target_os = "fuchsia"))]
+    {
+        let _ = callback;
+    }
+}
