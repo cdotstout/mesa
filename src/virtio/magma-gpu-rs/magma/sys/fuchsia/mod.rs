@@ -23,6 +23,7 @@ use crate::defines::buffer_flags_get_map_info;
 use crate::defines::MagmaAddressSpaceProperties;
 use crate::defines::MagmaCreateBufferInfo;
 use crate::defines::MagmaCreateQueueInfo;
+use crate::defines::MagmaCreateSemaphoreInfo;
 use crate::defines::MagmaImportHandleInfo;
 use crate::defines::MagmaMappedMemoryRange;
 use crate::defines::MagmaPhysicalDeviceInfo;
@@ -30,6 +31,7 @@ use crate::defines::MagmaQueueFamilyProperties;
 use crate::defines::MagmaQueueFlags;
 use crate::defines::MagmaSyncCapability;
 use crate::defines::MagmaSyncProperties;
+use crate::defines::MagmaSyncType;
 use crate::defines::MagmaTimestampProperties;
 use crate::defines::MAGMA_BUS_TYPE_PCI;
 use crate::defines::MAGMA_MAX_PHYSICAL_DEVICES;
@@ -38,16 +40,20 @@ use crate::error::Error;
 use crate::error::Result;
 use crate::protocol::MagmaGpuMapFlags;
 use crate::protocol::MagmaHandleType;
+use crate::protocol::MagmaSemaphoreUseFlags;
 use crate::traits::AsVirtGpu;
+use crate::traits::AsVirtioSemaphore;
 use crate::traits::BackendAddressSpace;
 use crate::traits::BackendBuffer;
 use crate::traits::BackendDevice;
 use crate::traits::BackendPhysicalDevice;
 use crate::traits::BackendQueue;
+use crate::traits::BackendSemaphore;
 use crate::traits::GenericAddressSpace;
 use crate::traits::GenericBuffer;
 use crate::traits::GenericDevice;
 use crate::traits::GenericPhysicalDevice;
+use crate::traits::GenericSemaphore;
 use crate::traits::MagmaVendorQueryResult;
 use crate::vendor::intel::MagmaIntelDeviceInfo;
 use crate::vendor::intel::MAGMA_INTEL_QUERY_DEVICE_INFO;
@@ -82,6 +88,7 @@ pub const ZX_ERR_IO: zx_status_t = -40;
 
 pub const ZX_CHANNEL_READABLE: zx_signals_t = 1 << 0;
 pub const ZX_CHANNEL_PEER_CLOSED: zx_signals_t = 1 << 2;
+pub const ZX_EVENT_SIGNALED: zx_signals_t = 1 << 3;
 
 pub const MAGMA_QUERY_VENDOR_ID: u64 = 0;
 pub const MAGMA_QUERY_DEVICE_ID: u64 = 1;
@@ -97,7 +104,6 @@ const MAGMA_FIDL_MAP_FLAG_EXECUTE: u64 = 0x4;
 const MAGMA_FIDL_MAP_FLAG_GROWABLE: u64 = 0x8;
 
 const MAGMA_FIDL_OBJECT_TYPE_BUFFER: u32 = 11;
-#[allow(dead_code)]
 const MAGMA_FIDL_OBJECT_TYPE_SEMAPHORE: u32 = 12;
 
 const ZX_RIGHT_SAME_RIGHTS: u32 = 1 << 31;
@@ -124,6 +130,12 @@ extern "C" {
         out1: *mut zx_handle_t,
     ) -> zx_status_t;
     fn zx_handle_close(handle: zx_handle_t) -> zx_status_t;
+    fn zx_event_create(options: u32, out: *mut zx_handle_t) -> zx_status_t;
+    fn zx_object_signal(
+        handle: zx_handle_t,
+        clear_mask: zx_signals_t,
+        set_mask: zx_signals_t,
+    ) -> zx_status_t;
     fn zx_object_wait_one(
         handle: zx_handle_t,
         signals: zx_signals_t,
@@ -932,6 +944,180 @@ impl GenericBuffer for FuchsiaBuffer {
 
 impl BackendBuffer for FuchsiaBuffer {}
 
+struct FuchsiaEvent {
+    connection: Arc<PrimaryConnection>,
+    event: ZxHandle,
+    object_id: u64,
+}
+
+impl FuchsiaEvent {
+    fn from_event(connection: Arc<PrimaryConnection>, event: ZxHandle) -> Result<Self> {
+        let mut object_id: u64 = 0;
+        let status = unsafe { magma_fidl_get_handle_koid(event.raw(), &mut object_id) };
+        zx_status_to_result(status)?;
+
+        let mut dup_raw: zx_handle_t = ZX_HANDLE_INVALID;
+        let status =
+            unsafe { zx_handle_duplicate(event.raw(), ZX_RIGHT_SAME_RIGHTS, &mut dup_raw) };
+        zx_status_to_result(status)?;
+        let dup = ZxHandle::new(dup_raw);
+
+        connection.with_flow_control(0, |ch| unsafe {
+            magma_fidl_primary_import_object(
+                ch,
+                dup.release(),
+                MAGMA_FIDL_OBJECT_TYPE_SEMAPHORE,
+                object_id,
+                0,
+            )
+        })?;
+
+        Ok(Self {
+            connection,
+            event,
+            object_id,
+        })
+    }
+}
+
+impl Drop for FuchsiaEvent {
+    fn drop(&mut self) {
+        let _ = self.connection.with_flow_control(0, |ch| unsafe {
+            magma_fidl_primary_release_object(
+                ch,
+                self.object_id,
+                MAGMA_FIDL_OBJECT_TYPE_SEMAPHORE,
+            )
+        });
+    }
+}
+
+pub struct FuchsiaSemaphore {
+    connection: Arc<PrimaryConnection>,
+    inner: Mutex<Arc<FuchsiaEvent>>,
+    use_flags: MagmaSemaphoreUseFlags,
+}
+
+impl FuchsiaSemaphore {
+    pub fn new(
+        connection: Arc<PrimaryConnection>,
+        info: &MagmaCreateSemaphoreInfo,
+    ) -> Result<Self> {
+        if MagmaSyncType::from(info.semaphore_type) == MagmaSyncType::Timeline {
+            return Err(Error::Unimplemented);
+        }
+
+        let mut event_raw: zx_handle_t = ZX_HANDLE_INVALID;
+        let status = unsafe { zx_event_create(0, &mut event_raw) };
+        zx_status_to_result(status)?;
+        let event = ZxHandle::new(event_raw);
+
+        if info.initial_point != 0 {
+            let status = unsafe { zx_object_signal(event.raw(), 0, ZX_EVENT_SIGNALED) };
+            zx_status_to_result(status)?;
+        }
+
+        let fuchsia_event = Arc::new(FuchsiaEvent::from_event(connection.clone(), event)?);
+        Ok(Self {
+            connection,
+            inner: Mutex::new(fuchsia_event),
+            use_flags: info.use_flags,
+        })
+    }
+
+    pub fn from_handle(
+        connection: Arc<PrimaryConnection>,
+        handle: MagmaGpuHandle,
+    ) -> Result<Self> {
+        let event_raw = handle.os_handle.into_raw_descriptor() as zx_handle_t;
+        if event_raw == ZX_HANDLE_INVALID {
+            return Err(Error::InvalidArgs);
+        }
+        let fuchsia_event = Arc::new(FuchsiaEvent::from_event(
+            connection.clone(),
+            ZxHandle::new(event_raw),
+        )?);
+        Ok(Self {
+            connection,
+            inner: Mutex::new(fuchsia_event),
+            use_flags: MagmaSemaphoreUseFlags::Exportable,
+        })
+    }
+
+    fn current_event(&self) -> Result<Arc<FuchsiaEvent>> {
+        self.inner
+            .lock()
+            .map(|guard| guard.clone())
+            .map_err(|_| Error::InternalError)
+    }
+}
+
+impl GenericSemaphore for FuchsiaSemaphore {
+    fn get_type(&self) -> MagmaSyncType {
+        MagmaSyncType::Binary
+    }
+
+    fn wait(&self, abs_timeout_ns: u64) -> Result<()> {
+        let ev = self.current_event()?;
+        let deadline = abs_timeout_ns.min(i64::MAX as u64) as zx_time_t;
+        let mut observed: zx_signals_t = 0;
+        let status = unsafe {
+            zx_object_wait_one(ev.event.raw(), ZX_EVENT_SIGNALED, deadline, &mut observed)
+        };
+        zx_status_to_result(status)
+    }
+
+    fn signal(&self) -> Result<()> {
+        let ev = self.current_event()?;
+        let status = unsafe { zx_object_signal(ev.event.raw(), 0, ZX_EVENT_SIGNALED) };
+        zx_status_to_result(status)
+    }
+
+    fn reset(&self) -> Result<()> {
+        let ev = self.current_event()?;
+        let status = unsafe { zx_object_signal(ev.event.raw(), ZX_EVENT_SIGNALED, 0) };
+        zx_status_to_result(status)
+    }
+
+    fn export_fence(&self) -> Result<MagmaGpuHandle> {
+        let ev = self.current_event()?;
+        let mut dup_raw: zx_handle_t = ZX_HANDLE_INVALID;
+        let status =
+            unsafe { zx_handle_duplicate(ev.event.raw(), ZX_RIGHT_SAME_RIGHTS, &mut dup_raw) };
+        zx_status_to_result(status)?;
+        let os_handle = unsafe { OwnedDescriptor::from_raw_descriptor(dup_raw as RawDescriptor) };
+        Ok(MagmaGpuHandle {
+            os_handle,
+            handle_type: MagmaHandleType::SignalZircon.bits(),
+        })
+    }
+
+    fn import(&self, handle: MagmaGpuHandle) -> Result<()> {
+        let event_raw = handle.os_handle.into_raw_descriptor() as zx_handle_t;
+        if event_raw == ZX_HANDLE_INVALID {
+            return Err(Error::InvalidArgs);
+        }
+        let new_event = Arc::new(FuchsiaEvent::from_event(
+            self.connection.clone(),
+            ZxHandle::new(event_raw),
+        )?);
+        let mut guard = self.inner.lock().map_err(|_| Error::InternalError)?;
+        *guard = new_event;
+        Ok(())
+    }
+
+    fn object_id(&self) -> Option<u64> {
+        self.current_event().ok().map(|ev| ev.object_id)
+    }
+
+    fn use_flags(&self) -> MagmaSemaphoreUseFlags {
+        self.use_flags
+    }
+}
+
+impl AsVirtioSemaphore for FuchsiaSemaphore {}
+impl BackendSemaphore for FuchsiaSemaphore {}
+
 pub struct FuchsiaDevice {
     _physical_device: Arc<FuchsiaPhysicalDevice>,
     connection: Arc<PrimaryConnection>,
@@ -1011,6 +1197,22 @@ impl GenericDevice for FuchsiaDevice {
             buffer_flags_get_map_info(info.common_flags),
         )?;
         Ok(Arc::new(buf))
+    }
+
+    fn create_semaphore(
+        self: Arc<Self>,
+        info: &MagmaCreateSemaphoreInfo,
+    ) -> Result<Arc<dyn BackendSemaphore>> {
+        let sem = FuchsiaSemaphore::new(self.connection.clone(), info)?;
+        Ok(Arc::new(sem))
+    }
+
+    fn import_semaphore(
+        self: Arc<Self>,
+        info: MagmaImportHandleInfo,
+    ) -> Result<Arc<dyn BackendSemaphore>> {
+        let sem = FuchsiaSemaphore::from_handle(self.connection.clone(), info.handle)?;
+        Ok(Arc::new(sem))
     }
 }
 

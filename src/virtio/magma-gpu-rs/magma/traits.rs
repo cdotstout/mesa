@@ -191,6 +191,10 @@ pub trait GenericSemaphore {
         None
     }
 
+    fn object_id(&self) -> Option<u64> {
+        None
+    }
+
     fn use_flags(&self) -> MagmaSemaphoreUseFlags {
         MagmaSemaphoreUseFlags::empty()
     }
