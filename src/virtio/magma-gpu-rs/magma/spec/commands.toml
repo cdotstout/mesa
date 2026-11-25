@@ -24,17 +24,6 @@ aspects = [ "common" ]
 response = true
 
 [[commands]]
-name = "MagmaDeviceGetMemoryBudget"
-inputs = [
-    { name = "device", type = "Device", direction = "in" },
-    { name = "heap_idx", type = "uint32_t", direction = "in" },
-    { name = "budget", type = "MagmaHeapBudget", direction = "inout" },
-]
-output = "MagmaStatus"
-aspects = [ "common" ]
-response = true
-
-[[commands]]
 name = "MagmaDeviceCreateBuffer"
 inputs = [
     { name = "device", type = "Device", direction = "in" },
@@ -360,7 +349,7 @@ inputs = [
     { name = "res_handle", type = "u32", direction = "in" },
     { name = "buffer_out", type = "u32", direction = "in" },
     { name = "size", type = "u64", direction = "in" },
-    { name = "memory_type_idx", type = "u32", direction = "in" },
+    { name = "common_flags", type = "u32", direction = "in" },
 ]
 output = "MagmaStatus"
 aspects = [ "virtio" ]

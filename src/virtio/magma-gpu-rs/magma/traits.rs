@@ -12,11 +12,8 @@ use crate::defines::MagmaAddressSpaceProperties;
 use crate::defines::MagmaCreateBufferInfo;
 use crate::defines::MagmaCreateQueueInfo;
 use crate::defines::MagmaCreateSemaphoreInfo;
-use crate::defines::MagmaHeap;
-use crate::defines::MagmaHeapBudget;
 use crate::defines::MagmaImportHandleInfo;
 use crate::defines::MagmaMappedMemoryRange;
-use crate::defines::MagmaMemoryType;
 use crate::defines::MagmaPhysicalDeviceInfo;
 use crate::defines::MagmaQueueFamilyProperties;
 use crate::defines::MagmaSubmitInfo;
@@ -52,10 +49,6 @@ pub trait GenericPhysicalDevice {
         Ok(())
     }
 
-    fn get_memory_types(&self) -> Result<Vec<MagmaMemoryType>>;
-
-    fn get_memory_heaps(&self) -> Result<Vec<MagmaHeap>>;
-
     fn get_queue_family_properties(&self) -> Result<Vec<MagmaQueueFamilyProperties>>;
 
     fn get_address_space_properties(&self) -> Result<MagmaAddressSpaceProperties> {
@@ -76,8 +69,6 @@ pub trait GenericPhysicalDevice {
 }
 
 pub trait GenericDevice {
-    fn get_memory_budget(&self, heap_idx: u32) -> Result<MagmaHeapBudget>;
-
     fn create_address_space(self: Arc<Self>) -> Result<Arc<dyn BackendAddressSpace>>;
 
     fn create_queue(

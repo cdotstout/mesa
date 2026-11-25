@@ -17,9 +17,7 @@ use zerocopy::TryFromBytes;
 
 use crate::check_ntstatus;
 use crate::defines::MagmaCreateBufferInfo;
-use crate::defines::MagmaHeapBudget;
 use crate::defines::MagmaMappedMemoryRange;
-use crate::defines::MagmaMemoryType;
 use crate::defines::MagmaPhysicalDeviceInfo;
 use crate::defines::MAGMA_BUS_TYPE_PCI;
 use crate::defines::MAGMA_SYNC_RANGES;
@@ -202,38 +200,6 @@ pub fn destroy_device(device_handle: D3dkmtHandle) {
     log_ntstatus!(unsafe { D3DKMTDestroyDevice(&arg as *const D3DKMT_DESTROYDEVICE) })
 }
 
-pub fn query_video_memory_info(
-    adapter_handle: D3dkmtHandle,
-    is_device_local: bool,
-) -> Result<MagmaHeapBudget> {
-    let segment_group = if is_device_local {
-        D3DKMT_MEMORY_SEGMENT_GROUP_LOCAL
-    } else {
-        D3DKMT_MEMORY_SEGMENT_GROUP_NON_LOCAL
-    };
-
-    let mut arg = D3DKMT_QUERYVIDEOMEMORYINFO {
-        hProcess: null_mut::<c_void>(),
-        hAdapter: adapter_handle,
-        MemorySegmentGroup: segment_group,
-        Budget: 0,
-        CurrentUsage: 0,
-        CurrentReservation: 0,
-        AvailableForReservation: 0,
-        PhysicalAdapterIndex: 0,
-    };
-
-    // SAFETY: Valid D3DKMT_QUERYVIDEOMEMORYINFO struct.
-    check_ntstatus!(unsafe {
-        D3DKMTQueryVideoMemoryInfo(&mut arg as *mut D3DKMT_QUERYVIDEOMEMORYINFO)
-    })?;
-
-    Ok(MagmaHeapBudget {
-        budget: arg.Budget,
-        usage: arg.CurrentUsage,
-    })
-}
-
 pub fn open_resource_from_nt_handle(
     device_handle: D3dkmtHandle,
     handle: MagmaGpuHandle,
@@ -300,12 +266,10 @@ pub fn create_allocation(
     device_handle: D3dkmtHandle,
     vendor_private_data: &dyn VendorPrivateData,
     create_info: &MagmaCreateBufferInfo,
-    mem_types: &[MagmaMemoryType],
 ) -> Result<D3dkmtHandle> {
     let flags: D3DKMT_CREATEALLOCATIONFLAGS = Default::default();
     let mut create_allocation: Vec<u32> = vendor_private_data.createallocation_pdata();
-    let mut allocationinfo2: Vec<u32> =
-        vendor_private_data.allocationinfo2_pdata(create_info, mem_types);
+    let mut allocationinfo2: Vec<u32> = vendor_private_data.allocationinfo2_pdata(create_info);
 
     let size_create_allocation: usize = create_allocation.len() * size_of::<u32>();
     let size_allocationinfo2: usize = allocationinfo2.len() * size_of::<u32>();

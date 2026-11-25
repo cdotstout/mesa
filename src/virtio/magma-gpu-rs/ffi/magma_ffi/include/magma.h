@@ -19,8 +19,6 @@ extern "C" {
 #endif
 
 #define MAGMA_MAX_PHYSICAL_DEVICES 8
-#define MAGMA_MAX_MEMORY_HEAPS 32
-#define MAGMA_MAX_MEMORY_TYPES 16
 #define MAGMA_MAX_QUEUES 16
 
 struct magma_queue;
@@ -69,16 +67,6 @@ enum {
     MAGMA_SEMAPHORE_TYPE_TIMELINE = 0x00000001,
 };
 
-typedef uint32_t magma_memory_property_t;
-enum {
-    MAGMA_MEMORY_PROPERTY_DEVICE_LOCAL_BIT = 0x00000001,
-    MAGMA_MEMORY_PROPERTY_HOST_VISIBLE_BIT = 0x00000002,
-    MAGMA_MEMORY_PROPERTY_HOST_COHERENT_BIT = 0x00000004,
-    MAGMA_MEMORY_PROPERTY_HOST_CACHED_BIT = 0x00000008,
-    MAGMA_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT = 0x00000010,
-    MAGMA_MEMORY_PROPERTY_PROTECTED_BIT = 0x00000020,
-};
-
 typedef uint32_t magma_queue_flags_t;
 enum {
     MAGMA_QUEUE_FLAGS_GRAPHICS = 0x00000001,
@@ -101,6 +89,8 @@ typedef uint32_t magma_buffer_flag_t;
 enum {
     MAGMA_BUFFER_FLAG_EXTERNAL = 0x00000001,
     MAGMA_BUFFER_FLAG_SCANOUT = 0x00000002,
+    MAGMA_BUFFER_FLAG_CACHED = 0x00000004,
+    MAGMA_BUFFER_FLAG_PROTECTED = 0x00000008,
 };
 
 typedef uint32_t magma_sync_capability_t;
@@ -136,27 +126,6 @@ enum {
     MAGMA_HANDLE_TYPE_SIGNAL_OPAQUE_WIN32 = 0x00000030,
     MAGMA_HANDLE_TYPE_SIGNAL_ZIRCON = 0x00000040,
     MAGMA_HANDLE_TYPE_SIGNAL_EVENT_FD = 0x00000050,
-};
-
-typedef uint64_t magma_heap_flag_t;
-enum {
-    MAGMA_HEAP_FLAG_DEVICE_LOCAL_BIT = 0x0000000000000001,
-    MAGMA_HEAP_FLAG_CPU_VISIBLE_BIT = 0x0000000000000010,
-};
-
-struct magma_heap {
-    uint64_t heap_size;
-    uint64_t heap_flags;
-};
-
-struct magma_heap_budget {
-    uint64_t budget;
-    uint64_t usage;
-};
-
-struct magma_memory_type {
-    uint32_t property_flags;
-    uint32_t heap_idx;
 };
 
 struct magma_pci_bus_info {
@@ -204,7 +173,6 @@ typedef enum {
     MAGMA_STRUCTURE_TYPE_SUBMIT_RESOURCES_INFO = 0x00000012,
     MAGMA_STRUCTURE_TYPE_CREATE_SEMAPHORE_INFO = 0x00000007,
     MAGMA_STRUCTURE_TYPE_SYNC_PROPERTIES = 0x00000008,
-    MAGMA_STRUCTURE_TYPE_MEMORY_PROPERTIES = 0x0000000B,
     MAGMA_STRUCTURE_TYPE_PHYSICAL_DEVICE_INFO = 0x00010002,
     MAGMA_STRUCTURE_TYPE_ADDRESS_SPACE_PROPERTIES = 0x0000000C,
     MAGMA_STRUCTURE_TYPE_TIMESTAMP_PROPERTIES = 0x0000000D,
@@ -219,10 +187,10 @@ struct magma_structure_type_header {
 
 struct magma_create_buffer_info {
     struct magma_structure_type_header header;
-    uint32_t memory_type_idx;
     uint32_t alignment;
     uint32_t common_flags;
     uint32_t vendor_flags;
+    uint32_t _pad0;
     uint64_t size;
 };
 
@@ -296,14 +264,6 @@ struct magma_sync_properties {
     uint64_t max_timeline_value_difference;
 };
 
-struct magma_memory_properties {
-    struct magma_structure_type_header header;
-    uint32_t memory_type_count;
-    uint32_t memory_heap_count;
-    struct magma_memory_type memory_types[MAGMA_MAX_MEMORY_TYPES];
-    struct magma_heap memory_heaps[MAGMA_MAX_MEMORY_HEAPS];
-};
-
 struct magma_physical_device_info {
     struct magma_structure_type_header header;
     uint32_t bus_type;
@@ -340,9 +300,6 @@ magma_status_t magma_enumerate_physical_devices(magma_physical_device_t physical
 
 magma_status_t magma_physical_device_create_device(magma_physical_device_t physical_device,
                                                    magma_device_t* device);
-
-magma_status_t magma_device_get_memory_budget(magma_device_t device, uint32_t heap_idx,
-                                              struct magma_heap_budget* budget);
 
 magma_status_t magma_device_create_buffer(magma_device_t device,
                                           const struct magma_create_buffer_info* info,

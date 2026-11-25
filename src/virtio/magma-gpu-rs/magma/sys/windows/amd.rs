@@ -6,7 +6,6 @@
 // https://gitlab.freedesktop.org/gfxstrand/mesa/-/tree/radv/wddm2?ref_type=heads
 
 use crate::defines::MagmaCreateBufferInfo;
-use crate::defines::MagmaMemoryType;
 use crate::sys::windows::VendorPrivateData;
 
 static AMD_CREATE_ALLOC_PDATA: [u32; 15] = [
@@ -50,13 +49,8 @@ impl VendorPrivateData for Amd {
         Vec::from(AMD_CREATE_ALLOC_PDATA)
     }
 
-    fn allocationinfo2_pdata(
-        &self,
-        create_info: &MagmaCreateBufferInfo,
-        mem_types: &[MagmaMemoryType],
-    ) -> Vec<u32> {
+    fn allocationinfo2_pdata(&self, create_info: &MagmaCreateBufferInfo) -> Vec<u32> {
         let mut alloc_pdata = AMD_ALLOC_PDATA;
-        let memory_type = &mem_types[create_info.memory_type_idx as usize];
 
         // FIXME: gpu_info.pte_fragment_size, alignment
         // Need GPU topology crate
@@ -76,21 +70,11 @@ impl VendorPrivateData for Amd {
         alloc_pdata[141] = phys_size;
 
         // Some sort of flags field
-        alloc_pdata[20] = 0x00002000;
+        alloc_pdata[20] = 0x00002000 | 0xa0000000;
+        alloc_pdata[41] |= 0x00080000;
 
-        if memory_type.is_coherent() {
-            alloc_pdata[20] |= 0xa0000000;
-            alloc_pdata[41] |= 0x00080000;
-        } else {
-            alloc_pdata[20] |= 0x80000000;
-        }
-
-        // Write-back cached
-        if memory_type.is_device_local() {
-            alloc_pdata[20] |= 0x00000005;
-            alloc_pdata[24] = 0x00030101;
-            alloc_pdata[25] = 0x00000001;
-        } else if memory_type.is_coherent() && !memory_type.is_cached() {
+        // Write-back cached vs write-combining
+        if !create_info.is_cached() {
             // RADEON_FLAG_GTT_WC
             alloc_pdata[20] |= 0x00000004;
             alloc_pdata[24] = 3;

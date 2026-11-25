@@ -12,24 +12,16 @@ use magma_gpu::util::MemoryMapping;
 use magma_gpu::util::OwnedDescriptor;
 use zerocopy::IntoBytes;
 
+use crate::defines::buffer_flags_get_map_info;
 use crate::defines::MagmaAddressSpaceProperties;
 use crate::defines::MagmaCreateBufferInfo;
 use crate::defines::MagmaCreateQueueInfo;
 use crate::defines::MagmaCreateSemaphoreInfo;
-use crate::defines::MagmaHeap;
-use crate::defines::MagmaHeapBudget;
 use crate::defines::MagmaImportHandleInfo;
-use crate::defines::MagmaMemoryType;
 use crate::defines::MagmaPhysicalDeviceInfo;
 use crate::defines::MagmaQueueFamilyProperties;
 use crate::defines::MagmaQueueFlags;
 use crate::defines::MagmaTimestampProperties;
-use crate::defines::MAGMA_HEAP_CPU_VISIBLE_BIT;
-use crate::defines::MAGMA_HEAP_DEVICE_LOCAL_BIT;
-use crate::defines::MAGMA_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-use crate::defines::MAGMA_MEMORY_PROPERTY_HOST_CACHED_BIT;
-use crate::defines::MAGMA_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-use crate::defines::MAGMA_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
 use crate::error::Error;
 use crate::error::Result;
 use crate::sys::linux::bindings::kgsl_bindings::*;
@@ -65,8 +57,6 @@ pub struct KgslPhysicalDevice {
 
 pub struct Kgsl {
     physical_device: Arc<dyn BackendPhysicalDevice>,
-    mem_types: Vec<MagmaMemoryType>,
-    mem_heaps: Vec<MagmaHeap>,
 }
 
 #[allow(dead_code)]
@@ -144,32 +134,6 @@ impl GenericPhysicalDevice for KgslPhysicalDevice {
         Ok(Arc::new(Kgsl::new(self)?))
     }
 
-    fn get_memory_types(&self) -> Result<Vec<MagmaMemoryType>> {
-        Ok(vec![
-            MagmaMemoryType {
-                property_flags: MAGMA_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-                    | MAGMA_MEMORY_PROPERTY_HOST_VISIBLE_BIT
-                    | MAGMA_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                heap_idx: 0,
-            },
-            MagmaMemoryType {
-                property_flags: MAGMA_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-                    | MAGMA_MEMORY_PROPERTY_HOST_VISIBLE_BIT
-                    | MAGMA_MEMORY_PROPERTY_HOST_COHERENT_BIT
-                    | MAGMA_MEMORY_PROPERTY_HOST_CACHED_BIT,
-                heap_idx: 0,
-            },
-        ])
-    }
-
-    fn get_memory_heaps(&self) -> Result<Vec<MagmaHeap>> {
-        let heap_size = 4 * 1024 * 1024 * 1024; // 4 GiB default unified memory heap
-        Ok(vec![MagmaHeap {
-            heap_size,
-            heap_flags: MAGMA_HEAP_DEVICE_LOCAL_BIT | MAGMA_HEAP_CPU_VISIBLE_BIT,
-        }])
-    }
-
     fn get_queue_family_properties(&self) -> Result<Vec<MagmaQueueFamilyProperties>> {
         Ok(vec![MagmaQueueFamilyProperties::new(
             MagmaQueueFlags::Graphics | MagmaQueueFlags::Compute,
@@ -225,28 +189,11 @@ impl GenericPhysicalDevice for KgslPhysicalDevice {
 
 impl Kgsl {
     pub fn new(physical_device: Arc<dyn BackendPhysicalDevice>) -> Result<Kgsl> {
-        let mem_types = physical_device.get_memory_types()?;
-        let mem_heaps = physical_device.get_memory_heaps()?;
-        Ok(Kgsl {
-            physical_device,
-            mem_types,
-            mem_heaps,
-        })
+        Ok(Kgsl { physical_device })
     }
 }
 
 impl GenericDevice for Kgsl {
-    fn get_memory_budget(&self, heap_idx: u32) -> Result<MagmaHeapBudget> {
-        if let Some(heap) = self.mem_heaps.get(heap_idx as usize) {
-            Ok(MagmaHeapBudget {
-                budget: heap.heap_size,
-                usage: 0,
-            })
-        } else {
-            Err(Error::InvalidArgs)
-        }
-    }
-
     fn create_address_space(self: Arc<Kgsl>) -> Result<Arc<dyn BackendAddressSpace>> {
         Ok(Arc::new(KgslAddressSpace::new(
             self.physical_device.clone(),
@@ -268,7 +215,7 @@ impl GenericDevice for Kgsl {
         self: Arc<Kgsl>,
         create_info: &MagmaCreateBufferInfo,
     ) -> Result<Arc<dyn BackendBuffer>> {
-        let buf = KgslBuffer::new(self.physical_device.clone(), create_info, &self.mem_types)?;
+        let buf = KgslBuffer::new(self.physical_device.clone(), create_info)?;
         let buf: Arc<dyn BackendBuffer> = Arc::new(buf);
         self.physical_device.register_buffer(&buf);
         Ok(buf)
@@ -279,15 +226,11 @@ impl GenericDevice for Kgsl {
         if let Some(existing) = self.physical_device.find_buffer(id) {
             return Ok(existing);
         }
-        let memory_type = self
-            .mem_types
-            .get(info.memory_type_idx as usize)
-            .ok_or(Error::InvalidArgs)?;
         let buf = KgslBuffer::from_existing(
             self.physical_device.clone(),
             id,
             info.size.try_into()?,
-            memory_type.get_map_info(),
+            buffer_flags_get_map_info(info.common_flags),
         )?;
         let buf: Arc<dyn BackendBuffer> = Arc::new(buf);
         self.physical_device.register_buffer(&buf);

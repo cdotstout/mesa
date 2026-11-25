@@ -141,11 +141,6 @@ impl<W: std::io::Write> Encoder<W> {
                     ext.header.p_next = if next != 0 { 1 } else { 0 };
                     self.write_bytes(zerocopy::IntoBytes::as_bytes(&ext))?;
                 }
-                MAGMA_STRUCTURE_TYPE_MEMORY_PROPERTIES => {
-                    let mut ext = unsafe { *(curr as *const MagmaMemoryProperties) };
-                    ext.header.p_next = if next != 0 { 1 } else { 0 };
-                    self.write_bytes(zerocopy::IntoBytes::as_bytes(&ext))?;
-                }
                 MAGMA_STRUCTURE_TYPE_VIRT_CAPABILITIES => {
                     let mut ext = unsafe { *(curr as *const MagmaVirtCapabilities) };
                     ext.header.p_next = if next != 0 { 1 } else { 0 };
@@ -163,16 +158,6 @@ impl<W: std::io::Write> Encoder<W> {
                 }
                 MAGMA_STRUCTURE_TYPE_TIMESTAMP_PROPERTIES => {
                     let mut ext = unsafe { *(curr as *const MagmaTimestampProperties) };
-                    ext.header.p_next = if next != 0 { 1 } else { 0 };
-                    self.write_bytes(zerocopy::IntoBytes::as_bytes(&ext))?;
-                }
-                MAGMA_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_TYPE => {
-                    let mut ext = unsafe { *(curr as *const MagmaPhysicalDeviceMemoryType) };
-                    ext.header.p_next = if next != 0 { 1 } else { 0 };
-                    self.write_bytes(zerocopy::IntoBytes::as_bytes(&ext))?;
-                }
-                MAGMA_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_HEAP => {
-                    let mut ext = unsafe { *(curr as *const MagmaPhysicalDeviceMemoryHeap) };
                     ext.header.p_next = if next != 0 { 1 } else { 0 };
                     self.write_bytes(zerocopy::IntoBytes::as_bytes(&ext))?;
                 }
@@ -357,16 +342,6 @@ impl<W: std::io::Write> Encoder<W> {
         }
         Ok(())
     }
-    pub fn encode_memory_properties(&mut self, msg: &MagmaMemoryProperties) -> std::io::Result<()> {
-        let mut obj = *msg;
-        let p_next = obj.header.p_next as usize as u64;
-        obj.header.p_next = if p_next != 0 { 1 } else { 0 };
-        self.write_bytes(zerocopy::IntoBytes::as_bytes(&obj))?;
-        if p_next != 0 {
-            self.encode_extensible_chain(p_next)?;
-        }
-        Ok(())
-    }
     pub fn encode_virt_capabilities(&mut self, msg: &MagmaVirtCapabilities) -> std::io::Result<()> {
         let mut obj = *msg;
         let p_next = obj.header.p_next as usize as u64;
@@ -416,32 +391,6 @@ impl<W: std::io::Write> Encoder<W> {
         }
         Ok(())
     }
-    pub fn encode_physical_device_memory_type(
-        &mut self,
-        msg: &MagmaPhysicalDeviceMemoryType,
-    ) -> std::io::Result<()> {
-        let mut obj = *msg;
-        let p_next = obj.header.p_next as usize as u64;
-        obj.header.p_next = if p_next != 0 { 1 } else { 0 };
-        self.write_bytes(zerocopy::IntoBytes::as_bytes(&obj))?;
-        if p_next != 0 {
-            self.encode_extensible_chain(p_next)?;
-        }
-        Ok(())
-    }
-    pub fn encode_physical_device_memory_heap(
-        &mut self,
-        msg: &MagmaPhysicalDeviceMemoryHeap,
-    ) -> std::io::Result<()> {
-        let mut obj = *msg;
-        let p_next = obj.header.p_next as usize as u64;
-        obj.header.p_next = if p_next != 0 { 1 } else { 0 };
-        self.write_bytes(zerocopy::IntoBytes::as_bytes(&obj))?;
-        if p_next != 0 {
-            self.encode_extensible_chain(p_next)?;
-        }
-        Ok(())
-    }
     pub fn encode_virtio_seqno_info(&mut self, msg: &MagmaVirtioSeqnoInfo) -> std::io::Result<()> {
         let mut obj = *msg;
         let p_next = obj.header.p_next as usize as u64;
@@ -461,18 +410,6 @@ impl<W: std::io::Write> Encoder<W> {
     pub fn encode_resp_physical_device_create_device(
         &mut self,
         msg: &PhysicalDeviceCreateDeviceResp,
-    ) -> std::io::Result<()> {
-        self.write_bytes(zerocopy::IntoBytes::as_bytes(msg))
-    }
-    pub fn encode_device_get_memory_budget(
-        &mut self,
-        msg: &DeviceGetMemoryBudget,
-    ) -> std::io::Result<()> {
-        self.write_bytes(zerocopy::IntoBytes::as_bytes(msg))
-    }
-    pub fn encode_resp_device_get_memory_budget(
-        &mut self,
-        msg: &DeviceGetMemoryBudgetResp,
     ) -> std::io::Result<()> {
         self.write_bytes(zerocopy::IntoBytes::as_bytes(msg))
     }
@@ -678,7 +615,6 @@ impl<W: std::io::Write> Encoder<W> {
             MagmaProtocol::PhysicalDeviceCreateDevice(msg) => {
                 self.encode_physical_device_create_device(msg)
             }
-            MagmaProtocol::DeviceGetMemoryBudget(msg) => self.encode_device_get_memory_budget(msg),
             MagmaProtocol::DeviceCreateBuffer(msg) => self.encode_device_create_buffer(msg),
             MagmaProtocol::DeviceCreateAddressSpace(msg) => {
                 self.encode_device_create_address_space(msg)
@@ -707,9 +643,6 @@ impl<W: std::io::Write> Encoder<W> {
             MagmaProtocol::VirtioImportBuffer(msg) => self.encode_virtio_import_buffer(msg),
             MagmaProtocol::PhysicalDeviceCreateDeviceResp(msg) => {
                 self.encode_resp_physical_device_create_device(msg)
-            }
-            MagmaProtocol::DeviceGetMemoryBudgetResp(msg) => {
-                self.encode_resp_device_get_memory_budget(msg)
             }
             MagmaProtocol::DeviceCreateBufferResp(msg) => {
                 self.encode_resp_device_create_buffer(msg)
@@ -764,7 +697,6 @@ impl<W: std::io::Write> Encoder<W> {
                 self.encode_create_semaphore_info(msg)
             }
             MagmaExtensibleStruct::SyncProperties(msg) => self.encode_sync_properties(msg),
-            MagmaExtensibleStruct::MemoryProperties(msg) => self.encode_memory_properties(msg),
             MagmaExtensibleStruct::VirtCapabilities(msg) => self.encode_virt_capabilities(msg),
             MagmaExtensibleStruct::PhysicalDeviceInfo(msg) => self.encode_physical_device_info(msg),
             MagmaExtensibleStruct::AddressSpaceProperties(msg) => {
@@ -772,12 +704,6 @@ impl<W: std::io::Write> Encoder<W> {
             }
             MagmaExtensibleStruct::TimestampProperties(msg) => {
                 self.encode_timestamp_properties(msg)
-            }
-            MagmaExtensibleStruct::PhysicalDeviceMemoryType(msg) => {
-                self.encode_physical_device_memory_type(msg)
-            }
-            MagmaExtensibleStruct::PhysicalDeviceMemoryHeap(msg) => {
-                self.encode_physical_device_memory_heap(msg)
             }
             MagmaExtensibleStruct::VirtioSeqnoInfo(msg) => self.encode_virtio_seqno_info(msg),
         }

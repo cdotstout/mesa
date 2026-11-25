@@ -10,7 +10,6 @@ use magma_gpu::util::RawMapping;
 
 use crate::defines::MagmaCreateBufferInfo;
 use crate::defines::MagmaMappedMemoryRange;
-use crate::defines::MagmaMemoryType;
 use crate::error::Error;
 use crate::error::Result;
 use crate::sys::windows::wddm::d3dkmt;
@@ -51,18 +50,14 @@ impl WddmBuffer {
     pub fn new(
         device: Arc<dyn BackendDevice>,
         create_info: &MagmaCreateBufferInfo,
-        mem_types: &[MagmaMemoryType],
     ) -> Result<WddmBuffer> {
         let vendor_private_data = device.vendor_private_data().unwrap();
         let handle = d3dkmt::create_allocation(
             device.as_wddm_handle(),
             vendor_private_data,
             create_info,
-            mem_types,
         )?;
-        let map_info = mem_types
-            .get(create_info.memory_type_idx as usize)
-            .and_then(|mt| mt.get_map_info());
+        let map_info = create_info.get_map_info();
 
         Ok(WddmBuffer {
             handle,

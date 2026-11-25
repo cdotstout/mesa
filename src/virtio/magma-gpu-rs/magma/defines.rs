@@ -9,7 +9,6 @@ use std::sync::Arc;
 use magma_gpu::util::Handle as MagmaGpuHandle;
 use magma_gpu::util::MAGMA_MAP_ACCESS_RW;
 use magma_gpu::util::MAGMA_MAP_CACHE_CACHED;
-use magma_gpu::util::MAGMA_MAP_CACHE_UNCACHED;
 use magma_gpu::util::MAGMA_MAP_CACHE_WC;
 use zerocopy::FromBytes;
 use zerocopy::IntoBytes;
@@ -42,65 +41,6 @@ pub const MAGMA_VENDOR_ID_MALI: u16 = 0x13B5;
 pub const MAGMA_VENDOR_ID_QCOM: u16 = 0x5413;
 pub const MAGMA_VENDOR_ID_VIRTGPU: u16 = 0x1AF4;
 
-// Should be set in the case of VRAM only
-pub const MAGMA_HEAP_DEVICE_LOCAL_BIT: u64 = 0x00000001;
-pub const MAGMA_HEAP_CPU_VISIBLE_BIT: u64 = 0x00000010;
-
-impl MagmaHeap {
-    pub fn is_device_local(&self) -> bool {
-        self.heap_flags & MAGMA_HEAP_DEVICE_LOCAL_BIT != 0
-    }
-
-    pub fn is_cpu_visible(&self) -> bool {
-        self.heap_flags & MAGMA_HEAP_CPU_VISIBLE_BIT != 0
-    }
-}
-
-pub const MAGMA_MEMORY_PROPERTY_DEVICE_LOCAL_BIT: u32 = 0x00000001;
-pub const MAGMA_MEMORY_PROPERTY_HOST_VISIBLE_BIT: u32 = 0x00000002;
-pub const MAGMA_MEMORY_PROPERTY_HOST_COHERENT_BIT: u32 = 0x00000004;
-pub const MAGMA_MEMORY_PROPERTY_HOST_CACHED_BIT: u32 = 0x00000008;
-pub const MAGMA_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT: u32 = 0x00000010;
-pub const MAGMA_MEMORY_PROPERTY_PROTECTED_BIT: u32 = 0x00000020;
-
-impl MagmaMemoryType {
-    pub fn is_device_local(&self) -> bool {
-        self.property_flags & MAGMA_MEMORY_PROPERTY_DEVICE_LOCAL_BIT != 0
-    }
-
-    pub fn is_host_visible(&self) -> bool {
-        self.property_flags & MAGMA_MEMORY_PROPERTY_HOST_VISIBLE_BIT != 0
-    }
-
-    pub fn is_coherent(&self) -> bool {
-        self.property_flags & MAGMA_MEMORY_PROPERTY_HOST_COHERENT_BIT != 0
-    }
-
-    pub fn is_cached(&self) -> bool {
-        self.property_flags & MAGMA_MEMORY_PROPERTY_HOST_CACHED_BIT != 0
-    }
-
-    pub fn is_protected(&self) -> bool {
-        self.property_flags & MAGMA_MEMORY_PROPERTY_PROTECTED_BIT != 0
-    }
-
-    pub fn get_map_info(&self) -> Option<u32> {
-        if !self.is_host_visible() {
-            return None;
-        }
-
-        let cache = if self.is_cached() {
-            MAGMA_MAP_CACHE_CACHED
-        } else if self.is_coherent() {
-            MAGMA_MAP_CACHE_WC
-        } else {
-            MAGMA_MAP_CACHE_UNCACHED
-        };
-
-        Some(cache | MAGMA_MAP_ACCESS_RW)
-    }
-}
-
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct MagmaMapping {
@@ -121,8 +61,41 @@ pub struct MagmaHandle {
 // Common allocation flags
 //  - MAGMA_BUFFER_FLAG_EXTERNAL: The buffer *may* be exported as an OS-specific handle
 //  - MAGMA_BUFFER_FLAG_SCANOUT: The buffer *may* be used by the scanout engine directly
+//  - MAGMA_BUFFER_FLAG_CACHED: Request CPU write-back caching (otherwise write-combining)
+//  - MAGMA_BUFFER_FLAG_PROTECTED: Request protected/encrypted memory
 pub const MAGMA_BUFFER_FLAG_EXTERNAL: u32 = 0x000000001;
 pub const MAGMA_BUFFER_FLAG_SCANOUT: u32 = 0x000000002;
+pub const MAGMA_BUFFER_FLAG_CACHED: u32 = 0x000000004;
+pub const MAGMA_BUFFER_FLAG_PROTECTED: u32 = 0x000000008;
+
+pub fn buffer_flags_get_map_info(common_flags: u32) -> Option<u32> {
+    let cache = if (common_flags & MAGMA_BUFFER_FLAG_CACHED) != 0
+        && (common_flags & MAGMA_BUFFER_FLAG_SCANOUT) == 0
+    {
+        MAGMA_MAP_CACHE_CACHED
+    } else {
+        MAGMA_MAP_CACHE_WC
+    };
+    Some(cache | MAGMA_MAP_ACCESS_RW)
+}
+
+impl MagmaCreateBufferInfo {
+    pub fn is_scanout(&self) -> bool {
+        (self.common_flags & MAGMA_BUFFER_FLAG_SCANOUT) != 0
+    }
+
+    pub fn is_cached(&self) -> bool {
+        (self.common_flags & MAGMA_BUFFER_FLAG_CACHED) != 0
+    }
+
+    pub fn is_protected(&self) -> bool {
+        (self.common_flags & MAGMA_BUFFER_FLAG_PROTECTED) != 0
+    }
+
+    pub fn get_map_info(&self) -> Option<u32> {
+        buffer_flags_get_map_info(self.common_flags)
+    }
+}
 
 // Acceptable buffer vendor flags if the vendor is AMD:
 //  - MAGMA_BUFFER_FLAG_AMD_FLAG_OA: Ordered append, used by 3D/Compute engines
@@ -159,7 +132,7 @@ pub struct MagmaMappedMemoryRange {
 pub struct MagmaImportHandleInfo {
     pub handle: MagmaGpuHandle,
     pub size: u64,
-    pub memory_type_idx: u32,
+    pub common_flags: u32,
 }
 
 #[derive(Clone, Default)]

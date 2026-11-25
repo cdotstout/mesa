@@ -7,10 +7,7 @@ use crate::defines::MagmaAddressSpaceProperties;
 use crate::defines::MagmaCreateBufferInfo;
 use crate::defines::MagmaCreateQueueInfo;
 use crate::defines::MagmaCreateSemaphoreInfo;
-use crate::defines::MagmaHeap;
-use crate::defines::MagmaHeapBudget;
 use crate::defines::MagmaImportHandleInfo;
-use crate::defines::MagmaMemoryType;
 use crate::defines::MagmaPhysicalDeviceInfo;
 use crate::defines::MagmaQueueFamilyProperties;
 use crate::defines::MagmaTimestampProperties;
@@ -61,14 +58,6 @@ impl PhysicalDevice {
         &self.info
     }
 
-    pub fn get_memory_types(&self) -> Result<Vec<MagmaMemoryType>> {
-        self.physical_device.get_memory_types()
-    }
-
-    pub fn get_memory_heaps(&self) -> Result<Vec<MagmaHeap>> {
-        self.physical_device.get_memory_heaps()
-    }
-
     pub fn get_queue_family_properties(&self) -> Result<Vec<MagmaQueueFamilyProperties>> {
         self.physical_device.get_queue_family_properties()
     }
@@ -96,10 +85,6 @@ impl PhysicalDevice {
 }
 
 impl Device {
-    pub fn get_memory_budget(&self, heap_idx: u32) -> Result<MagmaHeapBudget> {
-        self.device.get_memory_budget(heap_idx)
-    }
-
     pub fn create_address_space(&self) -> Result<AddressSpace> {
         let address_space = self.device.clone().create_address_space()?;
         Ok(AddressSpace::new(address_space))

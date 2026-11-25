@@ -13,46 +13,42 @@ use bitflags::bitflags;
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, TryFromBytes};
 
 pub const MAGMA_OPCODE_PHYSICAL_DEVICE_CREATE_DEVICE: u32 = 1;
-pub const MAGMA_OPCODE_DEVICE_GET_MEMORY_BUDGET: u32 = 2;
-pub const MAGMA_OPCODE_DEVICE_CREATE_BUFFER: u32 = 3;
-pub const MAGMA_OPCODE_DEVICE_CREATE_ADDRESS_SPACE: u32 = 4;
-pub const MAGMA_OPCODE_DEVICE_CREATE_QUEUE: u32 = 5;
-pub const MAGMA_OPCODE_DEVICE_RELEASE: u32 = 6;
-pub const MAGMA_OPCODE_PHYSICAL_DEVICE_RELEASE: u32 = 7;
-pub const MAGMA_OPCODE_BUFFER_RELEASE: u32 = 8;
-pub const MAGMA_OPCODE_QUEUE_RELEASE: u32 = 9;
-pub const MAGMA_OPCODE_ADDRESS_SPACE_RELEASE: u32 = 10;
-pub const MAGMA_OPCODE_VIRTIO_CREATE_RING: u32 = 11;
-pub const MAGMA_OPCODE_QUEUE_SUBMIT: u32 = 12;
-pub const MAGMA_OPCODE_DEVICE_CREATE_SEMAPHORE: u32 = 13;
-pub const MAGMA_OPCODE_SEMAPHORE_RELEASE: u32 = 14;
-pub const MAGMA_OPCODE_SEMAPHORE_SIGNAL: u32 = 15;
-pub const MAGMA_OPCODE_SEMAPHORE_TIMELINE_WAIT: u32 = 16;
-pub const MAGMA_OPCODE_SEMAPHORE_TIMELINE_SIGNAL: u32 = 17;
-pub const MAGMA_OPCODE_SEMAPHORE_TIMELINE_QUERY: u32 = 18;
-pub const MAGMA_OPCODE_QUEUE_CHECK_STATUS: u32 = 19;
-pub const MAGMA_OPCODE_VIRTIO_PING: u32 = 20;
-pub const MAGMA_OPCODE_VIRTIO_CREATE_FENCE: u32 = 21;
-pub const MAGMA_OPCODE_VIRTIO_SEMAPHORE_RELEASE: u32 = 22;
-pub const MAGMA_OPCODE_VIRTIO_BUFFER_RELEASE: u32 = 23;
-pub const MAGMA_OPCODE_VIRTIO_IMPORT_BUFFER: u32 = 24;
+pub const MAGMA_OPCODE_DEVICE_CREATE_BUFFER: u32 = 2;
+pub const MAGMA_OPCODE_DEVICE_CREATE_ADDRESS_SPACE: u32 = 3;
+pub const MAGMA_OPCODE_DEVICE_CREATE_QUEUE: u32 = 4;
+pub const MAGMA_OPCODE_DEVICE_RELEASE: u32 = 5;
+pub const MAGMA_OPCODE_PHYSICAL_DEVICE_RELEASE: u32 = 6;
+pub const MAGMA_OPCODE_BUFFER_RELEASE: u32 = 7;
+pub const MAGMA_OPCODE_QUEUE_RELEASE: u32 = 8;
+pub const MAGMA_OPCODE_ADDRESS_SPACE_RELEASE: u32 = 9;
+pub const MAGMA_OPCODE_VIRTIO_CREATE_RING: u32 = 10;
+pub const MAGMA_OPCODE_QUEUE_SUBMIT: u32 = 11;
+pub const MAGMA_OPCODE_DEVICE_CREATE_SEMAPHORE: u32 = 12;
+pub const MAGMA_OPCODE_SEMAPHORE_RELEASE: u32 = 13;
+pub const MAGMA_OPCODE_SEMAPHORE_SIGNAL: u32 = 14;
+pub const MAGMA_OPCODE_SEMAPHORE_TIMELINE_WAIT: u32 = 15;
+pub const MAGMA_OPCODE_SEMAPHORE_TIMELINE_SIGNAL: u32 = 16;
+pub const MAGMA_OPCODE_SEMAPHORE_TIMELINE_QUERY: u32 = 17;
+pub const MAGMA_OPCODE_QUEUE_CHECK_STATUS: u32 = 18;
+pub const MAGMA_OPCODE_VIRTIO_PING: u32 = 19;
+pub const MAGMA_OPCODE_VIRTIO_CREATE_FENCE: u32 = 20;
+pub const MAGMA_OPCODE_VIRTIO_SEMAPHORE_RELEASE: u32 = 21;
+pub const MAGMA_OPCODE_VIRTIO_BUFFER_RELEASE: u32 = 22;
+pub const MAGMA_OPCODE_VIRTIO_IMPORT_BUFFER: u32 = 23;
 
 pub const MAGMA_OPCODE_RESP_PHYSICAL_DEVICE_CREATE_DEVICE: u32 = 0x8000_0001;
-pub const MAGMA_OPCODE_RESP_DEVICE_GET_MEMORY_BUDGET: u32 = 0x8000_0002;
-pub const MAGMA_OPCODE_RESP_DEVICE_CREATE_BUFFER: u32 = 0x8000_0003;
-pub const MAGMA_OPCODE_RESP_DEVICE_CREATE_ADDRESS_SPACE: u32 = 0x8000_0004;
-pub const MAGMA_OPCODE_RESP_DEVICE_CREATE_QUEUE: u32 = 0x8000_0005;
-pub const MAGMA_OPCODE_RESP_QUEUE_SUBMIT: u32 = 0x8000_000c;
-pub const MAGMA_OPCODE_RESP_DEVICE_CREATE_SEMAPHORE: u32 = 0x8000_000d;
-pub const MAGMA_OPCODE_RESP_SEMAPHORE_SIGNAL: u32 = 0x8000_000f;
-pub const MAGMA_OPCODE_RESP_SEMAPHORE_TIMELINE_WAIT: u32 = 0x8000_0010;
-pub const MAGMA_OPCODE_RESP_SEMAPHORE_TIMELINE_SIGNAL: u32 = 0x8000_0011;
-pub const MAGMA_OPCODE_RESP_SEMAPHORE_TIMELINE_QUERY: u32 = 0x8000_0012;
-pub const MAGMA_OPCODE_RESP_QUEUE_CHECK_STATUS: u32 = 0x8000_0013;
+pub const MAGMA_OPCODE_RESP_DEVICE_CREATE_BUFFER: u32 = 0x8000_0002;
+pub const MAGMA_OPCODE_RESP_DEVICE_CREATE_ADDRESS_SPACE: u32 = 0x8000_0003;
+pub const MAGMA_OPCODE_RESP_DEVICE_CREATE_QUEUE: u32 = 0x8000_0004;
+pub const MAGMA_OPCODE_RESP_QUEUE_SUBMIT: u32 = 0x8000_000b;
+pub const MAGMA_OPCODE_RESP_DEVICE_CREATE_SEMAPHORE: u32 = 0x8000_000c;
+pub const MAGMA_OPCODE_RESP_SEMAPHORE_SIGNAL: u32 = 0x8000_000e;
+pub const MAGMA_OPCODE_RESP_SEMAPHORE_TIMELINE_WAIT: u32 = 0x8000_000f;
+pub const MAGMA_OPCODE_RESP_SEMAPHORE_TIMELINE_SIGNAL: u32 = 0x8000_0010;
+pub const MAGMA_OPCODE_RESP_SEMAPHORE_TIMELINE_QUERY: u32 = 0x8000_0011;
+pub const MAGMA_OPCODE_RESP_QUEUE_CHECK_STATUS: u32 = 0x8000_0012;
 
 pub const MAGMA_MAX_PHYSICAL_DEVICES: usize = 8;
-pub const MAGMA_MAX_MEMORY_HEAPS: usize = 32;
-pub const MAGMA_MAX_MEMORY_TYPES: usize = 16;
 pub const MAGMA_MAX_QUEUES: usize = 16;
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, TryFromBytes, IntoBytes, Immutable)]
@@ -102,22 +98,6 @@ pub enum MagmaSemaphoreType {
     Copy, Clone, Default, Debug, PartialEq, Eq, IntoBytes, FromBytes, Immutable, KnownLayout,
 )]
 #[repr(transparent)]
-pub struct MagmaMemoryProperty(u32);
-bitflags! {
-    impl MagmaMemoryProperty: u32 {
-        const DeviceLocalBit = 1;
-        const HostVisibleBit = 2;
-        const HostCoherentBit = 4;
-        const HostCachedBit = 8;
-        const LazilyAllocatedBit = 16;
-        const ProtectedBit = 32;
-    }
-}
-
-#[derive(
-    Copy, Clone, Default, Debug, PartialEq, Eq, IntoBytes, FromBytes, Immutable, KnownLayout,
-)]
-#[repr(transparent)]
 pub struct MagmaQueueFlags(u32);
 bitflags! {
     impl MagmaQueueFlags: u32 {
@@ -153,6 +133,8 @@ bitflags! {
     impl MagmaBufferFlag: u32 {
         const External = 1;
         const Scanout = 2;
+        const Cached = 4;
+        const Protected = 8;
     }
 }
 
@@ -215,39 +197,6 @@ bitflags! {
     }
 }
 
-#[derive(
-    Copy, Clone, Default, Debug, PartialEq, Eq, IntoBytes, FromBytes, Immutable, KnownLayout,
-)]
-#[repr(transparent)]
-pub struct MagmaHeapFlag(u64);
-bitflags! {
-    impl MagmaHeapFlag: u64 {
-        const DeviceLocalBit = 1;
-        const CpuVisibleBit = 16;
-    }
-}
-
-#[derive(Debug, Default, Clone, Copy, TryFromBytes, IntoBytes, Immutable)]
-#[repr(C)]
-pub struct MagmaHeap {
-    pub heap_size: u64,
-    pub heap_flags: u64,
-}
-
-#[derive(Debug, Default, Clone, Copy, TryFromBytes, IntoBytes, Immutable)]
-#[repr(C)]
-pub struct MagmaHeapBudget {
-    pub budget: u64,
-    pub usage: u64,
-}
-
-#[derive(Debug, Default, Clone, Copy, TryFromBytes, IntoBytes, Immutable)]
-#[repr(C)]
-pub struct MagmaMemoryType {
-    pub property_flags: u32,
-    pub heap_idx: u32,
-}
-
 #[derive(Debug, Default, Clone, Copy, TryFromBytes, IntoBytes, Immutable)]
 #[repr(C)]
 pub struct MagmaPciBusInfo {
@@ -288,13 +237,10 @@ pub const MAGMA_STRUCTURE_TYPE_SUBMIT_UNMAP_BUFFER_INFO: u32 = 10;
 pub const MAGMA_STRUCTURE_TYPE_SUBMIT_RESOURCES_INFO: u32 = 18;
 pub const MAGMA_STRUCTURE_TYPE_CREATE_SEMAPHORE_INFO: u32 = 7;
 pub const MAGMA_STRUCTURE_TYPE_SYNC_PROPERTIES: u32 = 8;
-pub const MAGMA_STRUCTURE_TYPE_MEMORY_PROPERTIES: u32 = 11;
 pub const MAGMA_STRUCTURE_TYPE_VIRT_CAPABILITIES: u32 = 65537;
 pub const MAGMA_STRUCTURE_TYPE_PHYSICAL_DEVICE_INFO: u32 = 65538;
 pub const MAGMA_STRUCTURE_TYPE_ADDRESS_SPACE_PROPERTIES: u32 = 12;
 pub const MAGMA_STRUCTURE_TYPE_TIMESTAMP_PROPERTIES: u32 = 13;
-pub const MAGMA_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_TYPE: u32 = 65539;
-pub const MAGMA_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_HEAP: u32 = 65540;
 pub const MAGMA_STRUCTURE_TYPE_VIRTIO_SEQNO_INFO: u32 = 65541;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, TryFromBytes, IntoBytes, Immutable)]
@@ -311,13 +257,10 @@ pub enum MagmaStructureType {
     SubmitResourcesInfo = 18,
     CreateSemaphoreInfo = 7,
     SyncProperties = 8,
-    MemoryProperties = 11,
     VirtCapabilities = 65537,
     PhysicalDeviceInfo = 65538,
     AddressSpaceProperties = 12,
     TimestampProperties = 13,
-    PhysicalDeviceMemoryType = 65539,
-    PhysicalDeviceMemoryHeap = 65540,
     VirtioSeqnoInfo = 65541,
 }
 
@@ -403,10 +346,10 @@ pub unsafe trait MagmaTaggedStructure {
 #[repr(C)]
 pub struct MagmaCreateBufferInfo {
     pub header: MagmaStructureTypeHeader,
-    pub memory_type_idx: u32,
     pub alignment: u32,
     pub common_flags: u32,
     pub vendor_flags: u32,
+    pub _pad0: u32,
     pub size: u64,
 }
 
@@ -657,27 +600,6 @@ unsafe impl MagmaTaggedStructure for MagmaSyncProperties {
 }
 #[derive(Debug, Default, Clone, Copy, TryFromBytes, IntoBytes, Immutable)]
 #[repr(C)]
-pub struct MagmaMemoryProperties {
-    pub header: MagmaStructureTypeHeader,
-    pub memory_type_count: u32,
-    pub memory_heap_count: u32,
-    pub memory_types: [MagmaMemoryType; MAGMA_MAX_MEMORY_TYPES],
-    pub memory_heaps: [MagmaHeap; MAGMA_MAX_MEMORY_HEAPS],
-}
-
-unsafe impl MagmaTaggedStructure for MagmaMemoryProperties {
-    const STRUCTURE_TYPE: MagmaStructureType = MagmaStructureType::MemoryProperties;
-
-    fn header(&self) -> &MagmaStructureTypeHeader {
-        &self.header
-    }
-
-    fn header_mut(&mut self) -> &mut MagmaStructureTypeHeader {
-        &mut self.header
-    }
-}
-#[derive(Debug, Default, Clone, Copy, TryFromBytes, IntoBytes, Immutable)]
-#[repr(C)]
 pub struct MagmaVirtCapabilities {
     pub header: MagmaStructureTypeHeader,
     pub capset_version: u32,
@@ -765,46 +687,6 @@ unsafe impl MagmaTaggedStructure for MagmaTimestampProperties {
 unsafe impl MagmaExtends<MagmaPhysicalDeviceInfo> for MagmaTimestampProperties {}
 #[derive(Debug, Default, Clone, Copy, TryFromBytes, IntoBytes, Immutable)]
 #[repr(C)]
-pub struct MagmaPhysicalDeviceMemoryType {
-    pub header: MagmaStructureTypeHeader,
-    pub property_flags: u32,
-    pub heap_idx: u32,
-}
-
-unsafe impl MagmaTaggedStructure for MagmaPhysicalDeviceMemoryType {
-    const STRUCTURE_TYPE: MagmaStructureType = MagmaStructureType::PhysicalDeviceMemoryType;
-
-    fn header(&self) -> &MagmaStructureTypeHeader {
-        &self.header
-    }
-
-    fn header_mut(&mut self) -> &mut MagmaStructureTypeHeader {
-        &mut self.header
-    }
-}
-unsafe impl MagmaExtends<MagmaPhysicalDeviceInfo> for MagmaPhysicalDeviceMemoryType {}
-#[derive(Debug, Default, Clone, Copy, TryFromBytes, IntoBytes, Immutable)]
-#[repr(C)]
-pub struct MagmaPhysicalDeviceMemoryHeap {
-    pub header: MagmaStructureTypeHeader,
-    pub heap_size: u64,
-    pub heap_flags: u64,
-}
-
-unsafe impl MagmaTaggedStructure for MagmaPhysicalDeviceMemoryHeap {
-    const STRUCTURE_TYPE: MagmaStructureType = MagmaStructureType::PhysicalDeviceMemoryHeap;
-
-    fn header(&self) -> &MagmaStructureTypeHeader {
-        &self.header
-    }
-
-    fn header_mut(&mut self) -> &mut MagmaStructureTypeHeader {
-        &mut self.header
-    }
-}
-unsafe impl MagmaExtends<MagmaPhysicalDeviceInfo> for MagmaPhysicalDeviceMemoryHeap {}
-#[derive(Debug, Default, Clone, Copy, TryFromBytes, IntoBytes, Immutable)]
-#[repr(C)]
 pub struct MagmaVirtioSeqnoInfo {
     pub header: MagmaStructureTypeHeader,
     pub ring_idx: u32,
@@ -837,13 +719,10 @@ pub enum MagmaExtensibleStruct {
     WireSubmitResourcesInfo(MagmaWireSubmitResourcesInfo),
     CreateSemaphoreInfo(MagmaCreateSemaphoreInfo),
     SyncProperties(MagmaSyncProperties),
-    MemoryProperties(MagmaMemoryProperties),
     VirtCapabilities(MagmaVirtCapabilities),
     PhysicalDeviceInfo(MagmaPhysicalDeviceInfo),
     AddressSpaceProperties(MagmaAddressSpaceProperties),
     TimestampProperties(MagmaTimestampProperties),
-    PhysicalDeviceMemoryType(MagmaPhysicalDeviceMemoryType),
-    PhysicalDeviceMemoryHeap(MagmaPhysicalDeviceMemoryHeap),
     VirtioSeqnoInfo(MagmaVirtioSeqnoInfo),
 }
 
@@ -866,21 +745,6 @@ pub struct PhysicalDeviceCreateDevice {
 #[derive(Debug, Default, Copy, Clone, TryFromBytes, IntoBytes, Immutable)]
 pub struct PhysicalDeviceCreateDeviceResp {
     pub header: MagmaCommandHeader,
-}
-
-#[repr(C)]
-#[derive(Debug, Default, Copy, Clone, TryFromBytes, IntoBytes, Immutable)]
-pub struct DeviceGetMemoryBudget {
-    pub header: MagmaCommandHeader,
-    pub device: u32,
-    pub heap_idx: u32,
-}
-
-#[repr(C)]
-#[derive(Debug, Default, Copy, Clone, TryFromBytes, IntoBytes, Immutable)]
-pub struct DeviceGetMemoryBudgetResp {
-    pub header: MagmaCommandHeader,
-    pub budget: MagmaHeapBudget,
 }
 
 #[repr(C)]
@@ -1146,7 +1010,7 @@ pub struct VirtioImportBuffer {
     pub res_handle: u32,
     pub buffer_out: u32,
     pub size: u64,
-    pub memory_type_idx: u32,
+    pub common_flags: u32,
     pub _padding: u32,
 }
 
@@ -1154,7 +1018,6 @@ pub struct VirtioImportBuffer {
 #[derive(Debug)]
 pub enum MagmaProtocol {
     PhysicalDeviceCreateDevice(PhysicalDeviceCreateDevice),
-    DeviceGetMemoryBudget(DeviceGetMemoryBudget),
     DeviceCreateBuffer(DeviceCreateBuffer),
     DeviceCreateAddressSpace(DeviceCreateAddressSpace),
     DeviceCreateQueue(DeviceCreateQueue),
@@ -1179,7 +1042,6 @@ pub enum MagmaProtocol {
     VirtioImportBuffer(VirtioImportBuffer),
 
     PhysicalDeviceCreateDeviceResp(PhysicalDeviceCreateDeviceResp),
-    DeviceGetMemoryBudgetResp(DeviceGetMemoryBudgetResp),
     DeviceCreateBufferResp(DeviceCreateBufferResp),
     DeviceCreateAddressSpaceResp(DeviceCreateAddressSpaceResp),
     DeviceCreateQueueResp(DeviceCreateQueueResp),

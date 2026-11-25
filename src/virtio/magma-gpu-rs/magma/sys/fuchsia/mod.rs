@@ -15,21 +15,13 @@ use zerocopy::TryFromBytes;
 use crate::defines::MagmaAddressSpaceProperties;
 use crate::defines::MagmaCreateBufferInfo;
 use crate::defines::MagmaCreateQueueInfo;
-use crate::defines::MagmaHeap;
-use crate::defines::MagmaHeapBudget;
 use crate::defines::MagmaImportHandleInfo;
-use crate::defines::MagmaMemoryType;
 use crate::defines::MagmaPhysicalDeviceInfo;
 use crate::defines::MagmaQueueFamilyProperties;
 use crate::defines::MagmaQueueFlags;
 use crate::defines::MagmaTimestampProperties;
 use crate::defines::MAGMA_BUS_TYPE_PCI;
-use crate::defines::MAGMA_HEAP_CPU_VISIBLE_BIT;
 use crate::defines::MAGMA_MAX_PHYSICAL_DEVICES;
-use crate::defines::MAGMA_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-use crate::defines::MAGMA_MEMORY_PROPERTY_HOST_CACHED_BIT;
-use crate::defines::MAGMA_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-use crate::defines::MAGMA_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
 use crate::device::PhysicalDevice;
 use crate::error::Error;
 use crate::error::Result;
@@ -117,7 +109,6 @@ extern "C" {
         observed: *mut zx_signals_t,
     ) -> zx_status_t;
     fn zx_deadline_after(nanoseconds: zx_duration_t) -> zx_time_t;
-    fn zx_system_get_physmem() -> u64;
     fn zx_vmo_read(
         handle: zx_handle_t,
         buffer: *mut c_void,
@@ -551,37 +542,6 @@ impl GenericPhysicalDevice for FuchsiaPhysicalDevice {
         Ok(())
     }
 
-    fn get_memory_types(&self) -> Result<Vec<MagmaMemoryType>> {
-        Ok(vec![
-            MagmaMemoryType {
-                property_flags: MAGMA_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-                    | MAGMA_MEMORY_PROPERTY_HOST_VISIBLE_BIT
-                    | MAGMA_MEMORY_PROPERTY_HOST_COHERENT_BIT
-                    | MAGMA_MEMORY_PROPERTY_HOST_CACHED_BIT,
-                heap_idx: 0,
-            },
-            MagmaMemoryType {
-                property_flags: MAGMA_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-                    | MAGMA_MEMORY_PROPERTY_HOST_VISIBLE_BIT
-                    | MAGMA_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                heap_idx: 0,
-            },
-        ])
-    }
-
-    fn get_memory_heaps(&self) -> Result<Vec<MagmaHeap>> {
-        let mut heap_size = unsafe { zx_system_get_physmem() };
-        if heap_size == 0 {
-            heap_size = self
-                .query_simple(MAGMA_INTEL_GEN_QUERY_GTT_SIZE)
-                .unwrap_or(1u64 << 32);
-        }
-        Ok(vec![MagmaHeap {
-            heap_size,
-            heap_flags: MAGMA_HEAP_CPU_VISIBLE_BIT,
-        }])
-    }
-
     fn get_queue_family_properties(&self) -> Result<Vec<MagmaQueueFamilyProperties>> {
         Ok(vec![MagmaQueueFamilyProperties::new(
             MagmaQueueFlags::Graphics | MagmaQueueFlags::Compute | MagmaQueueFlags::Transfer,
@@ -779,10 +739,6 @@ impl PlatformDevice for FuchsiaDevice {}
 impl BackendDevice for FuchsiaDevice {}
 
 impl GenericDevice for FuchsiaDevice {
-    fn get_memory_budget(&self, _heap_idx: u32) -> Result<MagmaHeapBudget> {
-        Err(Error::Unimplemented)
-    }
-
     fn create_address_space(self: Arc<Self>) -> Result<Arc<dyn BackendAddressSpace>> {
         Ok(Arc::new(FuchsiaAddressSpace::new(self.connection.clone())))
     }

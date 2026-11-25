@@ -8,7 +8,6 @@ use magma_gpu::util::MappedRegion;
 
 use crate::defines::MagmaCreateBufferInfo;
 use crate::defines::MagmaMappedMemoryRange;
-use crate::defines::MagmaMemoryType;
 use crate::error::Error;
 use crate::error::Result;
 use crate::protocol::MagmaGpuMapFlags;
@@ -127,15 +126,11 @@ impl KgslBuffer {
     pub fn new(
         physical_device: Arc<dyn BackendPhysicalDevice>,
         create_info: &MagmaCreateBufferInfo,
-        mem_types: &[MagmaMemoryType],
     ) -> Result<KgslBuffer> {
-        let memory_type = mem_types
-            .get(create_info.memory_type_idx as usize)
-            .ok_or(Error::InvalidArgs)?;
         let (id, gpuaddr) = ioctl::gpumem_alloc_id(
             physical_device.as_fd().unwrap(),
             create_info.size,
-            memory_type.is_cached(),
+            create_info.is_cached(),
         )?;
 
         Ok(KgslBuffer {
@@ -143,7 +138,7 @@ impl KgslBuffer {
             id,
             gpuaddr,
             size: create_info.size.try_into()?,
-            map_info: memory_type.get_map_info(),
+            map_info: create_info.get_map_info(),
         })
     }
 

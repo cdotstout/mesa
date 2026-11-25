@@ -5,17 +5,9 @@ use std::mem::size_of;
 use std::os::fd::BorrowedFd;
 
 use crate::defines::MagmaCreateQueueInfo;
-use crate::defines::MagmaHeap;
 use crate::defines::MagmaMappedMemoryRange;
-use crate::defines::MagmaMemoryType;
 use crate::defines::MagmaSubmitInfo;
 use crate::defines::MagmaSubmitPayload;
-use crate::defines::MAGMA_HEAP_CPU_VISIBLE_BIT;
-use crate::defines::MAGMA_HEAP_DEVICE_LOCAL_BIT;
-use crate::defines::MAGMA_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-use crate::defines::MAGMA_MEMORY_PROPERTY_HOST_CACHED_BIT;
-use crate::defines::MAGMA_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-use crate::defines::MAGMA_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
 use crate::error::Error;
 use crate::error::Result;
 use crate::ioctl_readwrite;
@@ -149,45 +141,6 @@ pub fn query_timestamp_info(fd: BorrowedFd<'_>) -> Result<drm_panthor_timestamp_
         drm_ioctl_panthor_dev_query(fd, &mut query)?;
     }
     Ok(ts_info)
-}
-
-pub fn query_memory_heaps() -> Vec<MagmaHeap> {
-    let heap_size = 4 * 1024 * 1024 * 1024; // 4 GiB default unified memory heap
-    vec![MagmaHeap {
-        heap_size,
-        heap_flags: MAGMA_HEAP_DEVICE_LOCAL_BIT | MAGMA_HEAP_CPU_VISIBLE_BIT,
-    }]
-}
-
-pub fn query_memory_types(gpu_info: &drm_panthor_gpu_info) -> Vec<MagmaMemoryType> {
-    let mut types = Vec::new();
-    types.push(MagmaMemoryType {
-        property_flags: MAGMA_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-        heap_idx: 0,
-    });
-    types.push(MagmaMemoryType {
-        property_flags: MAGMA_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-            | MAGMA_MEMORY_PROPERTY_HOST_VISIBLE_BIT
-            | MAGMA_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-        heap_idx: 0,
-    });
-    let is_coherent = gpu_info.selected_coherency != DRM_PANTHOR_GPU_COHERENCY_NONE;
-    if is_coherent {
-        types.push(MagmaMemoryType {
-            property_flags: MAGMA_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-                | MAGMA_MEMORY_PROPERTY_HOST_VISIBLE_BIT
-                | MAGMA_MEMORY_PROPERTY_HOST_COHERENT_BIT
-                | MAGMA_MEMORY_PROPERTY_HOST_CACHED_BIT,
-            heap_idx: 0,
-        });
-    }
-    types.push(MagmaMemoryType {
-        property_flags: MAGMA_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-            | MAGMA_MEMORY_PROPERTY_HOST_VISIBLE_BIT
-            | MAGMA_MEMORY_PROPERTY_HOST_CACHED_BIT,
-        heap_idx: 0,
-    });
-    types
 }
 
 pub fn vm_create(fd: BorrowedFd<'_>) -> Result<u32> {

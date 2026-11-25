@@ -6,21 +6,13 @@ use std::sync::Arc;
 use windows_sys::Wdk::Graphics::Direct3D::D3DKMT_SEGMENTGROUPSIZEINFO;
 use windows_sys::Win32::Foundation::LUID;
 
+use crate::defines::buffer_flags_get_map_info;
 use crate::defines::MagmaCreateBufferInfo;
 use crate::defines::MagmaCreateQueueInfo;
-use crate::defines::MagmaHeap;
-use crate::defines::MagmaHeapBudget;
 use crate::defines::MagmaImportHandleInfo;
-use crate::defines::MagmaMemoryType;
 use crate::defines::MagmaPhysicalDeviceInfo;
 use crate::defines::MagmaQueueFamilyProperties;
 use crate::defines::MagmaQueueFlags;
-use crate::defines::MAGMA_HEAP_DEVICE_LOCAL_BIT;
-use crate::defines::MAGMA_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-use crate::defines::MAGMA_MEMORY_PROPERTY_HOST_CACHED_BIT;
-use crate::defines::MAGMA_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-use crate::defines::MAGMA_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
-use crate::error::Error;
 use crate::error::Result;
 use crate::protocol::MagmaVendorId;
 use crate::sys::windows::wddm::d3dkmt;
@@ -53,10 +45,8 @@ pub struct WddmAdapter {
 
 pub struct WddmDevice {
     handle: D3dkmtHandle,
-    adapter: Arc<dyn BackendPhysicalDevice>,
+    _adapter: Arc<dyn BackendPhysicalDevice>,
     vendor_private_data: Box<dyn VendorPrivateData>,
-    mem_types: Vec<MagmaMemoryType>,
-    mem_heaps: Vec<MagmaHeap>,
 }
 
 impl WddmAdapter {
@@ -95,49 +85,6 @@ impl GenericPhysicalDevice for WddmAdapter {
         Ok(Arc::new(device))
     }
 
-    fn get_memory_types(&self) -> Result<Vec<MagmaMemoryType>> {
-        let mut types = Vec::new();
-        let mut heap_idx = 0u32;
-        if self.segment_group_size.NonLocalMemory > 0 {
-            types.push(MagmaMemoryType {
-                property_flags: MAGMA_MEMORY_PROPERTY_HOST_COHERENT_BIT
-                    | MAGMA_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
-                heap_idx,
-            });
-            types.push(MagmaMemoryType {
-                property_flags: MAGMA_MEMORY_PROPERTY_HOST_COHERENT_BIT
-                    | MAGMA_MEMORY_PROPERTY_HOST_VISIBLE_BIT
-                    | MAGMA_MEMORY_PROPERTY_HOST_CACHED_BIT,
-                heap_idx,
-            });
-            heap_idx += 1;
-        }
-        if self.segment_group_size.LocalMemory > 0 {
-            types.push(MagmaMemoryType {
-                property_flags: MAGMA_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                heap_idx,
-            });
-        }
-        Ok(types)
-    }
-
-    fn get_memory_heaps(&self) -> Result<Vec<MagmaHeap>> {
-        let mut heaps = Vec::new();
-        if self.segment_group_size.NonLocalMemory > 0 {
-            heaps.push(MagmaHeap {
-                heap_size: self.segment_group_size.NonLocalMemory,
-                heap_flags: 0,
-            });
-        }
-        if self.segment_group_size.LocalMemory > 0 {
-            heaps.push(MagmaHeap {
-                heap_size: self.segment_group_size.LocalMemory,
-                heap_flags: MAGMA_HEAP_DEVICE_LOCAL_BIT,
-            });
-        }
-        Ok(heaps)
-    }
-
     fn get_queue_family_properties(&self) -> Result<Vec<MagmaQueueFamilyProperties>> {
         Ok(vec![MagmaQueueFamilyProperties::new(
             MagmaQueueFlags::Graphics | MagmaQueueFlags::Compute,
@@ -171,28 +118,16 @@ impl WddmDevice {
         vendor_private_data: Box<dyn VendorPrivateData>,
     ) -> Result<WddmDevice> {
         let handle = d3dkmt::create_device(adapter.as_wddm_handle())?;
-        let mem_types = adapter.get_memory_types()?;
-        let mem_heaps = adapter.get_memory_heaps()?;
 
         Ok(WddmDevice {
             handle,
-            adapter,
+            _adapter: adapter,
             vendor_private_data,
-            mem_types,
-            mem_heaps,
         })
     }
 }
 
 impl GenericDevice for WddmDevice {
-    fn get_memory_budget(&self, heap_idx: u32) -> Result<MagmaHeapBudget> {
-        let heap = self
-            .mem_heaps
-            .get(heap_idx as usize)
-            .ok_or(Error::InvalidArgs)?;
-        d3dkmt::query_video_memory_info(self.adapter.as_wddm_handle(), heap.is_device_local())
-    }
-
     fn create_address_space(self: Arc<WddmDevice>) -> Result<Arc<dyn BackendAddressSpace>> {
         Ok(Arc::new(WddmAddressSpace::new(self)))
     }
@@ -210,7 +145,7 @@ impl GenericDevice for WddmDevice {
         self: Arc<WddmDevice>,
         create_info: &MagmaCreateBufferInfo,
     ) -> Result<Arc<dyn BackendBuffer>> {
-        let buf = WddmBuffer::new(self.clone(), create_info, &self.mem_types)?;
+        let buf = WddmBuffer::new(self.clone(), create_info)?;
         Ok(Arc::new(buf))
     }
 
@@ -219,10 +154,7 @@ impl GenericDevice for WddmDevice {
         info: MagmaImportHandleInfo,
     ) -> Result<Arc<dyn BackendBuffer>> {
         let alloc_handle = d3dkmt::open_resource_from_nt_handle(self.handle, info.handle)?;
-        let map_info = self
-            .mem_types
-            .get(info.memory_type_idx as usize)
-            .and_then(|mt| mt.get_map_info());
+        let map_info = buffer_flags_get_map_info(info.common_flags);
         let buf = WddmBuffer::from_existing(self, alloc_handle, info.size, map_info)?;
         Ok(Arc::new(buf))
     }

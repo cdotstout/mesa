@@ -15,16 +15,6 @@ type = "usize"
 value = 8
 
 [[constants]]
-name = "MAGMA_MAX_MEMORY_HEAPS"
-type = "usize"
-value = 32
-
-[[constants]]
-name = "MAGMA_MAX_MEMORY_TYPES"
-type = "usize"
-value = 16
-
-[[constants]]
 name = "MAGMA_MAX_QUEUES"
 type = "usize"
 value = 16
@@ -52,17 +42,6 @@ MemoryError = -4
 ContextKilled = -5
 TimedOut = -6
 Unimplemented = -7
-
-[[flags]]
-name = 'MagmaMemoryProperty'
-type = "u32"
-[flags.entries]
-DeviceLocalBit = 0x00000001
-HostVisibleBit = 0x00000002
-HostCoherentBit = 0x00000004
-HostCachedBit = 0x00000008
-LazilyAllocatedBit = 0x00000010
-ProtectedBit = 0x00000020
 
 [[enums]]
 name = 'VirtioGpuBlobPreference'
@@ -99,6 +78,8 @@ type = "u32"
 [flags.entries]
 External = 0x00000001
 Scanout = 0x00000002
+Cached = 0x00000004
+Protected = 0x00000008
 
 [[flags]]
 name = 'MagmaSyncCapability'
@@ -146,11 +127,3 @@ SignalSyncFd = 0x00000020
 SignalOpaqueWin32 = 0x00000030
 SignalZircon = 0x00000040
 SignalEventFd = 0x00000050
-
-[[flags]]
-name = 'MagmaHeapFlag'
-type = "u64"
-aspects = ["common"]
-[flags.entries]
-DeviceLocalBit = 0x00000001
-CpuVisibleBit = 0x00000010

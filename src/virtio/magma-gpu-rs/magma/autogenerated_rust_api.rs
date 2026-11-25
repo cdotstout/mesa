@@ -8,30 +8,6 @@
 
 use crate::protocol::*;
 
-impl MagmaHeap {
-    pub fn new(heap_size: u64, heap_flags: u64) -> MagmaHeap {
-        MagmaHeap {
-            heap_size,
-            heap_flags,
-        }
-    }
-}
-
-impl MagmaHeapBudget {
-    pub fn new(budget: u64, usage: u64) -> MagmaHeapBudget {
-        MagmaHeapBudget { budget, usage }
-    }
-}
-
-impl MagmaMemoryType {
-    pub fn new(property_flags: u32, heap_idx: u32) -> MagmaMemoryType {
-        MagmaMemoryType {
-            property_flags,
-            heap_idx,
-        }
-    }
-}
-
 impl MagmaPciBusInfo {
     pub fn new(
         domain: u16,
@@ -77,7 +53,6 @@ impl MagmaQueueFamilyProperties {
 
 impl MagmaCreateBufferInfo {
     pub fn new(
-        memory_type_idx: u32,
         alignment: u32,
         common_flags: u32,
         vendor_flags: u32,
@@ -89,11 +64,11 @@ impl MagmaCreateBufferInfo {
                 size: std::mem::size_of::<MagmaCreateBufferInfo>() as u32,
                 p_next: 0,
             },
-            memory_type_idx,
             alignment,
             common_flags,
             vendor_flags,
             size,
+            ..Default::default()
         }
     }
 }
@@ -317,27 +292,6 @@ impl MagmaSyncProperties {
     }
 }
 
-impl MagmaMemoryProperties {
-    pub fn new(
-        memory_type_count: u32,
-        memory_heap_count: u32,
-        memory_types: [MagmaMemoryType; MAGMA_MAX_MEMORY_TYPES],
-        memory_heaps: [MagmaHeap; MAGMA_MAX_MEMORY_HEAPS],
-    ) -> MagmaMemoryProperties {
-        MagmaMemoryProperties {
-            header: MagmaStructureTypeHeader {
-                stype: MagmaStructureType::MemoryProperties as u32,
-                size: std::mem::size_of::<MagmaMemoryProperties>() as u32,
-                p_next: 0,
-            },
-            memory_type_count,
-            memory_heap_count,
-            memory_types,
-            memory_heaps,
-        }
-    }
-}
-
 impl MagmaVirtCapabilities {
     pub fn new(
         capset_version: u32,
@@ -409,22 +363,6 @@ impl MagmaPhysicalDeviceInfo {
     pub fn timestamp_properties_mut(&mut self) -> Option<&mut MagmaTimestampProperties> {
         unsafe { self.get_extension_mut::<MagmaTimestampProperties>() }
     }
-
-    pub fn memory_type(&self) -> Option<&MagmaPhysicalDeviceMemoryType> {
-        self.get_extension::<MagmaPhysicalDeviceMemoryType>()
-    }
-
-    pub fn memory_type_mut(&mut self) -> Option<&mut MagmaPhysicalDeviceMemoryType> {
-        unsafe { self.get_extension_mut::<MagmaPhysicalDeviceMemoryType>() }
-    }
-
-    pub fn memory_heap(&self) -> Option<&MagmaPhysicalDeviceMemoryHeap> {
-        self.get_extension::<MagmaPhysicalDeviceMemoryHeap>()
-    }
-
-    pub fn memory_heap_mut(&mut self) -> Option<&mut MagmaPhysicalDeviceMemoryHeap> {
-        unsafe { self.get_extension_mut::<MagmaPhysicalDeviceMemoryHeap>() }
-    }
 }
 
 impl MagmaAddressSpaceProperties {
@@ -451,34 +389,6 @@ impl MagmaTimestampProperties {
                 p_next: 0,
             },
             timestamp_frequency,
-        }
-    }
-}
-
-impl MagmaPhysicalDeviceMemoryType {
-    pub fn new(property_flags: u32, heap_idx: u32) -> MagmaPhysicalDeviceMemoryType {
-        MagmaPhysicalDeviceMemoryType {
-            header: MagmaStructureTypeHeader {
-                stype: MagmaStructureType::PhysicalDeviceMemoryType as u32,
-                size: std::mem::size_of::<MagmaPhysicalDeviceMemoryType>() as u32,
-                p_next: 0,
-            },
-            property_flags,
-            heap_idx,
-        }
-    }
-}
-
-impl MagmaPhysicalDeviceMemoryHeap {
-    pub fn new(heap_size: u64, heap_flags: u64) -> MagmaPhysicalDeviceMemoryHeap {
-        MagmaPhysicalDeviceMemoryHeap {
-            header: MagmaStructureTypeHeader {
-                stype: MagmaStructureType::PhysicalDeviceMemoryHeap as u32,
-                size: std::mem::size_of::<MagmaPhysicalDeviceMemoryHeap>() as u32,
-                p_next: 0,
-            },
-            heap_size,
-            heap_flags,
         }
     }
 }

@@ -10,6 +10,7 @@ use std::sync::Mutex;
 use magma_gpu::util::MappedRegion;
 use zerocopy::IntoBytes;
 
+use crate::defines::buffer_flags_get_map_info;
 use crate::defines::MagmaCreateBufferInfo;
 use crate::defines::MagmaCreateQueueInfo;
 use crate::defines::MagmaImportHandleInfo;
@@ -22,7 +23,6 @@ use crate::protocol::DeviceCreateQueue;
 use crate::protocol::DeviceCreateSemaphore;
 use crate::protocol::MagmaCommandHeader;
 use crate::protocol::MagmaCreateSemaphoreInfo;
-use crate::protocol::MagmaHeapBudget;
 use crate::protocol::MagmaSemaphoreType;
 use crate::protocol::MagmaVirtCapabilities;
 use crate::protocol::PhysicalDeviceCreateDevice;
@@ -143,17 +143,6 @@ impl<T: VirtioGpuTransport> PlatformDevice for VirtioGpu<T> {}
 impl<T: VirtioGpuTransport> BackendDevice for VirtioGpu<T> {}
 
 impl<T: VirtioGpuTransport> GenericDevice for VirtioGpu<T> {
-    fn get_memory_budget(&self, heap_idx: u32) -> Result<MagmaHeapBudget> {
-        if let Some(heap) = self.transport.device().memory_heaps.get(heap_idx as usize) {
-            Ok(MagmaHeapBudget {
-                budget: heap.heap_size,
-                usage: 0,
-            })
-        } else {
-            Err(Error::InvalidArgs)
-        }
-    }
-
     fn create_address_space(self: Arc<VirtioGpu<T>>) -> Result<Arc<dyn BackendAddressSpace>> {
         let object_id = self.transport.next_object_id();
         let req = DeviceCreateAddressSpace {
@@ -215,12 +204,7 @@ impl<T: VirtioGpuTransport> GenericDevice for VirtioGpu<T> {
         create_info: &MagmaCreateBufferInfo,
     ) -> Result<Arc<dyn BackendBuffer>> {
         let object_id = self.transport.next_object_id();
-        let map_info = self
-            .transport
-            .device()
-            .memory_types
-            .get(create_info.memory_type_idx as usize)
-            .and_then(|mt| mt.get_map_info());
+        let map_info = create_info.get_map_info();
 
         let cmd = DeviceCreateBuffer {
             header: MagmaCommandHeader {
@@ -266,12 +250,7 @@ impl<T: VirtioGpuTransport> GenericDevice for VirtioGpu<T> {
             imported_size
         };
         let object_id = self.transport.next_object_id();
-        let map_info = self
-            .transport
-            .device()
-            .memory_types
-            .get(info.memory_type_idx as usize)
-            .and_then(|mt| mt.get_map_info());
+        let map_info = buffer_flags_get_map_info(info.common_flags);
 
         let req = VirtioImportBuffer {
             header: MagmaCommandHeader {
@@ -281,7 +260,7 @@ impl<T: VirtioGpuTransport> GenericDevice for VirtioGpu<T> {
             res_handle,
             buffer_out: object_id,
             size: size as u64,
-            memory_type_idx: info.memory_type_idx,
+            common_flags: info.common_flags,
             _padding: 0,
         };
 

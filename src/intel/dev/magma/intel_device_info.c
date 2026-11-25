@@ -69,18 +69,11 @@ intel_device_info_magma_get_info(magma_physical_device_t pdev,
          .p_next = &ts_props,
       },
    };
-   struct magma_memory_properties props = {
-      .header = {
-         .s_type = MAGMA_STRUCTURE_TYPE_MEMORY_PROPERTIES,
-         .size = sizeof(props),
-         .p_next = &as_props,
-      },
-   };
    struct magma_physical_device_info info = {
       .header = {
          .s_type = MAGMA_STRUCTURE_TYPE_PHYSICAL_DEVICE_INFO,
          .size = sizeof(info),
-         .p_next = &props,
+         .p_next = &as_props,
       },
    };
 
@@ -217,26 +210,7 @@ intel_device_info_magma_get_info(magma_physical_device_t pdev,
    if (intel_info.config_flags & MAGMA_INTEL_CONFIG_FLAG_HAS_PURGING_SUPPORT)
       devinfo->has_madvise_purgeable = true;
 
-   if (props.memory_heap_count > 0) {
-      for (uint32_t i = 0; i < props.memory_heap_count; i++) {
-         const struct magma_heap *heap = &props.memory_heaps[i];
-         if (heap->heap_flags & MAGMA_HEAP_FLAG_DEVICE_LOCAL_BIT) {
-            devinfo->has_local_mem = true;
-            if (heap->heap_flags & MAGMA_HEAP_FLAG_CPU_VISIBLE_BIT) {
-               devinfo->mem.vram.mappable.size = heap->heap_size;
-               devinfo->mem.vram.mappable.free = heap->heap_size;
-            } else {
-               devinfo->mem.vram.unmappable.size = heap->heap_size;
-               devinfo->mem.vram.unmappable.free = heap->heap_size;
-            }
-         } else {
-            devinfo->mem.sram.mappable.size = heap->heap_size;
-            devinfo->mem.sram.mappable.free = heap->heap_size;
-         }
-      }
-   } else {
-      intel_device_info_compute_system_memory(devinfo, false);
-   }
+   intel_device_info_compute_system_memory(devinfo, false);
 
    if (as_props.va_size > 0)
       devinfo->gtt_size = as_props.va_size;

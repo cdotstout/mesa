@@ -12,7 +12,6 @@ use std::sync::Arc;
 use windows_sys::Wdk::Graphics::Direct3D::D3DKMT_SEGMENTGROUPSIZEINFO;
 
 use crate::defines::MagmaCreateBufferInfo;
-use crate::defines::MagmaMemoryType;
 use crate::device::PhysicalDevice;
 use crate::error::Result;
 use crate::sys::windows::wddm::d3dkmt::D3dkmtHandle;
@@ -23,11 +22,7 @@ pub trait VendorPrivateData: Send + Sync {
         Vec::new()
     }
 
-    fn allocationinfo2_pdata(
-        &self,
-        _create_info: &MagmaCreateBufferInfo,
-        _mem_types: &[MagmaMemoryType],
-    ) -> Vec<u32> {
+    fn allocationinfo2_pdata(&self, _create_info: &MagmaCreateBufferInfo) -> Vec<u32> {
         Vec::new()
     }
 }

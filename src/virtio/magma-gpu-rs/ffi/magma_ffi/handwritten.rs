@@ -68,7 +68,6 @@ use magma_gpu_magma::Device;
 use magma_gpu_magma::MagmaAddressSpaceProperties;
 use magma_gpu_magma::MagmaHandle;
 use magma_gpu_magma::MagmaImportHandleInfo;
-use magma_gpu_magma::MagmaMemoryProperties;
 use magma_gpu_magma::MagmaPhysicalDeviceInfo;
 use magma_gpu_magma::MagmaStructureTypeHeader;
 use magma_gpu_magma::MagmaSyncCapability;
@@ -77,10 +76,7 @@ use magma_gpu_magma::MagmaTimestampProperties;
 use magma_gpu_magma::MagmaVendorQuery;
 use magma_gpu_magma::MagmaVendorQueryResult;
 use magma_gpu_magma::Semaphore;
-use magma_gpu_magma::MAGMA_MAX_MEMORY_HEAPS;
-use magma_gpu_magma::MAGMA_MAX_MEMORY_TYPES;
 use magma_gpu_magma::MAGMA_STRUCTURE_TYPE_ADDRESS_SPACE_PROPERTIES;
-use magma_gpu_magma::MAGMA_STRUCTURE_TYPE_MEMORY_PROPERTIES;
 use magma_gpu_magma::MAGMA_STRUCTURE_TYPE_PHYSICAL_DEVICE_INFO;
 use magma_gpu_magma::MAGMA_STRUCTURE_TYPE_SYNC_PROPERTIES;
 use magma_gpu_magma::MAGMA_STRUCTURE_TYPE_TIMESTAMP_PROPERTIES;
@@ -166,7 +162,7 @@ pub unsafe extern "C" fn magma_device_import_buffer(
         let import_info = MagmaImportHandleInfo {
             handle: gpu_handle,
             size: 0,
-            memory_type_idx: 0,
+            common_flags: 0,
         };
         let result = device.import(import_info);
         let buffer = return_on_error!(result);
@@ -197,19 +193,6 @@ pub unsafe extern "C" fn magma_physical_device_query(
                     out.header.stype = MAGMA_STRUCTURE_TYPE_PHYSICAL_DEVICE_INFO;
                     out.header.size = std::mem::size_of::<MagmaPhysicalDeviceInfo>() as u32;
                     out.header.p_next = next as u64;
-                }
-                MAGMA_STRUCTURE_TYPE_MEMORY_PROPERTIES => {
-                    let out = &mut *(curr as *mut MagmaMemoryProperties);
-                    let mem_types = return_on_error!(physical_device.get_memory_types());
-                    let mem_heaps = return_on_error!(physical_device.get_memory_heaps());
-                    let type_count = mem_types.len().min(MAGMA_MAX_MEMORY_TYPES);
-                    let heap_count = mem_heaps.len().min(MAGMA_MAX_MEMORY_HEAPS);
-                    out.memory_type_count = type_count as u32;
-                    out.memory_heap_count = heap_count as u32;
-                    out.memory_types = [Default::default(); MAGMA_MAX_MEMORY_TYPES];
-                    out.memory_types[..type_count].copy_from_slice(&mem_types[..type_count]);
-                    out.memory_heaps = [Default::default(); MAGMA_MAX_MEMORY_HEAPS];
-                    out.memory_heaps[..heap_count].copy_from_slice(&mem_heaps[..heap_count]);
                 }
                 MAGMA_STRUCTURE_TYPE_SYNC_PROPERTIES => {
                     let out = &mut *(curr as *mut MagmaSyncProperties);

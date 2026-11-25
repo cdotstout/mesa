@@ -355,31 +355,36 @@ anv_magma_physical_device_init_memory_types(struct anv_physical_device *device)
    if (!device->magma_physical_device)
       return vk_error(device, VK_ERROR_INITIALIZATION_FAILED);
 
-   struct magma_memory_properties props = {
-      .header = {
-         .s_type = MAGMA_STRUCTURE_TYPE_MEMORY_PROPERTIES,
-         .size = sizeof(props),
-         .p_next = NULL,
-      },
-   };
-   magma_status_t status = magma_physical_device_query(device->magma_physical_device, &props);
-   if (status != MAGMA_STATUS_SUCCESS)
-      return vk_error(device, VK_ERROR_INITIALIZATION_FAILED);
-
-   device->memory.heap_count = props.memory_heap_count;
-   for (uint32_t i = 0; i < props.memory_heap_count; i++) {
-      device->memory.heaps[i] = (struct anv_memory_heap) {
-         .size = props.memory_heaps[i].heap_size,
-         .flags = props.memory_heaps[i].heap_flags,
-         .is_local_mem = (props.memory_heaps[i].heap_flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT) != 0,
+   device->memory.type_count = 0;
+   if (device->info.has_llc) {
+      device->memory.types[device->memory.type_count++] = (struct anv_memory_type) {
+         .propertyFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+         .heapIndex = 0,
       };
-   }
-
-   device->memory.type_count = props.memory_type_count;
-   for (uint32_t i = 0; i < props.memory_type_count; i++) {
-      device->memory.types[i] = (struct anv_memory_type) {
-         .propertyFlags = props.memory_types[i].property_flags,
-         .heapIndex = props.memory_types[i].heap_idx,
+      device->memory.types[device->memory.type_count++] = (struct anv_memory_type) {
+         .propertyFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT |
+                          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                          VK_MEMORY_PROPERTY_HOST_COHERENT_BIT |
+                          VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
+         .heapIndex = 0,
+      };
+   } else {
+      device->memory.types[device->memory.type_count++] = (struct anv_memory_type) {
+         .propertyFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+         .heapIndex = 0,
+      };
+      device->memory.types[device->memory.type_count++] = (struct anv_memory_type) {
+         .propertyFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT |
+                          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                          VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+         .heapIndex = 0,
+      };
+      device->memory.types[device->memory.type_count++] = (struct anv_memory_type) {
+         .propertyFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT |
+                          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                          VK_MEMORY_PROPERTY_HOST_COHERENT_BIT |
+                          VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
+         .heapIndex = 0,
       };
    }
 
@@ -1415,7 +1420,6 @@ static void
 anv_magma_init_create_buffer_info(struct magma_create_buffer_info *info,
                                   struct anv_device *device,
                                   uint64_t aligned_size,
-                                  uint32_t memory_type_idx,
                                   uint32_t common_flags)
 {
    memset(info, 0, sizeof(*info));
@@ -1423,56 +1427,10 @@ anv_magma_init_create_buffer_info(struct magma_create_buffer_info *info,
       .s_type = MAGMA_STRUCTURE_TYPE_CREATE_BUFFER_INFO,
       .size = sizeof(*info),
    };
-   info->memory_type_idx = memory_type_idx;
    info->alignment = device->info->mem_alignment;
    info->common_flags = common_flags;
    info->vendor_flags = 0;
    info->size = aligned_size;
-}
-
-static uint32_t
-anv_magma_choose_memory_type(struct anv_device *device,
-                             enum anv_bo_alloc_flags alloc_flags)
-{
-   const struct anv_physical_device *pdev = device->physical;
-   if (pdev->memory.type_count == 0)
-      return 0;
-
-   VkMemoryPropertyFlags req = 0;
-   if (alloc_flags & ANV_BO_ALLOC_PROTECTED)
-      req |= VK_MEMORY_PROPERTY_PROTECTED_BIT;
-
-   if (alloc_flags & (ANV_BO_ALLOC_MAPPED | ANV_BO_ALLOC_LOCAL_MEM_CPU_VISIBLE))
-      req |= VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
-
-   if ((alloc_flags & ANV_BO_ALLOC_HOST_CACHED_COHERENT) == ANV_BO_ALLOC_HOST_CACHED_COHERENT)
-      req |= VK_MEMORY_PROPERTY_HOST_CACHED_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-   else if (alloc_flags & ANV_BO_ALLOC_HOST_COHERENT)
-      req |= VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-
-   bool avoid_local_mem = (alloc_flags & ANV_BO_ALLOC_NO_LOCAL_MEM) != 0;
-
-   /* Try to find match respecting avoid_local_mem */
-   for (uint32_t i = 0; i < pdev->memory.type_count; i++) {
-      VkMemoryPropertyFlags flags = pdev->memory.types[i].propertyFlags;
-      if ((flags & req) != req)
-         continue;
-
-      bool is_local = (flags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) != 0;
-      if (avoid_local_mem && is_local)
-         continue;
-
-      return i;
-   }
-
-   /* Fallback: match required properties regardless of local_mem */
-   for (uint32_t i = 0; i < pdev->memory.type_count; i++) {
-      VkMemoryPropertyFlags flags = pdev->memory.types[i].propertyFlags;
-      if ((flags & req) == req)
-         return i;
-   }
-
-   return 0;
 }
 
 static uint32_t
@@ -1489,11 +1447,13 @@ magma_gem_create(struct anv_device *device,
       common_flags |= MAGMA_BUFFER_FLAG_EXTERNAL;
    if (alloc_flags & ANV_BO_ALLOC_SCANOUT)
       common_flags |= MAGMA_BUFFER_FLAG_SCANOUT;
-
-   uint32_t memory_type_idx = anv_magma_choose_memory_type(device, alloc_flags);
+   if ((alloc_flags & ANV_BO_ALLOC_HOST_CACHED_COHERENT) == ANV_BO_ALLOC_HOST_CACHED_COHERENT)
+      common_flags |= MAGMA_BUFFER_FLAG_CACHED;
+   if (alloc_flags & ANV_BO_ALLOC_PROTECTED)
+      common_flags |= MAGMA_BUFFER_FLAG_PROTECTED;
 
    struct magma_create_buffer_info info;
-   anv_magma_init_create_buffer_info(&info, device, aligned_size, memory_type_idx, common_flags);
+   anv_magma_init_create_buffer_info(&info, device, aligned_size, common_flags);
 
    magma_buffer_t magma_buf = NULL;
    if (device->magma && device->magma->device) {

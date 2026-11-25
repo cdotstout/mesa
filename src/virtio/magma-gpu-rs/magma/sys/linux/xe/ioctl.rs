@@ -8,14 +8,6 @@ use std::os::fd::BorrowedFd;
 use zerocopy::FromZeros;
 use zerocopy::KnownLayout;
 
-use crate::defines::MagmaHeap;
-use crate::defines::MagmaMemoryType;
-use crate::defines::MAGMA_HEAP_CPU_VISIBLE_BIT;
-use crate::defines::MAGMA_HEAP_DEVICE_LOCAL_BIT;
-use crate::defines::MAGMA_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-use crate::defines::MAGMA_MEMORY_PROPERTY_HOST_CACHED_BIT;
-use crate::defines::MAGMA_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-use crate::defines::MAGMA_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
 use crate::error::Error;
 use crate::error::Result;
 use crate::ioctl_readwrite;
@@ -340,54 +332,6 @@ pub fn xe_query_memory_regions(fd: BorrowedFd<'_>) -> Result<XeMemoryInfo> {
     }
 
     Ok(memory_info)
-}
-
-pub fn xe_query_memory(fd: BorrowedFd<'_>) -> Result<(Vec<MagmaMemoryType>, Vec<MagmaHeap>)> {
-    let mut heaps = Vec::new();
-    let mut types = Vec::new();
-    let memory_info = xe_query_memory_regions(fd)?;
-    let mut heap_idx = 0u32;
-    if memory_info.sysmem_size != 0 {
-        heaps.push(MagmaHeap {
-            heap_size: memory_info.sysmem_size,
-            heap_flags: MAGMA_HEAP_CPU_VISIBLE_BIT,
-        });
-        types.push(MagmaMemoryType {
-            property_flags: MAGMA_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-                | MAGMA_MEMORY_PROPERTY_HOST_COHERENT_BIT
-                | MAGMA_MEMORY_PROPERTY_HOST_CACHED_BIT
-                | MAGMA_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
-            heap_idx,
-        });
-        heap_idx += 1;
-    }
-
-    if memory_info.vram_cpu_visible_size != 0 {
-        heaps.push(MagmaHeap {
-            heap_size: memory_info.vram_cpu_visible_size,
-            heap_flags: MAGMA_HEAP_CPU_VISIBLE_BIT | MAGMA_HEAP_DEVICE_LOCAL_BIT,
-        });
-        types.push(MagmaMemoryType {
-            property_flags: MAGMA_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-                | MAGMA_MEMORY_PROPERTY_HOST_COHERENT_BIT
-                | MAGMA_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
-            heap_idx,
-        });
-        heap_idx += 1;
-    }
-
-    if memory_info.vram_size != 0 {
-        heaps.push(MagmaHeap {
-            heap_size: memory_info.vram_size,
-            heap_flags: MAGMA_HEAP_DEVICE_LOCAL_BIT,
-        });
-        types.push(MagmaMemoryType {
-            property_flags: MAGMA_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-            heap_idx,
-        });
-    }
-
-    Ok((types, heaps))
 }
 
 pub fn xe_gem_create(

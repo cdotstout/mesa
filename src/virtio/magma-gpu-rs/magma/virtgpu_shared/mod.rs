@@ -30,8 +30,6 @@ use magma_gpu::virtgpu_kumquat::defines::VIRTGPU_KUMQUAT_PARAM_SUPPORTED_CAPSET_
 
 use crate::decoder::decode_extensible_struct;
 use crate::defines::MagmaAddressSpaceProperties;
-use crate::defines::MagmaHeap;
-use crate::defines::MagmaMemoryType;
 use crate::defines::MagmaPhysicalDeviceInfo;
 use crate::defines::MagmaQueueFamilyProperties;
 use crate::defines::MagmaTimestampProperties;
@@ -71,8 +69,6 @@ pub struct DecodedCapabilities {
 #[derive(Default, Clone, Debug)]
 pub struct DecodedPhysicalDevice {
     pub info: MagmaPhysicalDeviceInfo,
-    pub memory_types: Vec<MagmaMemoryType>,
-    pub memory_heaps: Vec<MagmaHeap>,
     pub address_space_properties: Option<MagmaAddressSpaceProperties>,
     pub timestamp_properties: Option<MagmaTimestampProperties>,
 }
@@ -181,22 +177,6 @@ pub fn decode_capabilities(buf: &[u8]) -> Result<DecodedCapabilities> {
                     ..Default::default()
                 });
             }
-            MagmaExtensibleStruct::PhysicalDeviceMemoryType(mt) => {
-                if let Some(ref mut dev) = current_device {
-                    dev.memory_types.push(MagmaMemoryType {
-                        property_flags: mt.property_flags,
-                        heap_idx: mt.heap_idx,
-                    });
-                }
-            }
-            MagmaExtensibleStruct::PhysicalDeviceMemoryHeap(mh) => {
-                if let Some(ref mut dev) = current_device {
-                    dev.memory_heaps.push(MagmaHeap {
-                        heap_size: mh.heap_size,
-                        heap_flags: mh.heap_flags,
-                    });
-                }
-            }
             MagmaExtensibleStruct::AddressSpaceProperties(asp) => {
                 if let Some(ref mut dev) = current_device {
                     dev.address_space_properties = Some(asp);
@@ -234,14 +214,6 @@ impl<T: VirtioGpuTransport> GenericPhysicalDevice for T {
     fn get_device_info(&self, info: &mut MagmaPhysicalDeviceInfo) -> Result<()> {
         *info = self.device().info;
         Ok(())
-    }
-
-    fn get_memory_types(&self) -> Result<Vec<MagmaMemoryType>> {
-        Ok(self.device().memory_types.clone())
-    }
-
-    fn get_memory_heaps(&self) -> Result<Vec<MagmaHeap>> {
-        Ok(self.device().memory_heaps.clone())
     }
 
     fn get_queue_family_properties(&self) -> Result<Vec<MagmaQueueFamilyProperties>> {

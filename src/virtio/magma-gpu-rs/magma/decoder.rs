@@ -112,9 +112,6 @@ pub fn decode(reader: &mut Reader) -> Option<MagmaProtocol> {
         MAGMA_OPCODE_PHYSICAL_DEVICE_CREATE_DEVICE => Some(
             MagmaProtocol::PhysicalDeviceCreateDevice(reader.read_try_obj().ok()?),
         ),
-        MAGMA_OPCODE_DEVICE_GET_MEMORY_BUDGET => Some(MagmaProtocol::DeviceGetMemoryBudget(
-            reader.read_try_obj().ok()?,
-        )),
         MAGMA_OPCODE_DEVICE_CREATE_BUFFER => Some(MagmaProtocol::DeviceCreateBuffer(
             reader.read_try_obj().ok()?,
         )),
@@ -180,9 +177,6 @@ pub fn decode(reader: &mut Reader) -> Option<MagmaProtocol> {
 
         MAGMA_OPCODE_RESP_PHYSICAL_DEVICE_CREATE_DEVICE => Some(
             MagmaProtocol::PhysicalDeviceCreateDeviceResp(reader.read_try_obj().ok()?),
-        ),
-        MAGMA_OPCODE_RESP_DEVICE_GET_MEMORY_BUDGET => Some(
-            MagmaProtocol::DeviceGetMemoryBudgetResp(reader.read_try_obj().ok()?),
         ),
         MAGMA_OPCODE_RESP_DEVICE_CREATE_BUFFER => Some(MagmaProtocol::DeviceCreateBufferResp(
             reader.read_try_obj().ok()?,
@@ -258,9 +252,6 @@ pub fn decode_extensible_struct(reader: &mut Reader) -> Option<MagmaExtensibleSt
         MAGMA_STRUCTURE_TYPE_SYNC_PROPERTIES => Some(MagmaExtensibleStruct::SyncProperties(
             reader.read_try_obj().ok()?,
         )),
-        MAGMA_STRUCTURE_TYPE_MEMORY_PROPERTIES => Some(MagmaExtensibleStruct::MemoryProperties(
-            reader.read_try_obj().ok()?,
-        )),
         MAGMA_STRUCTURE_TYPE_VIRT_CAPABILITIES => Some(MagmaExtensibleStruct::VirtCapabilities(
             reader.read_try_obj().ok()?,
         )),
@@ -272,12 +263,6 @@ pub fn decode_extensible_struct(reader: &mut Reader) -> Option<MagmaExtensibleSt
         ),
         MAGMA_STRUCTURE_TYPE_TIMESTAMP_PROPERTIES => Some(
             MagmaExtensibleStruct::TimestampProperties(reader.read_try_obj().ok()?),
-        ),
-        MAGMA_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_TYPE => Some(
-            MagmaExtensibleStruct::PhysicalDeviceMemoryType(reader.read_try_obj().ok()?),
-        ),
-        MAGMA_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_HEAP => Some(
-            MagmaExtensibleStruct::PhysicalDeviceMemoryHeap(reader.read_try_obj().ok()?),
         ),
         MAGMA_STRUCTURE_TYPE_VIRTIO_SEQNO_INFO => Some(MagmaExtensibleStruct::VirtioSeqnoInfo(
             reader.read_try_obj().ok()?,

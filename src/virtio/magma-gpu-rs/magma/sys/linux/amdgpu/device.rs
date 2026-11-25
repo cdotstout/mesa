@@ -7,34 +7,21 @@ use std::sync::Arc;
 use magma_gpu::util::OwnedDescriptor;
 use zerocopy::IntoBytes;
 
+use crate::defines::buffer_flags_get_map_info;
 use crate::defines::MagmaAddressSpaceProperties;
 use crate::defines::MagmaCreateBufferInfo;
 use crate::defines::MagmaCreateQueueInfo;
 use crate::defines::MagmaCreateSemaphoreInfo;
-use crate::defines::MagmaHeap;
-use crate::defines::MagmaHeapBudget;
 use crate::defines::MagmaImportHandleInfo;
-use crate::defines::MagmaMemoryType;
 use crate::defines::MagmaPhysicalDeviceInfo;
 use crate::defines::MagmaQueueFamilyProperties;
 use crate::defines::MagmaQueueFlags;
 use crate::defines::MagmaSyncType;
 use crate::defines::MagmaTimestampProperties;
-use crate::defines::MAGMA_HEAP_CPU_VISIBLE_BIT;
-use crate::defines::MAGMA_HEAP_DEVICE_LOCAL_BIT;
-use crate::defines::MAGMA_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-use crate::defines::MAGMA_MEMORY_PROPERTY_HOST_CACHED_BIT;
-use crate::defines::MAGMA_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-use crate::defines::MAGMA_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
 use crate::error::Error;
 use crate::error::Result;
 use crate::sys::linux::amdgpu::ioctl::amdgpu_info_dev;
-use crate::sys::linux::amdgpu::ioctl::amdgpu_info_gtt_usage;
 use crate::sys::linux::amdgpu::ioctl::amdgpu_info_hw_ip;
-use crate::sys::linux::amdgpu::ioctl::amdgpu_info_memory;
-use crate::sys::linux::amdgpu::ioctl::amdgpu_info_vis_vram_usage;
-use crate::sys::linux::amdgpu::ioctl::amdgpu_info_vram_gtt;
-use crate::sys::linux::amdgpu::ioctl::amdgpu_info_vram_usage;
 use crate::sys::linux::amdgpu::memory::AmdGpuAddressSpace;
 use crate::sys::linux::amdgpu::memory::AmdGpuBuffer;
 use crate::sys::linux::amdgpu::queue::AmdGpuQueue;
@@ -65,8 +52,6 @@ pub struct AmdGpuPhysicalDevice {
 
 pub struct AmdGpu {
     physical_device: Arc<dyn BackendPhysicalDevice>,
-    mem_types: Vec<MagmaMemoryType>,
-    mem_heaps: Vec<MagmaHeap>,
 }
 
 impl AmdGpuPhysicalDevice {
@@ -74,60 +59,6 @@ impl AmdGpuPhysicalDevice {
         AmdGpuPhysicalDevice {
             descriptor: LinuxDescriptor::new(descriptor),
         }
-    }
-
-    fn query_memory(&self) -> Result<(Vec<MagmaMemoryType>, Vec<MagmaHeap>)> {
-        let memory_info = amdgpu_info_memory(self.descriptor.as_fd())?;
-
-        let mut heaps = Vec::new();
-        let mut types = Vec::new();
-        let mut heap_idx = 0u32;
-
-        if memory_info.gtt.total_heap_size > 0 {
-            heaps.push(MagmaHeap {
-                heap_size: memory_info.gtt.total_heap_size,
-                heap_flags: MAGMA_HEAP_CPU_VISIBLE_BIT,
-            });
-            types.push(MagmaMemoryType {
-                property_flags: MAGMA_MEMORY_PROPERTY_HOST_COHERENT_BIT
-                    | MAGMA_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
-                heap_idx,
-            });
-            types.push(MagmaMemoryType {
-                property_flags: MAGMA_MEMORY_PROPERTY_HOST_COHERENT_BIT
-                    | MAGMA_MEMORY_PROPERTY_HOST_VISIBLE_BIT
-                    | MAGMA_MEMORY_PROPERTY_HOST_CACHED_BIT,
-                heap_idx,
-            });
-            heap_idx += 1;
-        }
-
-        if memory_info.vram.total_heap_size > 0 {
-            heaps.push(MagmaHeap {
-                heap_size: memory_info.vram.total_heap_size,
-                heap_flags: MAGMA_HEAP_DEVICE_LOCAL_BIT,
-            });
-            types.push(MagmaMemoryType {
-                property_flags: MAGMA_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                heap_idx,
-            });
-            heap_idx += 1;
-        }
-
-        if memory_info.cpu_accessible_vram.total_heap_size > 0 {
-            heaps.push(MagmaHeap {
-                heap_size: memory_info.cpu_accessible_vram.total_heap_size,
-                heap_flags: MAGMA_HEAP_DEVICE_LOCAL_BIT | MAGMA_HEAP_CPU_VISIBLE_BIT,
-            });
-            types.push(MagmaMemoryType {
-                property_flags: MAGMA_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-                    | MAGMA_MEMORY_PROPERTY_HOST_COHERENT_BIT
-                    | MAGMA_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
-                heap_idx,
-            });
-        }
-
-        Ok((types, heaps))
     }
 }
 
@@ -146,14 +77,6 @@ impl GenericPhysicalDevice for AmdGpuPhysicalDevice {
         _info: &MagmaPhysicalDeviceInfo,
     ) -> Result<Arc<dyn BackendDevice>> {
         Ok(Arc::new(AmdGpu::new(self)?))
-    }
-
-    fn get_memory_types(&self) -> Result<Vec<MagmaMemoryType>> {
-        self.query_memory().map(|(types, _)| types)
-    }
-
-    fn get_memory_heaps(&self) -> Result<Vec<MagmaHeap>> {
-        self.query_memory().map(|(_, heaps)| heaps)
     }
 
     fn get_queue_family_properties(&self) -> Result<Vec<MagmaQueueFamilyProperties>> {
@@ -249,43 +172,11 @@ impl GenericPhysicalDevice for AmdGpuPhysicalDevice {
 
 impl AmdGpu {
     pub fn new(physical_device: Arc<dyn BackendPhysicalDevice>) -> Result<AmdGpu> {
-        let mem_types = physical_device.get_memory_types()?;
-        let mem_heaps = physical_device.get_memory_heaps()?;
-
-        Ok(AmdGpu {
-            physical_device,
-            mem_types,
-            mem_heaps,
-        })
+        Ok(AmdGpu { physical_device })
     }
 }
 
 impl GenericDevice for AmdGpu {
-    fn get_memory_budget(&self, heap_idx: u32) -> Result<MagmaHeapBudget> {
-        let heap = self
-            .mem_heaps
-            .get(heap_idx as usize)
-            .ok_or(Error::InvalidArgs)?;
-        let fd = self.physical_device.as_fd().unwrap();
-
-        let vram_gtt = amdgpu_info_vram_gtt(fd)?;
-
-        let (budget, usage) = if heap.is_device_local() && heap.is_cpu_visible() {
-            (
-                vram_gtt.vram_cpu_accessible_size,
-                amdgpu_info_vis_vram_usage(fd)?,
-            )
-        } else if heap.is_device_local() {
-            (vram_gtt.vram_size, amdgpu_info_vram_usage(fd)?)
-        } else if heap.is_cpu_visible() {
-            (vram_gtt.gtt_size, amdgpu_info_gtt_usage(fd)?)
-        } else {
-            return Err(Error::Unimplemented);
-        };
-
-        Ok(MagmaHeapBudget { budget, usage })
-    }
-
     fn create_address_space(self: Arc<AmdGpu>) -> Result<Arc<dyn BackendAddressSpace>> {
         Ok(Arc::new(AmdGpuAddressSpace {
             physical_device: self.physical_device.clone(),
@@ -309,17 +200,14 @@ impl GenericDevice for AmdGpu {
         self: Arc<AmdGpu>,
         create_info: &MagmaCreateBufferInfo,
     ) -> Result<Arc<dyn BackendBuffer>> {
-        let buf = AmdGpuBuffer::new(self.physical_device.clone(), create_info, &self.mem_types)?;
+        let buf = AmdGpuBuffer::new(self.physical_device.clone(), create_info)?;
         let buf: Arc<dyn BackendBuffer> = Arc::new(buf);
         self.physical_device.register_buffer(&buf);
         Ok(buf)
     }
 
     fn import(self: Arc<AmdGpu>, info: MagmaImportHandleInfo) -> Result<Arc<dyn BackendBuffer>> {
-        let map_info = self
-            .mem_types
-            .get(info.memory_type_idx as usize)
-            .and_then(|mt| mt.get_map_info());
+        let map_info = buffer_flags_get_map_info(info.common_flags);
         let gem_handle = self.physical_device.import(info.handle)?;
         if let Some(existing) = self.physical_device.find_buffer(gem_handle) {
             return Ok(existing);

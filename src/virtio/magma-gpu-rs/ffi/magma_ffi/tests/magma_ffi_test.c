@@ -35,7 +35,6 @@ struct test_runner {
     uint32_t num_physical_devices;
     magma_physical_device_t physical_devices[MAGMA_MAX_PHYSICAL_DEVICES];
     struct magma_physical_device_info dev_info;
-    uint32_t chosen_mem_type_idx;
 
     magma_device_t device;
     magma_address_space_t address_space;
@@ -78,17 +77,10 @@ static void test_enumerate_and_init(struct test_runner *runner) {
             .p_next = &as_props,
         },
     };
-    struct magma_memory_properties mem_props = {
-        .header = {
-            .s_type = MAGMA_STRUCTURE_TYPE_MEMORY_PROPERTIES,
-            .size = sizeof(mem_props),
-            .p_next = &sync_props,
-        },
-    };
     memset(&runner->dev_info, 0, sizeof(runner->dev_info));
     runner->dev_info.header.s_type = MAGMA_STRUCTURE_TYPE_PHYSICAL_DEVICE_INFO;
     runner->dev_info.header.size = sizeof(runner->dev_info);
-    runner->dev_info.header.p_next = &mem_props;
+    runner->dev_info.header.p_next = &sync_props;
 
     status = magma_physical_device_query(runner->physical_devices[0], &runner->dev_info);
     assert(status == MAGMA_STATUS_SUCCESS);
@@ -118,22 +110,6 @@ static void test_enumerate_and_init(struct test_runner *runner) {
                i,
                runner->dev_info.queue_families[i].queue_count,
                runner->dev_info.queue_families[i].queue_flags);
-    }
-
-    printf("  Memory heap count: %u\n", mem_props.memory_heap_count);
-    for (uint32_t i = 0; i < mem_props.memory_heap_count; i++) {
-        printf("    Heap %u: size %lu bytes (0x%lx), flags 0x%08lx\n",
-               i,
-               (unsigned long)mem_props.memory_heaps[i].heap_size,
-               (unsigned long)mem_props.memory_heaps[i].heap_size,
-               (unsigned long)mem_props.memory_heaps[i].heap_flags);
-    }
-    printf("  Memory type count: %u\n", mem_props.memory_type_count);
-    for (uint32_t i = 0; i < mem_props.memory_type_count; i++) {
-        printf("    Memory type %u: heap_idx %u, property_flags 0x%08x\n",
-               i,
-               mem_props.memory_types[i].heap_idx,
-               mem_props.memory_types[i].property_flags);
     }
 
     assert(sync_props.capabilities != 0);
@@ -182,28 +158,10 @@ static void test_enumerate_and_init(struct test_runner *runner) {
                intel_info.ip_ver_rev, (unsigned long)intel_info.geo_dss_mask);
     }
 
-    runner->chosen_mem_type_idx = 0;
-    for (uint32_t i = 0; i < mem_props.memory_type_count; i++) {
-        uint32_t flags = mem_props.memory_types[i].property_flags;
-        if ((flags & MAGMA_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) &&
-            (flags & MAGMA_MEMORY_PROPERTY_HOST_VISIBLE_BIT)) {
-            runner->chosen_mem_type_idx = i;
-            break;
-        }
-    }
-
     status = magma_physical_device_create_device(runner->physical_devices[0], &runner->device);
     assert(status == MAGMA_STATUS_SUCCESS);
     assert(runner->device != NULL);
     printf("Successfully created device\n");
-
-    // Query memory budget for heap 0
-    struct magma_heap_budget budget;
-    memset(&budget, 0, sizeof(budget));
-    status = magma_device_get_memory_budget(runner->device, 0, &budget);
-    assert(status == MAGMA_STATUS_SUCCESS);
-    printf("Heap 0 budget: %lu bytes, usage: %lu bytes\n",
-           (unsigned long)budget.budget, (unsigned long)budget.usage);
 }
 
 static void test_create_resources(struct test_runner *runner) {
@@ -226,9 +184,8 @@ static void test_create_resources(struct test_runner *runner) {
             .s_type = MAGMA_STRUCTURE_TYPE_CREATE_BUFFER_INFO,
             .size = sizeof(create_buffer_info),
         },
-        .memory_type_idx = runner->chosen_mem_type_idx,
         .alignment = 4096,
-        .common_flags = 0,
+        .common_flags = MAGMA_BUFFER_FLAG_CACHED,
         .vendor_flags = 0,
         .size = runner->buffer_size,
     };
@@ -802,7 +759,6 @@ static void test_buffer_lifecycle_loop(struct test_runner *runner) {
                 .s_type = MAGMA_STRUCTURE_TYPE_CREATE_BUFFER_INFO,
                 .size = sizeof(create_buffer_info),
             },
-            .memory_type_idx = runner->chosen_mem_type_idx,
             .alignment = 4096,
             .common_flags = MAGMA_BUFFER_FLAG_EXTERNAL | MAGMA_BUFFER_FLAG_SCANOUT,
             .vendor_flags = 0,
@@ -917,9 +873,8 @@ static void test_submit_resources_info(struct test_runner *runner) {
             .s_type = MAGMA_STRUCTURE_TYPE_CREATE_BUFFER_INFO,
             .size = sizeof(create_buffer_info),
         },
-        .memory_type_idx = runner->chosen_mem_type_idx,
         .alignment = 4096,
-        .common_flags = 0,
+        .common_flags = MAGMA_BUFFER_FLAG_CACHED,
         .vendor_flags = 0,
         .size = 4096,
     };

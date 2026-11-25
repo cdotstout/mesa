@@ -8,7 +8,6 @@ use magma_gpu::util::MappedRegion;
 
 use crate::defines::MagmaCreateBufferInfo;
 use crate::defines::MagmaMappedMemoryRange;
-use crate::defines::MagmaMemoryType;
 use crate::defines::MAGMA_BUFFER_FLAG_AMD_GDS;
 use crate::defines::MAGMA_BUFFER_FLAG_AMD_OA;
 use crate::error::Error;
@@ -97,23 +96,17 @@ impl AmdGpuBuffer {
     pub fn new(
         physical_device: Arc<dyn BackendPhysicalDevice>,
         create_info: &MagmaCreateBufferInfo,
-        mem_types: &[MagmaMemoryType],
     ) -> Result<AmdGpuBuffer> {
         let fd = physical_device.as_fd().unwrap();
-        let memory_type = mem_types
-            .get(create_info.memory_type_idx as usize)
-            .ok_or(Error::InvalidArgs)?;
 
         let mut domain_flags =
             (AMDGPU_GEM_CREATE_EXPLICIT_SYNC | AMDGPU_GEM_CREATE_DISCARDABLE) as u64;
 
-        if memory_type.is_coherent() {
+        if !create_info.is_cached() {
             domain_flags |= AMDGPU_GEM_CREATE_CPU_GTT_USWC as u64;
-        } else {
-            domain_flags |= AMDGPU_GEM_CREATE_NO_CPU_ACCESS as u64;
         }
 
-        if memory_type.is_protected() {
+        if create_info.is_protected() {
             domain_flags |= AMDGPU_GEM_CREATE_ENCRYPTED as u64;
         }
 
@@ -121,8 +114,6 @@ impl AmdGpuBuffer {
             AMDGPU_GEM_DOMAIN_OA as u64
         } else if create_info.vendor_flags & MAGMA_BUFFER_FLAG_AMD_GDS != 0 {
             AMDGPU_GEM_DOMAIN_GDS as u64
-        } else if memory_type.is_device_local() {
-            AMDGPU_GEM_DOMAIN_VRAM as u64
         } else {
             AMDGPU_GEM_DOMAIN_GTT as u64
         };
@@ -139,7 +130,7 @@ impl AmdGpuBuffer {
             physical_device,
             gem_handle,
             size: create_info.size.try_into()?,
-            map_info: memory_type.get_map_info(),
+            map_info: create_info.get_map_info(),
         })
     }
 

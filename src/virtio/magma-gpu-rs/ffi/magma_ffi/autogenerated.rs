@@ -35,13 +35,7 @@ use magma_gpu_magma::MagmaDeviceCreateInfo;
 use magma_gpu_magma::MagmaGpuMapFlags;
 use magma_gpu_magma::MagmaHandle;
 use magma_gpu_magma::MagmaHandleType;
-use magma_gpu_magma::MagmaHeap;
-use magma_gpu_magma::MagmaHeapBudget;
-use magma_gpu_magma::MagmaHeapFlag;
 use magma_gpu_magma::MagmaMapping;
-use magma_gpu_magma::MagmaMemoryProperties;
-use magma_gpu_magma::MagmaMemoryProperty;
-use magma_gpu_magma::MagmaMemoryType;
 use magma_gpu_magma::MagmaPciBusInfo;
 use magma_gpu_magma::MagmaPhysicalDeviceInfo;
 use magma_gpu_magma::MagmaQueueFamilyProperties;
@@ -92,8 +86,6 @@ macro_rules! return_on_error {
 }
 
 pub const MAGMA_MAX_PHYSICAL_DEVICES: usize = 8;
-pub const MAGMA_MAX_MEMORY_HEAPS: usize = 32;
-pub const MAGMA_MAX_MEMORY_TYPES: usize = 16;
 pub const MAGMA_MAX_QUEUES: usize = 16;
 #[allow(non_camel_case_types)]
 pub type magma_queue = Queue;
@@ -117,9 +109,6 @@ pub type magma_device = Device;
 pub type magma_semaphore_type = MagmaSemaphoreType;
 
 #[allow(non_camel_case_types)]
-pub type magma_memory_property = MagmaMemoryProperty;
-
-#[allow(non_camel_case_types)]
 pub type magma_queue_flags = MagmaQueueFlags;
 
 #[allow(non_camel_case_types)]
@@ -139,18 +128,6 @@ pub type magma_semaphore_wait_flags = MagmaSemaphoreWaitFlags;
 
 #[allow(non_camel_case_types)]
 pub type magma_handle_type = MagmaHandleType;
-
-#[allow(non_camel_case_types)]
-pub type magma_heap_flag = MagmaHeapFlag;
-
-#[allow(non_camel_case_types)]
-pub type magma_heap = MagmaHeap;
-
-#[allow(non_camel_case_types)]
-pub type magma_heap_budget = MagmaHeapBudget;
-
-#[allow(non_camel_case_types)]
-pub type magma_memory_type = MagmaMemoryType;
 
 #[allow(non_camel_case_types)]
 pub type magma_pci_bus_info = MagmaPciBusInfo;
@@ -456,9 +433,6 @@ pub type magma_create_semaphore_info = MagmaCreateSemaphoreInfo;
 pub type magma_sync_properties = MagmaSyncProperties;
 
 #[allow(non_camel_case_types)]
-pub type magma_memory_properties = MagmaMemoryProperties;
-
-#[allow(non_camel_case_types)]
 pub type magma_physical_device_info = MagmaPhysicalDeviceInfo;
 
 #[allow(non_camel_case_types)]
@@ -480,21 +454,6 @@ pub unsafe extern "C" fn magma_physical_device_create_device(
         let result = physical_device.create_device();
         let res = return_on_error!(result);
         *device = Box::into_raw(Box::new(res)) as _;
-        NO_ERROR
-    }))
-    .unwrap_or(-ESRCH)
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn magma_device_get_memory_budget(
-    device: &mut magma_device,
-    heap_idx: u32,
-    budget: &mut magma_heap_budget,
-) -> i32 {
-    catch_unwind(AssertUnwindSafe(|| {
-        debug!("call: magma_device_get_memory_budget");
-        let result = device.get_memory_budget(heap_idx);
-        *budget = return_on_error!(result);
         NO_ERROR
     }))
     .unwrap_or(-ESRCH)

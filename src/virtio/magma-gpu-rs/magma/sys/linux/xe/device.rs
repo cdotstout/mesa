@@ -7,19 +7,18 @@ use std::sync::Arc;
 use magma_gpu::util::OwnedDescriptor;
 use zerocopy::IntoBytes;
 
+use crate::defines::buffer_flags_get_map_info;
 use crate::defines::MagmaAddressSpaceProperties;
 use crate::defines::MagmaCreateBufferInfo;
 use crate::defines::MagmaCreateQueueInfo;
 use crate::defines::MagmaCreateSemaphoreInfo;
-use crate::defines::MagmaHeap;
-use crate::defines::MagmaHeapBudget;
 use crate::defines::MagmaImportHandleInfo;
-use crate::defines::MagmaMemoryType;
 use crate::defines::MagmaPhysicalDeviceInfo;
 use crate::defines::MagmaQueueFamilyProperties;
 use crate::defines::MagmaQueueFlags;
 use crate::defines::MagmaSyncType;
 use crate::defines::MagmaTimestampProperties;
+use crate::defines::MAGMA_BUFFER_FLAG_CACHED;
 use crate::error::Error;
 use crate::error::Result;
 use crate::sys::linux::drm::DrmSemaphore;
@@ -27,7 +26,6 @@ use crate::sys::linux::xe::ioctl::xe_query_config;
 use crate::sys::linux::xe::ioctl::xe_query_gt_list;
 use crate::sys::linux::xe::ioctl::xe_query_gt_topology;
 use crate::sys::linux::xe::ioctl::xe_query_hwconfig;
-use crate::sys::linux::xe::ioctl::xe_query_memory;
 use crate::sys::linux::xe::ioctl::xe_query_memory_regions;
 use crate::sys::linux::xe::memory::XeAddressSpace;
 use crate::sys::linux::xe::memory::XeBuffer;
@@ -61,10 +59,7 @@ pub struct Xe {
     ip_ver_minor: u16,
     _gtt_size: u64,
     _mem_alignment: u64,
-    mem_types: Vec<MagmaMemoryType>,
-    mem_heaps: Vec<MagmaHeap>,
     sysmem_instance: u16,
-    vram_instance: u16,
 }
 
 impl XePhysicalDevice {
@@ -90,14 +85,6 @@ impl GenericPhysicalDevice for XePhysicalDevice {
         info: &MagmaPhysicalDeviceInfo,
     ) -> Result<Arc<dyn BackendDevice>> {
         Ok(Arc::new(Xe::new(self, info)?))
-    }
-
-    fn get_memory_types(&self) -> Result<Vec<MagmaMemoryType>> {
-        xe_query_memory(self.descriptor.as_fd()).map(|(types, _)| types)
-    }
-
-    fn get_memory_heaps(&self) -> Result<Vec<MagmaHeap>> {
-        xe_query_memory(self.descriptor.as_fd()).map(|(_, heaps)| heaps)
     }
 
     fn get_queue_family_properties(&self) -> Result<Vec<MagmaQueueFamilyProperties>> {
@@ -191,7 +178,6 @@ impl Xe {
         let (_, ip_ver_major, ip_ver_minor, _) = xe_query_gt_list(fd)?;
         let (gtt_size, mem_alignment, _) = xe_query_config(fd)?;
         let memory_info = xe_query_memory_regions(fd)?;
-        let (mem_types, mem_heaps) = xe_query_memory(fd)?;
 
         Ok(Xe {
             physical_device,
@@ -199,40 +185,12 @@ impl Xe {
             ip_ver_minor,
             _gtt_size: gtt_size,
             _mem_alignment: mem_alignment,
-            mem_types,
-            mem_heaps,
             sysmem_instance: memory_info.sysmem_instance,
-            vram_instance: memory_info.vram_instance,
         })
     }
 }
 
 impl GenericDevice for Xe {
-    fn get_memory_budget(&self, heap_idx: u32) -> Result<MagmaHeapBudget> {
-        if heap_idx >= self.mem_heaps.len() as u32 {
-            return Err(Error::InvalidArgs);
-        }
-
-        let fd = self.physical_device.as_fd().unwrap();
-        let memory_info = xe_query_memory_regions(fd)?;
-        let heap = &self.mem_heaps[heap_idx as usize];
-
-        let (budget, usage) = if heap.is_device_local() && heap.is_cpu_visible() {
-            (
-                memory_info.vram_cpu_visible_size,
-                memory_info.vram_cpu_visible_used,
-            )
-        } else if heap.is_device_local() {
-            (memory_info.vram_size, memory_info.vram_used)
-        } else if heap.is_cpu_visible() {
-            (memory_info.sysmem_size, memory_info.sysmem_used)
-        } else {
-            return Err(Error::Unimplemented);
-        };
-
-        Ok(MagmaHeapBudget { budget, usage })
-    }
-
     fn create_address_space(self: Arc<Xe>) -> Result<Arc<dyn BackendAddressSpace>> {
         let addr_space = XeAddressSpace::new(self.physical_device.clone(), 0)?;
         Ok(Arc::new(addr_space))
@@ -256,10 +214,7 @@ impl GenericDevice for Xe {
             self.ip_ver_major,
             self.ip_ver_minor,
             create_info,
-            &self.mem_types,
-            &self.mem_heaps,
             self.sysmem_instance,
-            self.vram_instance,
         )?;
         let buf: Arc<dyn BackendBuffer> = Arc::new(buf);
         self.physical_device.register_buffer(&buf);
@@ -271,18 +226,14 @@ impl GenericDevice for Xe {
         if let Some(existing) = self.physical_device.find_buffer(gem_handle) {
             return Ok(existing);
         }
-        let memory_type = self
-            .mem_types
-            .get(info.memory_type_idx as usize)
-            .ok_or(Error::InvalidArgs)?;
         let buf = XeBuffer::from_existing(
             self.physical_device.clone(),
             self.ip_ver_major,
             self.ip_ver_minor,
             gem_handle,
             info.size.try_into()?,
-            memory_type.get_map_info(),
-            memory_type.is_cached(),
+            buffer_flags_get_map_info(info.common_flags),
+            (info.common_flags & MAGMA_BUFFER_FLAG_CACHED) != 0,
         )?;
         let buf: Arc<dyn BackendBuffer> = Arc::new(buf);
         self.physical_device.register_buffer(&buf);

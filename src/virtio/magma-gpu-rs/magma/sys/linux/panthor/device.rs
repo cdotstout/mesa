@@ -7,14 +7,12 @@ use std::sync::Arc;
 use magma_gpu::util::OwnedDescriptor;
 use zerocopy::IntoBytes;
 
+use crate::defines::buffer_flags_get_map_info;
 use crate::defines::MagmaAddressSpaceProperties;
 use crate::defines::MagmaCreateBufferInfo;
 use crate::defines::MagmaCreateQueueInfo;
 use crate::defines::MagmaCreateSemaphoreInfo;
-use crate::defines::MagmaHeap;
-use crate::defines::MagmaHeapBudget;
 use crate::defines::MagmaImportHandleInfo;
-use crate::defines::MagmaMemoryType;
 use crate::defines::MagmaPhysicalDeviceInfo;
 use crate::defines::MagmaQueueFamilyProperties;
 use crate::defines::MagmaQueueFlags;
@@ -56,8 +54,6 @@ pub struct PanthorPhysicalDevice {
 
 pub struct Panthor {
     physical_device: Arc<PanthorPhysicalDevice>,
-    mem_types: Vec<MagmaMemoryType>,
-    mem_heaps: Vec<MagmaHeap>,
 }
 
 #[allow(dead_code)]
@@ -104,14 +100,6 @@ impl GenericPhysicalDevice for PanthorPhysicalDevice {
         _device_info: &MagmaPhysicalDeviceInfo,
     ) -> Result<Arc<dyn BackendDevice>> {
         Ok(Arc::new(Panthor::new(self)?))
-    }
-
-    fn get_memory_types(&self) -> Result<Vec<MagmaMemoryType>> {
-        Ok(ioctl::query_memory_types(&self.gpu_info))
-    }
-
-    fn get_memory_heaps(&self) -> Result<Vec<MagmaHeap>> {
-        Ok(ioctl::query_memory_heaps())
     }
 
     fn get_queue_family_properties(&self) -> Result<Vec<MagmaQueueFamilyProperties>> {
@@ -191,13 +179,7 @@ impl GenericPhysicalDevice for PanthorPhysicalDevice {
 
 impl Panthor {
     pub fn new(physical_device: Arc<PanthorPhysicalDevice>) -> Result<Panthor> {
-        let mem_types = physical_device.get_memory_types()?;
-        let mem_heaps = physical_device.get_memory_heaps()?;
-        Ok(Panthor {
-            physical_device,
-            mem_types,
-            mem_heaps,
-        })
+        Ok(Panthor { physical_device })
     }
 }
 
@@ -205,17 +187,6 @@ impl PlatformDevice for Panthor {}
 impl BackendDevice for Panthor {}
 
 impl GenericDevice for Panthor {
-    fn get_memory_budget(&self, heap_idx: u32) -> Result<MagmaHeapBudget> {
-        if let Some(heap) = self.mem_heaps.get(heap_idx as usize) {
-            Ok(MagmaHeapBudget {
-                budget: heap.heap_size,
-                usage: 0,
-            })
-        } else {
-            Err(Error::InvalidArgs)
-        }
-    }
-
     fn create_address_space(self: Arc<Panthor>) -> Result<Arc<dyn BackendAddressSpace>> {
         Ok(Arc::new(PanthorAddressSpace::new(
             self.physical_device.clone(),
@@ -239,7 +210,7 @@ impl GenericDevice for Panthor {
         self: Arc<Panthor>,
         create_info: &MagmaCreateBufferInfo,
     ) -> Result<Arc<dyn BackendBuffer>> {
-        let buf = PanthorBuffer::new(self.physical_device.clone(), create_info, &self.mem_types)?;
+        let buf = PanthorBuffer::new(self.physical_device.clone(), create_info)?;
         let buf: Arc<dyn BackendBuffer> = Arc::new(buf);
         self.physical_device.register_buffer(&buf);
         Ok(buf)
@@ -250,15 +221,11 @@ impl GenericDevice for Panthor {
         if let Some(existing) = self.physical_device.find_buffer(gem_handle) {
             return Ok(existing);
         }
-        let mem_type = self
-            .mem_types
-            .get(info.memory_type_idx as usize)
-            .ok_or(Error::InvalidArgs)?;
         let buf = PanthorBuffer::from_existing(
             self.physical_device.clone(),
             gem_handle,
             info.size.try_into()?,
-            mem_type.get_map_info(),
+            buffer_flags_get_map_info(info.common_flags),
         )?;
         let buf: Arc<dyn BackendBuffer> = Arc::new(buf);
         self.physical_device.register_buffer(&buf);

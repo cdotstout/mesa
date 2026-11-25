@@ -11,15 +11,11 @@ use magma_gpu::util::MAGMA_MAP_ACCESS_RW;
 use magma_gpu::util::MAGMA_MAP_CACHE_WC;
 
 use crate::defines::MagmaCreateBufferInfo;
-use crate::defines::MagmaHeap;
 use crate::defines::MagmaMappedMemoryRange;
-use crate::defines::MagmaMemoryType;
-use crate::defines::MAGMA_BUFFER_FLAG_SCANOUT;
 use crate::error::Error;
 use crate::error::Result;
 use crate::sys::linux::bindings::xe_bindings::DRM_XE_GEM_CPU_CACHING_WB;
 use crate::sys::linux::bindings::xe_bindings::DRM_XE_GEM_CPU_CACHING_WC;
-use crate::sys::linux::bindings::xe_bindings::DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM;
 use crate::sys::linux::bindings::xe_bindings::DRM_XE_GEM_CREATE_FLAG_SCANOUT;
 use crate::sys::linux::bindings::xe_bindings::DRM_XE_VM_CREATE_FLAG_SCRATCH_PAGE;
 use crate::sys::linux::xe::ioctl::determine_pat_index;
@@ -82,47 +78,27 @@ impl XeBuffer {
         ip_ver_major: u16,
         ip_ver_minor: u16,
         create_info: &MagmaCreateBufferInfo,
-        mem_types: &[MagmaMemoryType],
-        mem_heaps: &[MagmaHeap],
         sysmem_instance: u16,
-        vram_instance: u16,
     ) -> Result<XeBuffer> {
         let fd = physical_device.as_fd().unwrap();
-        let memory_type = mem_types
-            .get(create_info.memory_type_idx as usize)
-            .ok_or(Error::InvalidArgs)?;
-        let memory_heap = mem_heaps
-            .get(memory_type.heap_idx as usize)
-            .ok_or(Error::InvalidArgs)?;
 
         let mut flags = 0;
-        let is_scanout = (create_info.common_flags & MAGMA_BUFFER_FLAG_SCANOUT) != 0;
-        let is_cached = memory_type.is_cached();
+        let is_scanout = create_info.is_scanout();
+        let is_cached = create_info.is_cached();
         let pat_index = determine_pat_index(ip_ver_major, ip_ver_minor, is_cached, is_scanout);
         let (cpu_caching, map_info) = if is_scanout {
             flags |= DRM_XE_GEM_CREATE_FLAG_SCANOUT;
-            let map_info = if memory_type.is_host_visible() {
-                Some(MAGMA_MAP_CACHE_WC | MAGMA_MAP_ACCESS_RW)
-            } else {
-                None
-            };
-            (DRM_XE_GEM_CPU_CACHING_WC as u16, map_info)
+            (
+                DRM_XE_GEM_CPU_CACHING_WC as u16,
+                Some(MAGMA_MAP_CACHE_WC | MAGMA_MAP_ACCESS_RW),
+            )
         } else if is_cached {
-            (DRM_XE_GEM_CPU_CACHING_WB as u16, memory_type.get_map_info())
+            (DRM_XE_GEM_CPU_CACHING_WB as u16, create_info.get_map_info())
         } else {
-            (DRM_XE_GEM_CPU_CACHING_WC as u16, memory_type.get_map_info())
+            (DRM_XE_GEM_CPU_CACHING_WC as u16, create_info.get_map_info())
         };
 
-        let mut placement = 0;
-        if memory_heap.is_cpu_visible() && memory_heap.is_device_local() {
-            flags |= DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM;
-            placement |= 1 << sysmem_instance;
-            placement |= 1 << vram_instance;
-        } else if memory_heap.is_device_local() {
-            placement |= 1 << vram_instance;
-        } else if memory_heap.is_cpu_visible() {
-            placement |= 1 << sysmem_instance;
-        }
+        let placement = 1u32 << sysmem_instance;
 
         let gem_handle = xe_gem_create(
             fd,
@@ -130,7 +106,7 @@ impl XeBuffer {
             flags,
             cpu_caching,
             placement,
-            memory_type.is_protected(),
+            create_info.is_protected(),
         )?;
 
         Ok(XeBuffer {

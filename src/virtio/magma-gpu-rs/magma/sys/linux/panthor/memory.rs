@@ -11,8 +11,6 @@ use magma_gpu::util::MappedRegion;
 
 use crate::defines::MagmaCreateBufferInfo;
 use crate::defines::MagmaMappedMemoryRange;
-use crate::defines::MagmaMemoryType;
-use crate::error::Error;
 use crate::error::Result;
 use crate::sys::linux::panthor::device::PanthorPhysicalDevice;
 use crate::sys::linux::panthor::ioctl;
@@ -63,22 +61,18 @@ impl PanthorBuffer {
     pub fn new(
         physical_device: Arc<PanthorPhysicalDevice>,
         create_info: &MagmaCreateBufferInfo,
-        mem_types: &[MagmaMemoryType],
     ) -> Result<PanthorBuffer> {
-        let mem_type = mem_types
-            .get(create_info.memory_type_idx as usize)
-            .ok_or(Error::InvalidArgs)?;
         let (gem_handle, size) = ioctl::bo_create(
             physical_device.as_fd().unwrap(),
             create_info.size,
-            mem_type.is_cached(),
+            create_info.is_cached(),
         )?;
 
         Ok(PanthorBuffer {
             physical_device,
             gem_handle,
             size,
-            map_info: mem_type.get_map_info(),
+            map_info: create_info.get_map_info(),
         })
     }
 
