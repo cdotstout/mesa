@@ -658,6 +658,19 @@ anv_magma_physical_device_init_sync(struct anv_physical_device *device)
    device->vk.supported_sync_types = device->sync_types;
 }
 
+static bool
+anv_magma_physical_device_has_async_bind(const struct anv_physical_device *pdevice)
+{
+   if (!(pdevice->sync_syncobj_type.features & VK_SYNC_FEATURE_TIMELINE))
+      return false;
+
+   for (uint32_t i = 0; i < pdevice->queue.family_count; i++) {
+      if (pdevice->queue.families[i].queueFlags & VK_QUEUE_SPARSE_BINDING_BIT)
+         return true;
+   }
+   return false;
+}
+
 VkResult
 anv_magma_device_setup_vm(struct anv_device *device,
                           const VkDeviceCreateInfo *pCreateInfo,
@@ -706,40 +719,42 @@ anv_magma_device_setup_vm(struct anv_device *device,
                        "magma_device_create_address_space failed: %d", status);
    }
 
-   struct magma_create_queue_info bind_queue_info = {
-      .queue_family_idx = 0,
-      .priority = 0,
-      .flags = MAGMA_QUEUE_FLAGS_SPARSE_BINDING,
-   };
-   status = magma_device_create_queue(magma->device, magma->address_space,
-                                      &bind_queue_info, &magma->bind_queue);
-   if (status != MAGMA_STATUS_SUCCESS) {
-      anv_magma_device_destroy_vm(device);
-      return vk_errorf(device, VK_ERROR_INITIALIZATION_FAILED,
-                       "magma_device_create_queue for bind_queue failed: %d", status);
-   }
+   if (anv_magma_physical_device_has_async_bind(device->physical)) {
+      struct magma_create_queue_info bind_queue_info = {
+         .queue_family_idx = 0,
+         .priority = 0,
+         .flags = MAGMA_QUEUE_FLAGS_SPARSE_BINDING,
+      };
+      status = magma_device_create_queue(magma->device, magma->address_space,
+                                         &bind_queue_info, &magma->bind_queue);
+      if (status != MAGMA_STATUS_SUCCESS) {
+         anv_magma_device_destroy_vm(device);
+         return vk_errorf(device, VK_ERROR_INITIALIZATION_FAILED,
+                          "magma_device_create_queue for bind_queue failed: %d", status);
+      }
 
-   /*
-    * Bind timeline: Asynchronous VM_BIND operations (such as in Linux Xe,
-    * WDDM/D3DKMT paging queues, and Magma VM binding) decouple page table
-    * updates from execution queues. A bind timeline semaphore is used to
-    * order out-of-band binds against command buffer submissions.
-    */
-   struct magma_create_semaphore_info sync_info = {
-      .header = {
-         .s_type = MAGMA_STRUCTURE_TYPE_CREATE_SEMAPHORE_INFO,
-         .size = sizeof(sync_info),
-         .p_next = NULL,
-      },
-      .semaphore_type = MAGMA_SEMAPHORE_TYPE_TIMELINE,
-      .use_flags = 0,
-      .initial_point = 0,
-   };
-   status = magma_device_create_semaphore(magma->device, &sync_info, &magma->bind_timeline_sync);
-   if (status != MAGMA_STATUS_SUCCESS) {
-      anv_magma_device_destroy_vm(device);
-      return vk_errorf(device, VK_ERROR_INITIALIZATION_FAILED,
-                       "magma_device_create_semaphore failed: %d", status);
+      /*
+       * Bind timeline: Asynchronous VM_BIND operations (such as in Linux Xe,
+       * WDDM/D3DKMT paging queues, and Magma VM binding) decouple page table
+       * updates from execution queues. A bind timeline semaphore is used to
+       * order out-of-band binds against command buffer submissions.
+       */
+      struct magma_create_semaphore_info sync_info = {
+         .header = {
+            .s_type = MAGMA_STRUCTURE_TYPE_CREATE_SEMAPHORE_INFO,
+            .size = sizeof(sync_info),
+            .p_next = NULL,
+         },
+         .semaphore_type = MAGMA_SEMAPHORE_TYPE_TIMELINE,
+         .use_flags = 0,
+         .initial_point = 0,
+      };
+      status = magma_device_create_semaphore(magma->device, &sync_info, &magma->bind_timeline_sync);
+      if (status != MAGMA_STATUS_SUCCESS) {
+         anv_magma_device_destroy_vm(device);
+         return vk_errorf(device, VK_ERROR_INITIALIZATION_FAILED,
+                          "magma_device_create_semaphore failed: %d", status);
+      }
    }
 
    simple_mtx_init(&device->bind_timeline.mutex, mtx_plain);
@@ -1614,11 +1629,7 @@ magma_vm_bind(struct anv_device *device, struct anv_sparse_submission *submit,
    magma_queue_t bind_queue = submit->queue ?
       (submit->queue->magma_bind_queue ? submit->queue->magma_bind_queue : submit->queue->magma_queue) :
       device->magma->bind_queue;
-   if (!bind_queue && device->queue_count > 0)
-      bind_queue = device->queues[0].magma_bind_queue ?
-         device->queues[0].magma_bind_queue : device->queues[0].magma_queue;
-   if (!bind_queue)
-      return VK_SUCCESS;
+   const bool use_direct_map = !bind_queue;
 
    uint32_t max_exts = 0;
    for (uint32_t i = 0; i < submit->binds_len; i++) {
@@ -1728,6 +1739,32 @@ magma_vm_bind(struct anv_device *device, struct anv_sparse_submission *submit,
             }
          }
       }
+   }
+
+   if (use_direct_map) {
+      for (uint32_t i = 0; i < ext_count; i++) {
+         magma_status_t status;
+         if (bind_exts[i].header.s_type == MAGMA_STRUCTURE_TYPE_SUBMIT_MAP_BUFFER_INFO) {
+            status = magma_address_space_map_buffer(device->magma->address_space,
+                                                    bind_exts[i].map.buffer,
+                                                    bind_exts[i].map.buffer_offset,
+                                                    bind_exts[i].map.gpu_va,
+                                                    bind_exts[i].map.size,
+                                                    bind_exts[i].map.flags);
+         } else {
+            status = magma_address_space_unmap_buffer(device->magma->address_space,
+                                                      bind_exts[i].unmap.gpu_va,
+                                                      bind_exts[i].unmap.size);
+         }
+         if (status != MAGMA_STATUS_SUCCESS) {
+            STACK_ARRAY_FINISH(bind_exts);
+            return vk_errorf(device, VK_ERROR_OUT_OF_DEVICE_MEMORY,
+                             "magma_address_space_{map,unmap}_buffer failed: %d", status);
+         }
+      }
+      STACK_ARRAY_FINISH(bind_exts);
+      ANV_RMV(vm_binds, device, submit->binds, submit->binds_len);
+      return VK_SUCCESS;
    }
 
    for (uint32_t i = 0; i + 1 < ext_count; i++)
