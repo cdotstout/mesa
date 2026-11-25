@@ -67,6 +67,15 @@ Transfer = 0x00000004
 SparseBinding = 0x00000008
 Protected = 0x00000010
 
+[[enums]]
+name = 'MagmaQueuePriority'
+type = "u32"
+[enums.entries]
+Medium = 0
+Low = 1
+High = 2
+Realtime = 3
+
 [[flags]]
 name = 'MagmaGpuMapFlags'
 type = "u64"

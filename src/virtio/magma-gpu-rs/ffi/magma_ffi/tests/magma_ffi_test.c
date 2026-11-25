@@ -171,7 +171,7 @@ static void test_create_resources(struct test_runner *runner) {
 
     struct magma_create_queue_info queue_info = {
         .queue_family_idx = 0,
-        .priority = 0,
+        .priority = MAGMA_QUEUE_PRIORITY_MEDIUM,
     };
     status = magma_device_create_queue(runner->device, runner->address_space, &queue_info, &runner->queue);
     assert(status == MAGMA_STATUS_SUCCESS);

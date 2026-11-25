@@ -16,6 +16,7 @@ use crate::defines::MagmaImportHandleInfo;
 use crate::defines::MagmaPhysicalDeviceInfo;
 use crate::defines::MagmaQueueFamilyProperties;
 use crate::defines::MagmaQueueFlags;
+use crate::defines::MagmaQueuePriority;
 use crate::defines::MagmaSyncType;
 use crate::defines::MagmaTimestampProperties;
 use crate::error::Error;
@@ -188,10 +189,16 @@ impl GenericDevice for AmdGpu {
         address_space: &Arc<dyn BackendAddressSpace>,
         info: &MagmaCreateQueueInfo,
     ) -> Result<Arc<dyn BackendQueue>> {
+        let priority = match info.priority {
+            MagmaQueuePriority::Low => -512,
+            MagmaQueuePriority::Medium => 0,
+            MagmaQueuePriority::High => 512,
+            MagmaQueuePriority::Realtime => 1023,
+        };
         let queue = AmdGpuQueue::new(
             self.physical_device.clone(),
             address_space.clone(),
-            info.priority as i32,
+            priority,
         )?;
         Ok(Arc::new(queue))
     }

@@ -44,6 +44,7 @@ use magma_gpu_magma::MagmaPciBusInfo;
 use magma_gpu_magma::MagmaPhysicalDeviceInfo;
 use magma_gpu_magma::MagmaQueueFamilyProperties;
 use magma_gpu_magma::MagmaQueueFlags;
+use magma_gpu_magma::MagmaQueuePriority;
 use magma_gpu_magma::MagmaSemaphoreType;
 use magma_gpu_magma::MagmaSemaphoreUseFlags;
 use magma_gpu_magma::MagmaSemaphoreWaitFlags;
@@ -109,6 +110,9 @@ pub type magma_physical_device = PhysicalDevice;
 
 #[allow(non_camel_case_types)]
 pub type magma_device = Device;
+
+#[allow(non_camel_case_types)]
+pub type magma_queue_priority = MagmaQueuePriority;
 
 #[allow(non_camel_case_types)]
 pub type magma_semaphore_type = MagmaSemaphoreType;

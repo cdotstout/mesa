@@ -62,6 +62,14 @@ enum {
     MAGMA_STATUS_UNIMPLEMENTED = -7,
 };
 
+typedef uint32_t magma_queue_priority_t;
+enum {
+    MAGMA_QUEUE_PRIORITY_MEDIUM = 0x00000000,
+    MAGMA_QUEUE_PRIORITY_LOW = 0x00000001,
+    MAGMA_QUEUE_PRIORITY_HIGH = 0x00000002,
+    MAGMA_QUEUE_PRIORITY_REALTIME = 0x00000003,
+};
+
 typedef uint32_t magma_semaphore_type_t;
 enum {
     MAGMA_SEMAPHORE_TYPE_BINARY = 0x00000000,
@@ -153,7 +161,7 @@ struct magma_pci_bus_info {
 
 struct magma_create_queue_info {
     uint32_t queue_family_idx;
-    uint32_t priority;
+    magma_queue_priority_t priority;
     uint32_t flags;
     uint32_t _padding;
 };

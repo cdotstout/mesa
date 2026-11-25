@@ -743,7 +743,7 @@ anv_magma_device_setup_vm(struct anv_device *device,
    if (anv_magma_physical_device_has_async_bind(device->physical)) {
       struct magma_create_queue_info bind_queue_info = {
          .queue_family_idx = 0,
-         .priority = 0,
+         .priority = MAGMA_QUEUE_PRIORITY_MEDIUM,
          .flags = MAGMA_QUEUE_FLAGS_SPARSE_BINDING,
       };
       status = magma_device_create_queue(magma->device, magma->address_space,
@@ -930,9 +930,31 @@ anv_magma_create_engine(struct anv_device *device,
    if (pCreateInfo->flags & VK_DEVICE_QUEUE_CREATE_PROTECTED_BIT)
       flags |= MAGMA_QUEUE_FLAGS_PROTECTED;
 
+   const VkDeviceQueueGlobalPriorityCreateInfo *queue_priority =
+      vk_find_struct_const(pCreateInfo->pNext,
+                           DEVICE_QUEUE_GLOBAL_PRIORITY_CREATE_INFO);
+   magma_queue_priority_t priority = MAGMA_QUEUE_PRIORITY_MEDIUM;
+   if (queue_priority) {
+      switch (queue_priority->globalPriority) {
+      case VK_QUEUE_GLOBAL_PRIORITY_LOW:
+         priority = MAGMA_QUEUE_PRIORITY_LOW;
+         break;
+      case VK_QUEUE_GLOBAL_PRIORITY_HIGH:
+         priority = MAGMA_QUEUE_PRIORITY_HIGH;
+         break;
+      case VK_QUEUE_GLOBAL_PRIORITY_REALTIME:
+         priority = MAGMA_QUEUE_PRIORITY_REALTIME;
+         break;
+      case VK_QUEUE_GLOBAL_PRIORITY_MEDIUM:
+      default:
+         priority = MAGMA_QUEUE_PRIORITY_MEDIUM;
+         break;
+      }
+   }
+
    struct magma_create_queue_info info = {
       .queue_family_idx = pCreateInfo->queueFamilyIndex,
-      .priority = pCreateInfo->pQueuePriorities ? (uint32_t)(pCreateInfo->pQueuePriorities[0] * 100) : 0,
+      .priority = priority,
       .flags = flags,
    };
 

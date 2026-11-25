@@ -41,7 +41,11 @@ impl MagmaPciBusInfo {
 }
 
 impl MagmaCreateQueueInfo {
-    pub fn new(queue_family_idx: u32, priority: u32, flags: u32) -> MagmaCreateQueueInfo {
+    pub fn new(
+        queue_family_idx: u32,
+        priority: MagmaQueuePriority,
+        flags: u32,
+    ) -> MagmaCreateQueueInfo {
         MagmaCreateQueueInfo {
             queue_family_idx,
             priority,

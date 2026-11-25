@@ -89,6 +89,16 @@ pub enum VirtioGpuBlobPreference {
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, TryFromBytes, IntoBytes, Immutable)]
 #[repr(u32)]
+pub enum MagmaQueuePriority {
+    #[default]
+    Medium = 0,
+    Low = 1,
+    High = 2,
+    Realtime = 3,
+}
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, TryFromBytes, IntoBytes, Immutable)]
+#[repr(u32)]
 pub enum MagmaSemaphoreType {
     #[default]
     Binary = 0,
@@ -234,7 +244,7 @@ pub struct MagmaPciBusInfo {
 #[repr(C)]
 pub struct MagmaCreateQueueInfo {
     pub queue_family_idx: u32,
-    pub priority: u32,
+    pub priority: MagmaQueuePriority,
     pub flags: u32,
     pub _padding: u32,
 }

@@ -13,6 +13,7 @@ use crate::error::Result;
 use crate::ioctl_readwrite;
 use crate::ioctl_write_ptr;
 use crate::protocol::MagmaGpuMapFlags;
+use crate::protocol::MagmaQueuePriority;
 use crate::sys::linux::bindings::drm_bindings::DRM_COMMAND_BASE;
 use crate::sys::linux::bindings::drm_bindings::DRM_IOCTL_BASE;
 use crate::sys::linux::bindings::panthor_bindings::*;
@@ -308,10 +309,10 @@ pub fn group_create(
     let max_tiler_cores = tiler_core_mask.count_ones().max(1) as u8;
 
     let priority = match info.priority {
-        0 => PANTHOR_GROUP_PRIORITY_LOW as u8,
-        1 => PANTHOR_GROUP_PRIORITY_MEDIUM as u8,
-        2 => PANTHOR_GROUP_PRIORITY_HIGH as u8,
-        _ => PANTHOR_GROUP_PRIORITY_MEDIUM as u8,
+        MagmaQueuePriority::Low => PANTHOR_GROUP_PRIORITY_LOW as u8,
+        MagmaQueuePriority::Medium => PANTHOR_GROUP_PRIORITY_MEDIUM as u8,
+        MagmaQueuePriority::High => PANTHOR_GROUP_PRIORITY_HIGH as u8,
+        MagmaQueuePriority::Realtime => PANTHOR_GROUP_PRIORITY_REALTIME as u8,
     };
 
     let qc = [drm_panthor_queue_create {

@@ -73,6 +73,7 @@ pub use protocol::MagmaHeapFlag;
 pub use protocol::MagmaMemoryHeapsProperties;
 pub use protocol::MagmaPciBusInfo;
 pub use protocol::MagmaQueueFlags;
+pub use protocol::MagmaQueuePriority;
 pub use protocol::MagmaSemaphoreType;
 pub use protocol::MagmaSemaphoreUseFlags;
 pub use protocol::MagmaSemaphoreWaitFlags;

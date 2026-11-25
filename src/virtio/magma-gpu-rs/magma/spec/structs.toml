@@ -27,7 +27,7 @@ name = 'MagmaCreateQueueInfo'
 aspects = [ "common" ]
 members = [
     { name = "queue_family_idx", type = "u32" },
-    { name = "priority", type = "u32" },
+    { name = "priority", type = "MagmaQueuePriority" },
     { name = "flags", type = "u32" },
 ]
 
