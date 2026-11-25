@@ -5,6 +5,7 @@ use std::ffi::CStr;
 use std::ffi::CString;
 use std::ptr::null_mut;
 use std::sync::atomic::AtomicPtr;
+use std::sync::atomic::AtomicU32;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -29,6 +30,9 @@ use crate::defines::MagmaMappedMemoryRange;
 use crate::defines::MagmaPhysicalDeviceInfo;
 use crate::defines::MagmaQueueFamilyProperties;
 use crate::defines::MagmaQueueFlags;
+use crate::defines::MagmaQueuePriority;
+use crate::defines::MagmaSubmitInfo;
+use crate::defines::MagmaSubmitPayload;
 use crate::defines::MagmaSyncCapability;
 use crate::defines::MagmaSyncProperties;
 use crate::defines::MagmaSyncType;
@@ -53,6 +57,7 @@ use crate::traits::GenericAddressSpace;
 use crate::traits::GenericBuffer;
 use crate::traits::GenericDevice;
 use crate::traits::GenericPhysicalDevice;
+use crate::traits::GenericQueue;
 use crate::traits::GenericSemaphore;
 use crate::traits::MagmaVendorQueryResult;
 use crate::vendor::intel::MagmaIntelDeviceInfo;
@@ -105,6 +110,11 @@ const MAGMA_FIDL_MAP_FLAG_GROWABLE: u64 = 0x8;
 
 const MAGMA_FIDL_OBJECT_TYPE_BUFFER: u32 = 11;
 const MAGMA_FIDL_OBJECT_TYPE_SEMAPHORE: u32 = 12;
+
+const MAGMA_FIDL_PRIORITY_LOW: u64 = 128;
+const MAGMA_FIDL_PRIORITY_MEDIUM: u64 = 256;
+const MAGMA_FIDL_PRIORITY_HIGH: u64 = 512;
+const MAGMA_FIDL_PRIORITY_REALTIME: u64 = 1024;
 
 const ZX_RIGHT_SAME_RIGHTS: u32 = 1 << 31;
 const ZX_CACHE_POLICY_WRITE_COMBINING: u32 = 2;
@@ -222,6 +232,45 @@ extern "C" {
     ) -> zx_status_t;
     fn magma_fidl_vmar_map(vmo: u32, size: u64, addr_out: *mut usize) -> zx_status_t;
     fn magma_fidl_vmar_unmap(addr: usize, size: u64) -> zx_status_t;
+    fn magma_fidl_primary_create_context2(
+        primary_channel: u32,
+        context_id: u32,
+        priority: u64,
+    ) -> zx_status_t;
+    fn magma_fidl_primary_destroy_context(
+        primary_channel: u32,
+        context_id: u32,
+    ) -> zx_status_t;
+    fn magma_fidl_primary_execute_command(
+        primary_channel: u32,
+        context_id: u32,
+        resources: *const MagmaFidlBufferRange,
+        resource_count: u32,
+        command_buffers: *const MagmaFidlCommandBuffer,
+        command_buffer_count: u32,
+        wait_semaphores: *const u64,
+        wait_semaphore_count: u32,
+        signal_semaphores: *const u64,
+        signal_semaphore_count: u32,
+        flags: u64,
+    ) -> zx_status_t;
+    fn magma_fidl_drain_channel(channel: u32);
+}
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+struct MagmaFidlBufferRange {
+    buffer_id: u64,
+    offset: u64,
+    size: u64,
+}
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+struct MagmaFidlCommandBuffer {
+    resource_index: u32,
+    _pad: u32,
+    start_offset: u64,
 }
 
 pub fn zx_status_to_result(status: zx_status_t) -> Result<()> {
@@ -304,7 +353,7 @@ struct FlowControlState {
 
 pub struct PrimaryConnection {
     primary_channel: ZxHandle,
-    _notification_channel: ZxHandle,
+    notification_channel: ZxHandle,
     max_inflight_messages: u64,
     max_inflight_bytes: u64,
     flow_control_enabled: bool,
@@ -327,7 +376,7 @@ impl PrimaryConnection {
         }
         Self {
             primary_channel,
-            _notification_channel: notification_channel,
+            notification_channel,
             max_inflight_messages,
             max_inflight_bytes,
             flow_control_enabled,
@@ -335,9 +384,14 @@ impl PrimaryConnection {
         }
     }
 
-    #[allow(dead_code)]
     pub fn primary_raw(&self) -> zx_handle_t {
         self.primary_channel.raw()
+    }
+
+    pub fn drain_notifications(&self) {
+        unsafe {
+            magma_fidl_drain_channel(self.notification_channel.raw());
+        }
     }
 
     fn should_wait(
@@ -685,26 +739,31 @@ pub struct MappedRange {
 
 pub struct FuchsiaAddressSpace {
     connection: Arc<PrimaryConnection>,
-    mappings: Mutex<BTreeMap<u64, MappedRange>>,
+    mappings: Arc<Mutex<BTreeMap<u64, MappedRange>>>,
 }
 
 impl FuchsiaAddressSpace {
-    pub fn new(connection: Arc<PrimaryConnection>) -> Self {
+    pub fn new(
+        connection: Arc<PrimaryConnection>,
+        mappings: Arc<Mutex<BTreeMap<u64, MappedRange>>>,
+    ) -> Self {
         Self {
             connection,
-            mappings: Mutex::new(BTreeMap::new()),
+            mappings,
         }
     }
+}
 
-    #[allow(dead_code)]
-    pub fn lookup_gpu_va(&self, va: u64) -> Option<MappedRange> {
-        let mappings = self.mappings.lock().ok()?;
-        let (_, range) = mappings.range(..=va).next_back()?;
-        if va < range.gpu_va.saturating_add(range.size) {
-            Some(*range)
-        } else {
-            None
-        }
+fn lookup_mapped_va(
+    mappings: &Mutex<BTreeMap<u64, MappedRange>>,
+    va: u64,
+) -> Option<MappedRange> {
+    let guard = mappings.lock().ok()?;
+    let (_, range) = guard.range(..=va).next_back()?;
+    if va < range.gpu_va.saturating_add(range.size) {
+        Some(*range)
+    } else {
+        None
     }
 }
 
@@ -1118,9 +1177,156 @@ impl GenericSemaphore for FuchsiaSemaphore {
 impl AsVirtioSemaphore for FuchsiaSemaphore {}
 impl BackendSemaphore for FuchsiaSemaphore {}
 
+pub struct FuchsiaQueue {
+    connection: Arc<PrimaryConnection>,
+    mappings: Arc<Mutex<BTreeMap<u64, MappedRange>>>,
+    context_id: u32,
+}
+
+impl FuchsiaQueue {
+    pub fn new(
+        connection: Arc<PrimaryConnection>,
+        mappings: Arc<Mutex<BTreeMap<u64, MappedRange>>>,
+        context_id: u32,
+        info: &MagmaCreateQueueInfo,
+    ) -> Result<Self> {
+        let fidl_priority = match info.priority {
+            MagmaQueuePriority::Low => MAGMA_FIDL_PRIORITY_LOW,
+            MagmaQueuePriority::Medium => MAGMA_FIDL_PRIORITY_MEDIUM,
+            MagmaQueuePriority::High => MAGMA_FIDL_PRIORITY_HIGH,
+            MagmaQueuePriority::Realtime => MAGMA_FIDL_PRIORITY_REALTIME,
+        };
+        connection.with_flow_control(0, |ch| unsafe {
+            magma_fidl_primary_create_context2(ch, context_id, fidl_priority)
+        })?;
+        Ok(Self {
+            connection,
+            mappings,
+            context_id,
+        })
+    }
+}
+
+impl Drop for FuchsiaQueue {
+    fn drop(&mut self) {
+        let _ = self.connection.with_flow_control(0, |ch| unsafe {
+            magma_fidl_primary_destroy_context(ch, self.context_id)
+        });
+    }
+}
+
+impl GenericQueue for FuchsiaQueue {
+    fn submit_command(&self, submit_info: &MagmaSubmitInfo) -> Result<()> {
+        self.connection.drain_notifications();
+
+        let mut wait_ids: Vec<u64> = Vec::new();
+        for sem in submit_info.sync_info.wait_semaphores() {
+            if let Some(id) = sem.object_id() {
+                wait_ids.push(id);
+            }
+        }
+
+        let mut signal_ids: Vec<u64> = Vec::new();
+        for sem in submit_info.sync_info.signal_semaphores() {
+            if let Some(id) = sem.object_id() {
+                signal_ids.push(id);
+            }
+        }
+
+        let mut resources: Vec<MagmaFidlBufferRange> = Vec::new();
+        let mut command_buffers: Vec<MagmaFidlCommandBuffer> = Vec::new();
+
+        for payload in submit_info.payloads() {
+            match payload {
+                MagmaSubmitPayload::AddressSpace(as_info) => {
+                    let mapped = lookup_mapped_va(&self.mappings, as_info.command_va)
+                        .ok_or(Error::InvalidArgs)?;
+                    let start_offset = as_info.command_va - mapped.gpu_va;
+                    let resource_index = resources.len() as u32;
+                    resources.push(MagmaFidlBufferRange {
+                        buffer_id: mapped.buffer_id,
+                        offset: mapped.buffer_offset,
+                        size: mapped.size,
+                    });
+                    command_buffers.push(MagmaFidlCommandBuffer {
+                        resource_index,
+                        _pad: 0,
+                        start_offset,
+                    });
+                }
+                MagmaSubmitPayload::Buffer(buf_info) => {
+                    let buffer_id = unsafe { buf_info.command_buffer.as_ref() }
+                        .and_then(|b| b.inner().object_id())
+                        .ok_or(Error::InvalidArgs)?;
+                    let resource_index = resources.len() as u32;
+                    resources.push(MagmaFidlBufferRange {
+                        buffer_id,
+                        offset: 0,
+                        size: buf_info.start_offset.saturating_add(buf_info.length),
+                    });
+                    command_buffers.push(MagmaFidlCommandBuffer {
+                        resource_index,
+                        _pad: 0,
+                        start_offset: buf_info.start_offset,
+                    });
+                }
+                _ => {}
+            }
+        }
+
+        if command_buffers.is_empty() {
+            for sem in submit_info.sync_info.wait_semaphores() {
+                sem.wait(u64::MAX)?;
+                let _ = sem.reset();
+            }
+            for sem in submit_info.sync_info.signal_semaphores() {
+                sem.signal()?;
+            }
+            return Ok(());
+        }
+
+        self.connection.with_flow_control(0, |ch| unsafe {
+            magma_fidl_primary_execute_command(
+                ch,
+                self.context_id,
+                resources.as_ptr(),
+                resources.len() as u32,
+                command_buffers.as_ptr(),
+                command_buffers.len() as u32,
+                wait_ids.as_ptr(),
+                wait_ids.len() as u32,
+                signal_ids.as_ptr(),
+                signal_ids.len() as u32,
+                0,
+            )
+        })
+    }
+
+    fn check_status(&self) -> Result<()> {
+        self.connection.drain_notifications();
+        let mut observed: zx_signals_t = 0;
+        let status = unsafe {
+            zx_object_wait_one(
+                self.connection.primary_raw(),
+                ZX_CHANNEL_PEER_CLOSED,
+                0,
+                &mut observed,
+            )
+        };
+        if status == ZX_OK && (observed & ZX_CHANNEL_PEER_CLOSED) != 0 {
+            return Err(Error::ContextKilled);
+        }
+        Ok(())
+    }
+}
+
+impl BackendQueue for FuchsiaQueue {}
+
 pub struct FuchsiaDevice {
     _physical_device: Arc<FuchsiaPhysicalDevice>,
     connection: Arc<PrimaryConnection>,
+    mappings: Arc<Mutex<BTreeMap<u64, MappedRange>>>,
+    next_context_id: AtomicU32,
     _info: MagmaPhysicalDeviceInfo,
 }
 
@@ -1156,6 +1362,8 @@ impl FuchsiaDevice {
         Ok(Self {
             _physical_device: physical_device,
             connection,
+            mappings: Arc::new(Mutex::new(BTreeMap::new())),
+            next_context_id: AtomicU32::new(1),
             _info: *info,
         })
     }
@@ -1166,15 +1374,25 @@ impl BackendDevice for FuchsiaDevice {}
 
 impl GenericDevice for FuchsiaDevice {
     fn create_address_space(self: Arc<Self>) -> Result<Arc<dyn BackendAddressSpace>> {
-        Ok(Arc::new(FuchsiaAddressSpace::new(self.connection.clone())))
+        Ok(Arc::new(FuchsiaAddressSpace::new(
+            self.connection.clone(),
+            self.mappings.clone(),
+        )))
     }
 
     fn create_queue(
         self: Arc<Self>,
         _address_space: &Arc<dyn BackendAddressSpace>,
-        _info: &MagmaCreateQueueInfo,
+        info: &MagmaCreateQueueInfo,
     ) -> Result<Arc<dyn BackendQueue>> {
-        Err(Error::Unimplemented)
+        let context_id = self.next_context_id.fetch_add(1, Ordering::Relaxed);
+        let queue = FuchsiaQueue::new(
+            self.connection.clone(),
+            self.mappings.clone(),
+            context_id,
+            info,
+        )?;
+        Ok(Arc::new(queue))
     }
 
     fn create_buffer(

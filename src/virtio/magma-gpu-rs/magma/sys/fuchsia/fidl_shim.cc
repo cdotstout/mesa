@@ -13,6 +13,7 @@
 #include <cstdint>
 #include <cstring>
 #include <string>
+#include <vector>
 
 namespace {
 
@@ -332,6 +333,91 @@ zx_status_t magma_fidl_vmar_map(uint32_t vmo, uint64_t size, uintptr_t* addr_out
 
 zx_status_t magma_fidl_vmar_unmap(uintptr_t addr, uint64_t size) {
   return zx_vmar_unmap(zx_vmar_root_self(), static_cast<zx_vaddr_t>(addr), size);
+}
+
+zx_status_t magma_fidl_primary_create_context2(uint32_t primary_channel,
+                                               uint32_t context_id,
+                                               uint64_t priority) {
+  fidl::UnownedClientEnd<fuchsia_gpu_magma::Primary> client_end(primary_channel);
+#if defined(FUCHSIA_API_LEVEL_AT_LEAST) && FUCHSIA_API_LEVEL_AT_LEAST(28)
+  return fidl::WireCall(client_end)
+      ->CreateContext2(context_id, fuchsia_gpu_magma::wire::Priority(priority))
+      .status();
+#else
+  (void)priority;
+  return fidl::WireCall(client_end)->CreateContext(context_id).status();
+#endif
+}
+
+zx_status_t magma_fidl_primary_destroy_context(uint32_t primary_channel, uint32_t context_id) {
+  fidl::UnownedClientEnd<fuchsia_gpu_magma::Primary> client_end(primary_channel);
+  return fidl::WireCall(client_end)->DestroyContext(context_id).status();
+}
+
+struct magma_fidl_buffer_range {
+  uint64_t buffer_id;
+  uint64_t offset;
+  uint64_t size;
+};
+
+struct magma_fidl_command_buffer {
+  uint32_t resource_index;
+  uint32_t _pad;
+  uint64_t start_offset;
+};
+
+zx_status_t magma_fidl_primary_execute_command(uint32_t primary_channel,
+                                               uint32_t context_id,
+                                               const magma_fidl_buffer_range* resources,
+                                               uint32_t resource_count,
+                                               const magma_fidl_command_buffer* command_buffers,
+                                               uint32_t command_buffer_count,
+                                               const uint64_t* wait_semaphores,
+                                               uint32_t wait_semaphore_count,
+                                               const uint64_t* signal_semaphores,
+                                               uint32_t signal_semaphore_count,
+                                               uint64_t flags) {
+  std::vector<fuchsia_gpu_magma::wire::BufferRange> wire_resources;
+  wire_resources.reserve(resource_count);
+  for (uint32_t i = 0; i < resource_count; i++) {
+    wire_resources.push_back(fuchsia_gpu_magma::wire::BufferRange{
+        .buffer_id = resources[i].buffer_id,
+        .offset = resources[i].offset,
+        .size = resources[i].size,
+    });
+  }
+
+  std::vector<fuchsia_gpu_magma::wire::CommandBuffer> wire_cbs;
+  wire_cbs.reserve(command_buffer_count);
+  for (uint32_t i = 0; i < command_buffer_count; i++) {
+    wire_cbs.push_back(fuchsia_gpu_magma::wire::CommandBuffer{
+        .resource_index = command_buffers[i].resource_index,
+        .start_offset = command_buffers[i].start_offset,
+    });
+  }
+
+  std::vector<uint64_t> wire_waits(wait_semaphores, wait_semaphores + wait_semaphore_count);
+  std::vector<uint64_t> wire_signals(signal_semaphores, signal_semaphores + signal_semaphore_count);
+
+  fidl::UnownedClientEnd<fuchsia_gpu_magma::Primary> client_end(primary_channel);
+  return fidl::WireCall(client_end)
+      ->ExecuteCommand(
+          context_id,
+          fidl::VectorView<fuchsia_gpu_magma::wire::BufferRange>::FromExternal(wire_resources),
+          fidl::VectorView<fuchsia_gpu_magma::wire::CommandBuffer>::FromExternal(wire_cbs),
+          fidl::VectorView<uint64_t>::FromExternal(wire_waits),
+          fidl::VectorView<uint64_t>::FromExternal(wire_signals),
+          fuchsia_gpu_magma::wire::CommandBufferFlags(flags))
+      .status();
+}
+
+void magma_fidl_drain_channel(uint32_t channel) {
+  uint8_t buf[1024];
+  uint32_t actual_bytes = 0;
+  uint32_t actual_handles = 0;
+  while (zx_channel_read(channel, 0, buf, nullptr, sizeof(buf), 0, &actual_bytes,
+                         &actual_handles) == ZX_OK) {
+  }
 }
 
 }
