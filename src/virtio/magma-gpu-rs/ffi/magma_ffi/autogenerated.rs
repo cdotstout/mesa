@@ -676,11 +676,11 @@ pub unsafe extern "C" fn magma_semaphore_release(semaphore: &mut *mut magma_sema
 #[no_mangle]
 pub unsafe extern "C" fn magma_semaphore_wait(
     semaphore: &mut magma_semaphore,
-    timeout_ns: u64,
+    abs_timeout_ns: u64,
 ) -> i32 {
     catch_unwind(AssertUnwindSafe(|| {
         debug!("call: magma_semaphore_wait");
-        let result = semaphore.wait(timeout_ns);
+        let result = semaphore.wait(abs_timeout_ns);
         return_result(result)
     }))
     .unwrap_or(-ESRCH)
@@ -710,12 +710,12 @@ pub unsafe extern "C" fn magma_semaphore_reset(semaphore: &mut magma_semaphore) 
 pub unsafe extern "C" fn magma_semaphore_timeline_wait(
     semaphore: &mut magma_semaphore,
     point: u64,
-    timeout_ns: u64,
+    abs_timeout_ns: u64,
     flags: u32,
 ) -> i32 {
     catch_unwind(AssertUnwindSafe(|| {
         debug!("call: magma_semaphore_timeline_wait");
-        let result = semaphore.timeline_wait(point, timeout_ns, flags);
+        let result = semaphore.timeline_wait(point, abs_timeout_ns, flags);
         return_result(result)
     }))
     .unwrap_or(-ESRCH)

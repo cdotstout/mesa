@@ -20,8 +20,8 @@ impl Semaphore {
         Semaphore { semaphore }
     }
 
-    pub fn wait(&self, timeout_ns: u64) -> Result<()> {
-        self.semaphore.wait(timeout_ns)
+    pub fn wait(&self, abs_timeout_ns: u64) -> Result<()> {
+        self.semaphore.wait(abs_timeout_ns)
     }
 
     pub fn signal(&self) -> Result<()> {
@@ -32,8 +32,8 @@ impl Semaphore {
         self.semaphore.reset()
     }
 
-    pub fn timeline_wait(&self, point: u64, timeout_ns: u64, flags: u32) -> Result<()> {
-        self.semaphore.timeline_wait(point, timeout_ns, flags)
+    pub fn timeline_wait(&self, point: u64, abs_timeout_ns: u64, flags: u32) -> Result<()> {
+        self.semaphore.timeline_wait(point, abs_timeout_ns, flags)
     }
 
     pub fn timeline_signal(&self, point: u64) -> Result<()> {

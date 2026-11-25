@@ -366,14 +366,14 @@ magma_status_t magma_device_create_semaphore(magma_device_t device,
 
 magma_status_t magma_semaphore_release(magma_semaphore_t* semaphore);
 
-magma_status_t magma_semaphore_wait(magma_semaphore_t semaphore, uint64_t timeout_ns);
+magma_status_t magma_semaphore_wait(magma_semaphore_t semaphore, uint64_t abs_timeout_ns);
 
 magma_status_t magma_semaphore_signal(magma_semaphore_t semaphore);
 
 magma_status_t magma_semaphore_reset(magma_semaphore_t semaphore);
 
 magma_status_t magma_semaphore_timeline_wait(magma_semaphore_t semaphore, uint64_t point,
-                                             uint64_t timeout_ns, uint32_t flags);
+                                             uint64_t abs_timeout_ns, uint32_t flags);
 
 magma_status_t magma_semaphore_timeline_signal(magma_semaphore_t semaphore, uint64_t point);
 

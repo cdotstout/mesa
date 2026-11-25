@@ -978,7 +978,7 @@ pub struct SemaphoreTimelineWait {
     pub semaphore: u32,
     pub _pad0: u32,
     pub point: u64,
-    pub timeout_ns: u64,
+    pub abs_timeout_ns: u64,
     pub flags: u32,
     pub _padding: u32,
 }

@@ -167,12 +167,15 @@ output = "MagmaStatus"
 aspects = [ "common" ]
 destructor = true
 
+# Wait for a binary semaphore until it is signaled or `abs_timeout_ns` expires.
+# `abs_timeout_ns` is an absolute CLOCK_MONOTONIC deadline in nanoseconds
+# (0 = non-blocking poll; values >= INT64_MAX wait indefinitely).
 [[commands]]
 name = "MagmaSemaphoreWait"
 target = "wait"
 inputs = [
     { name = "semaphore", type = "Semaphore", direction = "in" },
-    { name = "timeout_ns", type = "u64", direction = "in" },
+    { name = "abs_timeout_ns", type = "u64", direction = "in" },
 ]
 output = "MagmaStatus"
 aspects = [ "ffi" ]
@@ -196,13 +199,15 @@ inputs = [
 output = "MagmaStatus"
 aspects = [ "ffi" ]
 
+# Wait for a timeline semaphore to reach `point` or until `abs_timeout_ns`
+# expires (`abs_timeout_ns` is an absolute CLOCK_MONOTONIC deadline in ns).
 [[commands]]
 name = "MagmaSemaphoreTimelineWait"
 target = "timeline_wait"
 inputs = [
     { name = "semaphore", type = "Semaphore", direction = "in" },
     { name = "point", type = "u64", direction = "in" },
-    { name = "timeout_ns", type = "u64", direction = "in" },
+    { name = "abs_timeout_ns", type = "u64", direction = "in" },
     { name = "flags", type = "u32", direction = "in" },
 ]
 output = "MagmaStatus"

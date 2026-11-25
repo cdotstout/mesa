@@ -153,7 +153,8 @@ pub trait GenericSemaphore {
         self.get_type() == MagmaSyncType::Timeline
     }
 
-    fn wait(&self, _timeout_ns: u64) -> Result<()> {
+    /// Wait until signaled or `abs_timeout_ns` (absolute CLOCK_MONOTONIC deadline in ns).
+    fn wait(&self, _abs_timeout_ns: u64) -> Result<()> {
         Err(Error::Unimplemented)
     }
 
@@ -165,7 +166,8 @@ pub trait GenericSemaphore {
         Err(Error::Unimplemented)
     }
 
-    fn timeline_wait(&self, _point: u64, _timeout_ns: u64, _flags: u32) -> Result<()> {
+    /// Wait until `point` is reached or `abs_timeout_ns` (absolute CLOCK_MONOTONIC deadline in ns).
+    fn timeline_wait(&self, _point: u64, _abs_timeout_ns: u64, _flags: u32) -> Result<()> {
         Err(Error::Unimplemented)
     }
 

@@ -212,12 +212,12 @@ impl GenericSemaphore for DrmSemaphore {
         self.sync_type
     }
 
-    fn wait(&self, timeout_ns: u64) -> Result<()> {
+    fn wait(&self, abs_timeout_ns: u64) -> Result<()> {
         let fd = self.physical_device.as_fd().unwrap();
         // DRM syncobj timeouts are signed 64-bit integers (__s64) representing an
         // absolute deadline in CLOCK_MONOTONIC nanoseconds. Casting UINT64_MAX
         // (e.g. VK_TIMEOUT_INFINITE) directly to i64 wraps to -1, so we need to clamp.
-        let timeout_nsec = timeout_ns.min(i64::MAX as u64) as i64;
+        let timeout_nsec = abs_timeout_ns.min(i64::MAX as u64) as i64;
         let mut wait_arg = drm_syncobj_wait {
             handles: &self.handle as *const _ as u64,
             timeout_nsec,
@@ -260,11 +260,11 @@ impl GenericSemaphore for DrmSemaphore {
         Ok(())
     }
 
-    fn timeline_wait(&self, point: u64, timeout_ns: u64, flags: u32) -> Result<()> {
+    fn timeline_wait(&self, point: u64, abs_timeout_ns: u64, flags: u32) -> Result<()> {
         let fd = self.physical_device.as_fd().unwrap();
         // DRM timeline syncobj timeouts are signed 64-bit integers (__s64).
         // Clamp to i64::MAX to prevent UINT64_MAX from wrapping to -1.
-        let timeout_nsec = timeout_ns.min(i64::MAX as u64) as i64;
+        let timeout_nsec = abs_timeout_ns.min(i64::MAX as u64) as i64;
         let mut drm_flags =
             DRM_SYNCOBJ_WAIT_FLAGS_WAIT_ALL | DRM_SYNCOBJ_WAIT_FLAGS_WAIT_FOR_SUBMIT;
         if (flags & MagmaSemaphoreWaitFlags::WaitPending.bits()) != 0 {
