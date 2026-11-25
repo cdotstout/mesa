@@ -10,6 +10,7 @@ use crate::defines::MagmaCreateSemaphoreInfo;
 use crate::defines::MagmaImportHandleInfo;
 use crate::defines::MagmaPhysicalDeviceInfo;
 use crate::defines::MagmaQueueFamilyProperties;
+use crate::defines::MagmaSyncProperties;
 use crate::defines::MagmaTimestampProperties;
 use crate::error::Result;
 use crate::memory::AddressSpace;
@@ -68,6 +69,10 @@ impl PhysicalDevice {
 
     pub fn get_timestamp_properties(&self) -> Result<MagmaTimestampProperties> {
         self.physical_device.get_timestamp_properties()
+    }
+
+    pub fn get_sync_properties(&self) -> Result<MagmaSyncProperties> {
+        self.physical_device.get_sync_properties()
     }
 
     pub fn query_vendor(

@@ -628,8 +628,7 @@ const struct vk_sync_type anv_magma_sync_type = {
        VK_SYNC_FEATURE_CPU_RESET |
        VK_SYNC_FEATURE_CPU_WAIT |
        VK_SYNC_FEATURE_CPU_SIGNAL |
-       VK_SYNC_FEATURE_WAIT_ANY |
-       VK_SYNC_FEATURE_WAIT_PENDING),
+       VK_SYNC_FEATURE_WAIT_ANY),
    .init = anv_magma_sync_init,
    .finish = anv_magma_sync_finish,
    .reset = anv_magma_sync_reset,
@@ -661,13 +660,22 @@ anv_magma_physical_device_init_sync(struct anv_physical_device *device)
       magma_physical_device_query(device->magma_physical_device, &sync_props);
 
    device->sync_syncobj_type = anv_magma_sync_type;
-   if (sync_props.capabilities & MAGMA_SYNC_CAPABILITY_TIMELINE)
-      device->sync_syncobj_type.features |= VK_SYNC_FEATURE_TIMELINE;
+   if (sync_props.capabilities & MAGMA_SYNC_CAPABILITY_TIMELINE) {
+      device->sync_syncobj_type.features |=
+         VK_SYNC_FEATURE_TIMELINE | VK_SYNC_FEATURE_WAIT_PENDING;
+   }
 
    assert(device->sync_syncobj_type.features & VK_SYNC_FEATURE_CPU_WAIT);
 
-   device->sync_types[0] = &device->sync_syncobj_type;
-   device->sync_types[1] = NULL;
+   uint32_t st_idx = 0;
+   device->sync_types[st_idx++] = &device->sync_syncobj_type;
+   if (!(device->sync_syncobj_type.features & VK_SYNC_FEATURE_TIMELINE)) {
+      device->sync_timeline_type =
+         vk_sync_timeline_get_type(&device->sync_syncobj_type);
+      device->sync_types[st_idx++] = &device->sync_timeline_type.sync;
+   }
+   device->sync_types[st_idx++] = NULL;
+   assert(st_idx <= ARRAY_SIZE(device->sync_types));
    device->vk.supported_sync_types = device->sync_types;
 }
 

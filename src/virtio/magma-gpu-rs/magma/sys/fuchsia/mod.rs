@@ -28,6 +28,8 @@ use crate::defines::MagmaMappedMemoryRange;
 use crate::defines::MagmaPhysicalDeviceInfo;
 use crate::defines::MagmaQueueFamilyProperties;
 use crate::defines::MagmaQueueFlags;
+use crate::defines::MagmaSyncCapability;
+use crate::defines::MagmaSyncProperties;
 use crate::defines::MagmaTimestampProperties;
 use crate::defines::MAGMA_BUS_TYPE_PCI;
 use crate::defines::MAGMA_MAX_PHYSICAL_DEVICES;
@@ -612,6 +614,16 @@ impl GenericPhysicalDevice for FuchsiaPhysicalDevice {
             .query_simple(MAGMA_INTEL_GEN_QUERY_TIMESTAMP_FREQUENCY)
             .unwrap_or(0);
         Ok(MagmaTimestampProperties::new(ts_freq))
+    }
+
+    fn get_sync_properties(&self) -> Result<MagmaSyncProperties> {
+        Ok(MagmaSyncProperties::new(
+            (MagmaSyncCapability::Binary
+                | MagmaSyncCapability::CpuWait
+                | MagmaSyncCapability::CpuSignal)
+                .bits(),
+            0,
+        ))
     }
 
     fn query_vendor(

@@ -70,7 +70,6 @@ use magma_gpu_magma::MagmaHandle;
 use magma_gpu_magma::MagmaImportHandleInfo;
 use magma_gpu_magma::MagmaPhysicalDeviceInfo;
 use magma_gpu_magma::MagmaStructureTypeHeader;
-use magma_gpu_magma::MagmaSyncCapability;
 use magma_gpu_magma::MagmaSyncProperties;
 use magma_gpu_magma::MagmaTimestampProperties;
 use magma_gpu_magma::MagmaVendorQuery;
@@ -196,14 +195,8 @@ pub unsafe extern "C" fn magma_physical_device_query(
                 }
                 MAGMA_STRUCTURE_TYPE_SYNC_PROPERTIES => {
                     let out = &mut *(curr as *mut MagmaSyncProperties);
-                    out.capabilities = (MagmaSyncCapability::Binary
-                        | MagmaSyncCapability::Timeline
-                        | MagmaSyncCapability::CpuWait
-                        | MagmaSyncCapability::CpuSignal
-                        | MagmaSyncCapability::ExportSyncFile
-                        | MagmaSyncCapability::ImportSyncFile)
-                        .bits();
-                    out.max_timeline_value_difference = u64::MAX;
+                    *out = return_on_error!(physical_device.get_sync_properties());
+                    out.header.p_next = next as u64;
                 }
                 MAGMA_STRUCTURE_TYPE_ADDRESS_SPACE_PROPERTIES => {
                     let out = &mut *(curr as *mut MagmaAddressSpaceProperties);

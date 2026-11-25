@@ -17,6 +17,8 @@ use crate::defines::MagmaMappedMemoryRange;
 use crate::defines::MagmaPhysicalDeviceInfo;
 use crate::defines::MagmaQueueFamilyProperties;
 use crate::defines::MagmaSubmitInfo;
+use crate::defines::MagmaSyncCapability;
+use crate::defines::MagmaSyncProperties;
 use crate::defines::MagmaSyncType;
 use crate::defines::MagmaTimestampProperties;
 use crate::error::Error;
@@ -57,6 +59,19 @@ pub trait GenericPhysicalDevice {
 
     fn get_timestamp_properties(&self) -> Result<MagmaTimestampProperties> {
         Ok(MagmaTimestampProperties::new(0))
+    }
+
+    fn get_sync_properties(&self) -> Result<MagmaSyncProperties> {
+        Ok(MagmaSyncProperties::new(
+            (MagmaSyncCapability::Binary
+                | MagmaSyncCapability::Timeline
+                | MagmaSyncCapability::CpuWait
+                | MagmaSyncCapability::CpuSignal
+                | MagmaSyncCapability::ExportSyncFile
+                | MagmaSyncCapability::ImportSyncFile)
+                .bits(),
+            u64::MAX,
+        ))
     }
 
     fn query_vendor(

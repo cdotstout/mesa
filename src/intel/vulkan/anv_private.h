@@ -101,6 +101,7 @@
 #include "vk_shader.h"
 #include "vk_shader_module.h"
 #include "vk_sync.h"
+#include "vk_sync_timeline.h"
 #include "vk_texcompress_astc.h"
 #include "vk_util.h"
 #include "vk_query_pool.h"
@@ -1727,7 +1728,8 @@ struct anv_physical_device {
     uint8_t                                     rt_uuid[VK_UUID_SIZE];
 
     struct vk_sync_type                         sync_syncobj_type;
-    const struct vk_sync_type *                 sync_types[2];
+    struct vk_sync_timeline_type                sync_timeline_type;
+    const struct vk_sync_type *                 sync_types[3];
 
     struct wsi_device                       wsi_device;
     int                                         local_fd;
