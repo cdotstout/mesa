@@ -99,7 +99,7 @@ __getProgramName()
 static char *
 __getProgramName()
 {
-   return strdup(program_invocation_short_name);
+   return strdup(program_invocation_short_name ? program_invocation_short_name : "");
 }
 #elif defined(__FreeBSD__) || defined(__DragonFly__) || defined(__APPLE__) || DETECT_OS_ANDROID || defined(__NetBSD__)
 #if defined(__NetBSD__)
