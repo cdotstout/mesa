@@ -146,6 +146,10 @@ pub trait GenericSemaphore {
         Err(Error::Unimplemented)
     }
 
+    fn reset(&self) -> Result<()> {
+        Err(Error::Unimplemented)
+    }
+
     fn timeline_wait(&self, _point: u64, _timeout_ns: u64, _flags: u32) -> Result<()> {
         Err(Error::Unimplemented)
     }

@@ -456,6 +456,14 @@ static VkResult
 anv_magma_sync_reset(struct vk_device *device,
                      struct vk_sync *sync)
 {
+   struct anv_magma_sync *msync = anv_magma_sync_as_magma(sync);
+   if (msync->magma_sync) {
+      magma_status_t status = magma_semaphore_reset(msync->magma_sync);
+      if (status == MAGMA_STATUS_SUCCESS)
+         return VK_SUCCESS;
+      if (status != MAGMA_STATUS_UNIMPLEMENTED)
+         return VK_ERROR_DEVICE_LOST;
+   }
    anv_magma_sync_finish(device, sync);
    return anv_magma_sync_init(device, sync, 0);
 }

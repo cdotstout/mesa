@@ -188,6 +188,15 @@ aspects = [ "common" ]
 response = true
 
 [[commands]]
+name = "MagmaSemaphoreReset"
+target = "reset"
+inputs = [
+    { name = "semaphore", type = "Semaphore", direction = "in" },
+]
+output = "MagmaStatus"
+aspects = [ "ffi" ]
+
+[[commands]]
 name = "MagmaSemaphoreTimelineWait"
 target = "timeline_wait"
 inputs = [

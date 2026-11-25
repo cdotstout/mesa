@@ -697,6 +697,16 @@ pub unsafe extern "C" fn magma_semaphore_signal(semaphore: &mut magma_semaphore)
 }
 
 #[no_mangle]
+pub unsafe extern "C" fn magma_semaphore_reset(semaphore: &mut magma_semaphore) -> i32 {
+    catch_unwind(AssertUnwindSafe(|| {
+        debug!("call: magma_semaphore_reset");
+        let result = semaphore.reset();
+        return_result(result)
+    }))
+    .unwrap_or(-ESRCH)
+}
+
+#[no_mangle]
 pub unsafe extern "C" fn magma_semaphore_timeline_wait(
     semaphore: &mut magma_semaphore,
     point: u64,

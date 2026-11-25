@@ -128,6 +128,13 @@ ioctl_readwrite!(
 );
 
 ioctl_readwrite!(
+    drm_ioctl_syncobj_reset,
+    DRM_IOCTL_BASE,
+    DRM_IOCTL_SYNCOBJ_RESET,
+    drm_syncobj_array
+);
+
+ioctl_readwrite!(
     drm_ioctl_syncobj_timeline_wait,
     DRM_IOCTL_BASE,
     DRM_IOCTL_SYNCOBJ_TIMELINE_WAIT,
@@ -236,6 +243,19 @@ impl GenericSemaphore for DrmSemaphore {
         };
         unsafe {
             drm_ioctl_syncobj_signal(fd, &mut signal_arg)?;
+        }
+        Ok(())
+    }
+
+    fn reset(&self) -> Result<()> {
+        let fd = self.physical_device.as_fd().unwrap();
+        let mut reset_arg = drm_syncobj_array {
+            handles: &self.handle as *const _ as u64,
+            count_handles: 1,
+            pad: 0,
+        };
+        unsafe {
+            drm_ioctl_syncobj_reset(fd, &mut reset_arg)?;
         }
         Ok(())
     }
