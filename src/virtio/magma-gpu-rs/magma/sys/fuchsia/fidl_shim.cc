@@ -1,6 +1,9 @@
 #include <fidl/fuchsia.gpu.magma/cpp/wire.h>
 #include <fidl/fuchsia.io/cpp/wire.h>
 #include <lib/zx/channel.h>
+#include <lib/zx/event.h>
+#include <lib/zx/vmo.h>
+#include <zircon/process.h>
 #include <zircon/syscalls.h>
 #include <zircon/syscalls/object.h>
 #include <zircon/threads.h>
@@ -260,6 +263,75 @@ zx_status_t magma_fidl_primary_unmap_buffer(uint32_t primary_channel,
   builder.hw_va(hw_va).buffer_id(buffer_id);
   fidl::UnownedClientEnd<fuchsia_gpu_magma::Primary> client_end(primary_channel);
   return fidl::WireCall(client_end)->UnmapBuffer(builder.Build()).status();
+}
+
+zx_status_t magma_fidl_get_handle_koid(uint32_t handle, uint64_t* koid_out) {
+  if (!koid_out) {
+    return ZX_ERR_INVALID_ARGS;
+  }
+  zx_info_handle_basic_t info{};
+  zx_status_t status =
+      zx_object_get_info(handle, ZX_INFO_HANDLE_BASIC, &info, sizeof(info), nullptr, nullptr);
+  if (status != ZX_OK) {
+    return status;
+  }
+  *koid_out = info.koid;
+  return ZX_OK;
+}
+
+zx_status_t magma_fidl_primary_import_object(uint32_t primary_channel,
+                                             uint32_t handle,
+                                             uint32_t object_type,
+                                             uint64_t object_id,
+                                             uint64_t flags) {
+  auto wire_type = fuchsia_gpu_magma::wire::ObjectType(object_type);
+  fuchsia_gpu_magma::wire::Object wire_object;
+  if (wire_type == fuchsia_gpu_magma::wire::ObjectType::kBuffer) {
+    wire_object = fuchsia_gpu_magma::wire::Object::WithBuffer(zx::vmo(handle));
+  } else if (wire_type == fuchsia_gpu_magma::wire::ObjectType::kSemaphore) {
+    wire_object = fuchsia_gpu_magma::wire::Object::WithSemaphore(zx::event(handle));
+  } else {
+    if (handle != ZX_HANDLE_INVALID) {
+      zx_handle_close(handle);
+    }
+    return ZX_ERR_INVALID_ARGS;
+  }
+
+  fidl::Arena arena;
+  auto builder = fuchsia_gpu_magma::wire::PrimaryImportObjectRequest::Builder(arena);
+  builder.object(std::move(wire_object))
+      .object_type(wire_type)
+      .object_id(object_id)
+      .flags(fuchsia_gpu_magma::wire::ImportFlags(flags));
+  fidl::UnownedClientEnd<fuchsia_gpu_magma::Primary> client_end(primary_channel);
+  return fidl::WireCall(client_end)->ImportObject(builder.Build()).status();
+}
+
+zx_status_t magma_fidl_primary_release_object(uint32_t primary_channel,
+                                              uint64_t object_id,
+                                              uint32_t object_type) {
+  fidl::UnownedClientEnd<fuchsia_gpu_magma::Primary> client_end(primary_channel);
+  return fidl::WireCall(client_end)
+      ->ReleaseObject(object_id, fuchsia_gpu_magma::wire::ObjectType(object_type))
+      .status();
+}
+
+zx_status_t magma_fidl_vmar_map(uint32_t vmo, uint64_t size, uintptr_t* addr_out) {
+  if (!addr_out) {
+    return ZX_ERR_INVALID_ARGS;
+  }
+  zx_vaddr_t addr = 0;
+  zx_status_t status = zx_vmar_map(zx_vmar_root_self(), ZX_VM_PERM_READ | ZX_VM_PERM_WRITE, 0,
+                                   vmo, 0, size, &addr);
+  if (status != ZX_OK) {
+    return status;
+  }
+  *addr_out = static_cast<uintptr_t>(addr);
+  return ZX_OK;
+}
+
+zx_status_t magma_fidl_vmar_unmap(uintptr_t addr, uint64_t size) {
+  return zx_vmar_unmap(zx_vmar_root_self(), static_cast<zx_vaddr_t>(addr), size);
 }
 
 }

@@ -9,13 +9,22 @@ use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::sync::Mutex;
 
+use magma_gpu::util::FromRawDescriptor;
+use magma_gpu::util::Handle as MagmaGpuHandle;
+use magma_gpu::util::IntoRawDescriptor;
+use magma_gpu::util::MappedRegion;
+use magma_gpu::util::OwnedDescriptor;
+use magma_gpu::util::RawDescriptor;
+use magma_gpu::util::RawMapping;
 use zerocopy::IntoBytes;
 use zerocopy::TryFromBytes;
 
+use crate::defines::buffer_flags_get_map_info;
 use crate::defines::MagmaAddressSpaceProperties;
 use crate::defines::MagmaCreateBufferInfo;
 use crate::defines::MagmaCreateQueueInfo;
 use crate::defines::MagmaImportHandleInfo;
+use crate::defines::MagmaMappedMemoryRange;
 use crate::defines::MagmaPhysicalDeviceInfo;
 use crate::defines::MagmaQueueFamilyProperties;
 use crate::defines::MagmaQueueFlags;
@@ -26,6 +35,7 @@ use crate::device::PhysicalDevice;
 use crate::error::Error;
 use crate::error::Result;
 use crate::protocol::MagmaGpuMapFlags;
+use crate::protocol::MagmaHandleType;
 use crate::traits::AsVirtGpu;
 use crate::traits::BackendAddressSpace;
 use crate::traits::BackendBuffer;
@@ -33,6 +43,7 @@ use crate::traits::BackendDevice;
 use crate::traits::BackendPhysicalDevice;
 use crate::traits::BackendQueue;
 use crate::traits::GenericAddressSpace;
+use crate::traits::GenericBuffer;
 use crate::traits::GenericDevice;
 use crate::traits::GenericPhysicalDevice;
 use crate::traits::MagmaVendorQueryResult;
@@ -83,6 +94,15 @@ const MAGMA_FIDL_MAP_FLAG_WRITE: u64 = 0x2;
 const MAGMA_FIDL_MAP_FLAG_EXECUTE: u64 = 0x4;
 const MAGMA_FIDL_MAP_FLAG_GROWABLE: u64 = 0x8;
 
+const MAGMA_FIDL_OBJECT_TYPE_BUFFER: u32 = 11;
+#[allow(dead_code)]
+const MAGMA_FIDL_OBJECT_TYPE_SEMAPHORE: u32 = 12;
+
+const ZX_RIGHT_SAME_RIGHTS: u32 = 1 << 31;
+const ZX_CACHE_POLICY_WRITE_COMBINING: u32 = 2;
+const ZX_VMO_OP_CACHE_INVALIDATE: u32 = 7;
+const ZX_VMO_OP_CACHE_CLEAN: u32 = 8;
+
 const DEVICE_NAMESPACES: [&str; 1] = ["/loader-gpu-devices/svc/magma/"];
 
 const MAX_PATH_LEN: usize = 256;
@@ -109,6 +129,22 @@ extern "C" {
         observed: *mut zx_signals_t,
     ) -> zx_status_t;
     fn zx_deadline_after(nanoseconds: zx_duration_t) -> zx_time_t;
+    fn zx_vmo_create(size: u64, options: u32, out: *mut zx_handle_t) -> zx_status_t;
+    fn zx_vmo_get_size(handle: zx_handle_t, size: *mut u64) -> zx_status_t;
+    fn zx_vmo_set_cache_policy(handle: zx_handle_t, cache_policy: u32) -> zx_status_t;
+    fn zx_vmo_op_range(
+        handle: zx_handle_t,
+        op: u32,
+        offset: u64,
+        size: u64,
+        buffer: *mut c_void,
+        buffer_size: usize,
+    ) -> zx_status_t;
+    fn zx_handle_duplicate(
+        handle: zx_handle_t,
+        rights: u32,
+        out: *mut zx_handle_t,
+    ) -> zx_status_t;
     fn zx_vmo_read(
         handle: zx_handle_t,
         buffer: *mut c_void,
@@ -157,6 +193,21 @@ extern "C" {
         hw_va: u64,
         buffer_id: u64,
     ) -> zx_status_t;
+    fn magma_fidl_get_handle_koid(handle: u32, koid_out: *mut u64) -> zx_status_t;
+    fn magma_fidl_primary_import_object(
+        primary_channel: u32,
+        handle: u32,
+        object_type: u32,
+        object_id: u64,
+        flags: u64,
+    ) -> zx_status_t;
+    fn magma_fidl_primary_release_object(
+        primary_channel: u32,
+        object_id: u64,
+        object_type: u32,
+    ) -> zx_status_t;
+    fn magma_fidl_vmar_map(vmo: u32, size: u64, addr_out: *mut usize) -> zx_status_t;
+    fn magma_fidl_vmar_unmap(addr: usize, size: u64) -> zx_status_t;
 }
 
 pub fn zx_status_to_result(status: zx_status_t) -> Result<()> {
@@ -692,6 +743,179 @@ impl GenericAddressSpace for FuchsiaAddressSpace {
 
 impl BackendAddressSpace for FuchsiaAddressSpace {}
 
+struct FuchsiaMappedRegion {
+    addr: usize,
+    size: usize,
+}
+
+unsafe impl Send for FuchsiaMappedRegion {}
+unsafe impl Sync for FuchsiaMappedRegion {}
+
+unsafe impl MappedRegion for FuchsiaMappedRegion {
+    fn as_ptr(&self) -> *mut u8 {
+        self.addr as *mut u8
+    }
+
+    fn size(&self) -> usize {
+        self.size
+    }
+
+    fn as_raw_mapping(&self) -> RawMapping {
+        RawMapping {
+            ptr: self.addr as u64,
+            size: self.size as u64,
+        }
+    }
+}
+
+impl Drop for FuchsiaMappedRegion {
+    fn drop(&mut self) {
+        if self.addr != 0 && self.size != 0 {
+            unsafe {
+                magma_fidl_vmar_unmap(self.addr, self.size as u64);
+            }
+        }
+    }
+}
+
+pub struct FuchsiaBuffer {
+    connection: Arc<PrimaryConnection>,
+    vmo: ZxHandle,
+    object_id: u64,
+    size: usize,
+    map_info: Option<u32>,
+}
+
+impl FuchsiaBuffer {
+    pub fn new(
+        connection: Arc<PrimaryConnection>,
+        create_info: &MagmaCreateBufferInfo,
+    ) -> Result<Self> {
+        let mut vmo_raw: zx_handle_t = ZX_HANDLE_INVALID;
+        let status = unsafe { zx_vmo_create(create_info.size, 0, &mut vmo_raw) };
+        zx_status_to_result(status)?;
+        let vmo = ZxHandle::new(vmo_raw);
+
+        if !create_info.is_cached() || create_info.is_scanout() {
+            let status =
+                unsafe { zx_vmo_set_cache_policy(vmo.raw(), ZX_CACHE_POLICY_WRITE_COMBINING) };
+            zx_status_to_result(status)?;
+        }
+
+        Self::from_vmo(connection, vmo, create_info.get_map_info())
+    }
+
+    pub fn from_vmo(
+        connection: Arc<PrimaryConnection>,
+        vmo: ZxHandle,
+        map_info: Option<u32>,
+    ) -> Result<Self> {
+        let mut actual_size: u64 = 0;
+        let status = unsafe { zx_vmo_get_size(vmo.raw(), &mut actual_size) };
+        zx_status_to_result(status)?;
+
+        let mut object_id: u64 = 0;
+        let status = unsafe { magma_fidl_get_handle_koid(vmo.raw(), &mut object_id) };
+        zx_status_to_result(status)?;
+
+        let mut dup_raw: zx_handle_t = ZX_HANDLE_INVALID;
+        let status = unsafe { zx_handle_duplicate(vmo.raw(), ZX_RIGHT_SAME_RIGHTS, &mut dup_raw) };
+        zx_status_to_result(status)?;
+        let dup = ZxHandle::new(dup_raw);
+
+        connection.with_flow_control(actual_size, |ch| unsafe {
+            magma_fidl_primary_import_object(
+                ch,
+                dup.release(),
+                MAGMA_FIDL_OBJECT_TYPE_BUFFER,
+                object_id,
+                0,
+            )
+        })?;
+
+        Ok(Self {
+            connection,
+            vmo,
+            object_id,
+            size: actual_size.try_into()?,
+            map_info,
+        })
+    }
+
+    fn cache_op(&self, op: u32, ranges: &[MagmaMappedMemoryRange]) -> Result<()> {
+        if ranges.is_empty() {
+            let status = unsafe {
+                zx_vmo_op_range(self.vmo.raw(), op, 0, self.size as u64, null_mut(), 0)
+            };
+            return zx_status_to_result(status);
+        }
+        for range in ranges {
+            let status = unsafe {
+                zx_vmo_op_range(
+                    self.vmo.raw(),
+                    op,
+                    range.offset,
+                    range.size,
+                    null_mut(),
+                    0,
+                )
+            };
+            zx_status_to_result(status)?;
+        }
+        Ok(())
+    }
+}
+
+impl Drop for FuchsiaBuffer {
+    fn drop(&mut self) {
+        let _ = self.connection.with_flow_control(0, |ch| unsafe {
+            magma_fidl_primary_release_object(ch, self.object_id, MAGMA_FIDL_OBJECT_TYPE_BUFFER)
+        });
+    }
+}
+
+impl GenericBuffer for FuchsiaBuffer {
+    fn map(self: Arc<Self>) -> Result<Arc<dyn MappedRegion>> {
+        let mut addr: usize = 0;
+        let status = unsafe { magma_fidl_vmar_map(self.vmo.raw(), self.size as u64, &mut addr) };
+        zx_status_to_result(status)?;
+        Ok(Arc::new(FuchsiaMappedRegion {
+            addr,
+            size: self.size,
+        }))
+    }
+
+    fn export(&self) -> Result<MagmaGpuHandle> {
+        let mut dup_raw: zx_handle_t = ZX_HANDLE_INVALID;
+        let status =
+            unsafe { zx_handle_duplicate(self.vmo.raw(), ZX_RIGHT_SAME_RIGHTS, &mut dup_raw) };
+        zx_status_to_result(status)?;
+        let os_handle = unsafe { OwnedDescriptor::from_raw_descriptor(dup_raw as RawDescriptor) };
+        Ok(MagmaGpuHandle {
+            os_handle,
+            handle_type: MagmaHandleType::MemZircon.bits(),
+        })
+    }
+
+    fn invalidate(&self, _sync_flags: u64, ranges: &[MagmaMappedMemoryRange]) -> Result<()> {
+        self.cache_op(ZX_VMO_OP_CACHE_INVALIDATE, ranges)
+    }
+
+    fn flush(&self, _sync_flags: u64, ranges: &[MagmaMappedMemoryRange]) -> Result<()> {
+        self.cache_op(ZX_VMO_OP_CACHE_CLEAN, ranges)
+    }
+
+    fn get_map_info(&self) -> Option<u32> {
+        self.map_info
+    }
+
+    fn object_id(&self) -> Option<u64> {
+        Some(self.object_id)
+    }
+}
+
+impl BackendBuffer for FuchsiaBuffer {}
+
 pub struct FuchsiaDevice {
     _physical_device: Arc<FuchsiaPhysicalDevice>,
     connection: Arc<PrimaryConnection>,
@@ -753,13 +977,24 @@ impl GenericDevice for FuchsiaDevice {
 
     fn create_buffer(
         self: Arc<Self>,
-        _create_info: &MagmaCreateBufferInfo,
+        create_info: &MagmaCreateBufferInfo,
     ) -> Result<Arc<dyn BackendBuffer>> {
-        Err(Error::Unimplemented)
+        let buf = FuchsiaBuffer::new(self.connection.clone(), create_info)?;
+        Ok(Arc::new(buf))
     }
 
-    fn import(self: Arc<Self>, _info: MagmaImportHandleInfo) -> Result<Arc<dyn BackendBuffer>> {
-        Err(Error::Unimplemented)
+    fn import(self: Arc<Self>, info: MagmaImportHandleInfo) -> Result<Arc<dyn BackendBuffer>> {
+        let vmo_raw = info.handle.os_handle.into_raw_descriptor() as zx_handle_t;
+        if vmo_raw == ZX_HANDLE_INVALID {
+            return Err(Error::InvalidArgs);
+        }
+        let vmo = ZxHandle::new(vmo_raw);
+        let buf = FuchsiaBuffer::from_vmo(
+            self.connection.clone(),
+            vmo,
+            buffer_flags_get_map_info(info.common_flags),
+        )?;
+        Ok(Arc::new(buf))
     }
 }
 
