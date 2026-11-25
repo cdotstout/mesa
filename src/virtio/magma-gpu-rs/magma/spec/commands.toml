@@ -243,6 +243,18 @@ output = "MagmaStatus"
 aspects = [ "common" ]
 response = true
 
+# Simple whole-buffer CPU mapping convenience (primarily needed for backends
+# like Windows/WDDM where CPU access requires D3DKMTLock2/Unlock2 rather than
+# mapping an exported OS handle, and to avoid dma-buf export overhead for
+# internal BOs on Linux DRM).
+#
+# Intentionally scoped to basic whole-buffer mappings only: advanced OS
+# virtual-memory features (placed mappings such as VK_EXT_map_memory_placed,
+# partial ranges, custom alignment, constrained VA ranges, or custom VMARs)
+# should use magma_buffer_export() + native OS mapping (mmap / zx_vmar_map)
+# rather than expanding this API.
+#
+# Note: map/unmap is not refcounted internally; callers must manage nesting.
 [[commands]]
 name = "MagmaBufferMap"
 target = "map_cpu"

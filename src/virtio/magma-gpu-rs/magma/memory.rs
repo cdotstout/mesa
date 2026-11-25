@@ -69,6 +69,12 @@ impl Buffer {
         self.buffer.get_map_info()
     }
 
+    /// Simple whole-buffer CPU mapping convenience (needed for backends like
+    /// WDDM that cannot map via an exported OS handle, and to avoid dma-buf
+    /// export overhead on Linux DRM). Advanced mappings (placed, partial,
+    /// custom alignment/VMAR) should use `export()` + native OS mapping.
+    ///
+    /// Note: not refcounted; callers must manage nested map/unmap pairing.
     pub fn map_cpu(&self) -> Result<MagmaMapping> {
         let mut mapping = self.mapping.lock().map_err(|_| Error::InternalError)?;
         if mapping.is_none() {
