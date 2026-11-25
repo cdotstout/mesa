@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::ffi::c_char;
 use std::ffi::c_void;
 use std::ffi::CStr;
@@ -32,12 +33,14 @@ use crate::defines::MAGMA_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
 use crate::device::PhysicalDevice;
 use crate::error::Error;
 use crate::error::Result;
+use crate::protocol::MagmaGpuMapFlags;
 use crate::traits::AsVirtGpu;
 use crate::traits::BackendAddressSpace;
 use crate::traits::BackendBuffer;
 use crate::traits::BackendDevice;
 use crate::traits::BackendPhysicalDevice;
 use crate::traits::BackendQueue;
+use crate::traits::GenericAddressSpace;
 use crate::traits::GenericDevice;
 use crate::traits::GenericPhysicalDevice;
 use crate::traits::MagmaVendorQueryResult;
@@ -82,6 +85,11 @@ pub const MAGMA_QUERY_VENDOR_PARAM_0: u64 = 10000;
 pub const MAGMA_INTEL_GEN_QUERY_GTT_SIZE: u64 = MAGMA_QUERY_VENDOR_PARAM_0 + 1;
 pub const MAGMA_INTEL_GEN_QUERY_TOPOLOGY: u64 = MAGMA_QUERY_VENDOR_PARAM_0 + 4;
 pub const MAGMA_INTEL_GEN_QUERY_TIMESTAMP_FREQUENCY: u64 = MAGMA_QUERY_VENDOR_PARAM_0 + 6;
+
+const MAGMA_FIDL_MAP_FLAG_READ: u64 = 0x1;
+const MAGMA_FIDL_MAP_FLAG_WRITE: u64 = 0x2;
+const MAGMA_FIDL_MAP_FLAG_EXECUTE: u64 = 0x4;
+const MAGMA_FIDL_MAP_FLAG_GROWABLE: u64 = 0x8;
 
 const DEVICE_NAMESPACES: [&str; 1] = ["/loader-gpu-devices/svc/magma/"];
 
@@ -144,6 +152,19 @@ extern "C" {
         primary_channel: u32,
         messages_consumed_out: *mut u64,
         memory_imported_out: *mut u64,
+    ) -> zx_status_t;
+    fn magma_fidl_primary_map_buffer(
+        primary_channel: u32,
+        hw_va: u64,
+        buffer_id: u64,
+        offset: u64,
+        size: u64,
+        flags: u64,
+    ) -> zx_status_t;
+    fn magma_fidl_primary_unmap_buffer(
+        primary_channel: u32,
+        hw_va: u64,
+        buffer_id: u64,
     ) -> zx_status_t;
 }
 
@@ -616,9 +637,104 @@ impl GenericPhysicalDevice for FuchsiaPhysicalDevice {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct MappedRange {
+    pub buffer_id: u64,
+    #[allow(dead_code)]
+    pub gpu_va: u64,
+    #[allow(dead_code)]
+    pub buffer_offset: u64,
+    #[allow(dead_code)]
+    pub size: u64,
+}
+
+pub struct FuchsiaAddressSpace {
+    connection: Arc<PrimaryConnection>,
+    mappings: Mutex<BTreeMap<u64, MappedRange>>,
+}
+
+impl FuchsiaAddressSpace {
+    pub fn new(connection: Arc<PrimaryConnection>) -> Self {
+        Self {
+            connection,
+            mappings: Mutex::new(BTreeMap::new()),
+        }
+    }
+
+    #[allow(dead_code)]
+    pub fn lookup_gpu_va(&self, va: u64) -> Option<MappedRange> {
+        let mappings = self.mappings.lock().ok()?;
+        let (_, range) = mappings.range(..=va).next_back()?;
+        if va < range.gpu_va.saturating_add(range.size) {
+            Some(*range)
+        } else {
+            None
+        }
+    }
+}
+
+impl GenericAddressSpace for FuchsiaAddressSpace {
+    fn map_buffer_gpu(
+        &self,
+        buffer: &Arc<dyn BackendBuffer>,
+        buffer_offset: u64,
+        gpu_va: u64,
+        size: u64,
+        flags: MagmaGpuMapFlags,
+    ) -> Result<()> {
+        let buffer_id = buffer.object_id().ok_or(Error::InvalidArgs)?;
+        let mut fidl_flags = 0u64;
+        if flags.contains(MagmaGpuMapFlags::Read) {
+            fidl_flags |= MAGMA_FIDL_MAP_FLAG_READ;
+        }
+        if flags.contains(MagmaGpuMapFlags::Write) {
+            fidl_flags |= MAGMA_FIDL_MAP_FLAG_WRITE;
+        }
+        if flags.contains(MagmaGpuMapFlags::Execute) {
+            fidl_flags |= MAGMA_FIDL_MAP_FLAG_EXECUTE;
+        }
+        if flags.contains(MagmaGpuMapFlags::GrowUp) || flags.contains(MagmaGpuMapFlags::GrowDown) {
+            fidl_flags |= MAGMA_FIDL_MAP_FLAG_GROWABLE;
+        }
+        if fidl_flags == 0 {
+            fidl_flags =
+                MAGMA_FIDL_MAP_FLAG_READ | MAGMA_FIDL_MAP_FLAG_WRITE | MAGMA_FIDL_MAP_FLAG_EXECUTE;
+        }
+
+        self.connection.with_flow_control(0, |ch| unsafe {
+            magma_fidl_primary_map_buffer(ch, gpu_va, buffer_id, buffer_offset, size, fidl_flags)
+        })?;
+
+        let mut mappings = self.mappings.lock().map_err(|_| Error::InternalError)?;
+        mappings.insert(
+            gpu_va,
+            MappedRange {
+                buffer_id,
+                gpu_va,
+                buffer_offset,
+                size,
+            },
+        );
+        Ok(())
+    }
+
+    fn unmap_buffer_gpu(&self, gpu_va: u64, _size: u64) -> Result<()> {
+        let mapped = {
+            let mut mappings = self.mappings.lock().map_err(|_| Error::InternalError)?;
+            mappings.remove(&gpu_va).ok_or(Error::InvalidArgs)?
+        };
+
+        self.connection.with_flow_control(0, |ch| unsafe {
+            magma_fidl_primary_unmap_buffer(ch, gpu_va, mapped.buffer_id)
+        })
+    }
+}
+
+impl BackendAddressSpace for FuchsiaAddressSpace {}
+
 pub struct FuchsiaDevice {
     _physical_device: Arc<FuchsiaPhysicalDevice>,
-    _connection: Arc<PrimaryConnection>,
+    connection: Arc<PrimaryConnection>,
     _info: MagmaPhysicalDeviceInfo,
 }
 
@@ -653,7 +769,7 @@ impl FuchsiaDevice {
 
         Ok(Self {
             _physical_device: physical_device,
-            _connection: connection,
+            connection,
             _info: *info,
         })
     }
@@ -668,7 +784,7 @@ impl GenericDevice for FuchsiaDevice {
     }
 
     fn create_address_space(self: Arc<Self>) -> Result<Arc<dyn BackendAddressSpace>> {
-        Err(Error::Unimplemented)
+        Ok(Arc::new(FuchsiaAddressSpace::new(self.connection.clone())))
     }
 
     fn create_queue(

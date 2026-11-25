@@ -127,6 +127,10 @@ pub trait GenericBuffer {
         self.as_gem_handle()
     }
 
+    fn object_id(&self) -> Option<u64> {
+        self.id().map(u64::from)
+    }
+
     fn pat_index(&self) -> u16 {
         0
     }

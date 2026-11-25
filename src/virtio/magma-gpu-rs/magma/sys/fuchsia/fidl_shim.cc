@@ -234,4 +234,32 @@ zx_status_t magma_fidl_primary_handle_one_event(uint32_t primary_channel,
   return status.status();
 }
 
+zx_status_t magma_fidl_primary_map_buffer(uint32_t primary_channel,
+                                          uint64_t hw_va,
+                                          uint64_t buffer_id,
+                                          uint64_t offset,
+                                          uint64_t size,
+                                          uint64_t flags) {
+  fidl::Arena arena;
+  fuchsia_gpu_magma::wire::BufferRange range = {
+      .buffer_id = buffer_id,
+      .offset = offset,
+      .size = size,
+  };
+  auto builder = fuchsia_gpu_magma::wire::PrimaryMapBufferRequest::Builder(arena);
+  builder.hw_va(hw_va).range(range).flags(fuchsia_gpu_magma::wire::MapFlags(flags));
+  fidl::UnownedClientEnd<fuchsia_gpu_magma::Primary> client_end(primary_channel);
+  return fidl::WireCall(client_end)->MapBuffer(builder.Build()).status();
+}
+
+zx_status_t magma_fidl_primary_unmap_buffer(uint32_t primary_channel,
+                                            uint64_t hw_va,
+                                            uint64_t buffer_id) {
+  fidl::Arena arena;
+  auto builder = fuchsia_gpu_magma::wire::PrimaryUnmapBufferRequest::Builder(arena);
+  builder.hw_va(hw_va).buffer_id(buffer_id);
+  fidl::UnownedClientEnd<fuchsia_gpu_magma::Primary> client_end(primary_channel);
+  return fidl::WireCall(client_end)->UnmapBuffer(builder.Build()).status();
+}
+
 }
