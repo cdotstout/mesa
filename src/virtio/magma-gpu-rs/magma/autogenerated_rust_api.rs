@@ -64,6 +64,25 @@ impl MagmaQueueFamilyProperties {
     }
 }
 
+impl MagmaWirePollItem {
+    pub fn new(
+        semaphore: u32,
+        handle: u64,
+        poll_type: MagmaPollType,
+        condition: MagmaPollCondition,
+        result: MagmaPollCondition,
+    ) -> MagmaWirePollItem {
+        MagmaWirePollItem {
+            semaphore,
+            handle,
+            poll_type,
+            condition,
+            result,
+            ..Default::default()
+        }
+    }
+}
+
 impl MagmaCreateBufferInfo {
     pub fn new(
         alignment: u32,

@@ -42,6 +42,9 @@ use magma_gpu_magma::MagmaMapping;
 use magma_gpu_magma::MagmaMemoryHeapsProperties;
 use magma_gpu_magma::MagmaPciBusInfo;
 use magma_gpu_magma::MagmaPhysicalDeviceInfo;
+use magma_gpu_magma::MagmaPollCondition;
+use magma_gpu_magma::MagmaPollItem;
+use magma_gpu_magma::MagmaPollType;
 use magma_gpu_magma::MagmaQueueFamilyProperties;
 use magma_gpu_magma::MagmaQueueFlags;
 use magma_gpu_magma::MagmaQueuePriority;
@@ -118,6 +121,9 @@ pub type magma_queue_priority = MagmaQueuePriority;
 pub type magma_semaphore_type = MagmaSemaphoreType;
 
 #[allow(non_camel_case_types)]
+pub type magma_poll_type = MagmaPollType;
+
+#[allow(non_camel_case_types)]
 pub type magma_queue_flags = MagmaQueueFlags;
 
 #[allow(non_camel_case_types)]
@@ -134,6 +140,9 @@ pub type magma_semaphore_use_flags = MagmaSemaphoreUseFlags;
 
 #[allow(non_camel_case_types)]
 pub type magma_semaphore_wait_flags = MagmaSemaphoreWaitFlags;
+
+#[allow(non_camel_case_types)]
+pub type magma_poll_condition = MagmaPollCondition;
 
 #[allow(non_camel_case_types)]
 pub type magma_handle_type = MagmaHandleType;
@@ -158,6 +167,34 @@ pub type magma_mapping = MagmaMapping;
 
 #[allow(non_camel_case_types)]
 pub type magma_handle = MagmaHandle;
+
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct magma_poll_item {
+    pub semaphore: *mut magma_semaphore,
+    pub handle: u64,
+    pub poll_type: MagmaPollType,
+    pub condition: MagmaPollCondition,
+    pub result: MagmaPollCondition,
+}
+
+impl magma_poll_item {
+    pub fn to_rust(&self) -> MagmaPollItem {
+        let semaphore = if !self.semaphore.is_null() {
+            Some(unsafe { (*self.semaphore).clone() })
+        } else {
+            None
+        };
+        MagmaPollItem {
+            semaphore,
+            handle: self.handle,
+            poll_type: self.poll_type,
+            condition: self.condition,
+            result: self.result,
+            ..Default::default()
+        }
+    }
+}
 
 #[allow(non_camel_case_types)]
 pub type magma_create_buffer_info = MagmaCreateBufferInfo;

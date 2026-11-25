@@ -234,6 +234,33 @@ impl GenericSemaphore for DrmSemaphore {
         }
     }
 
+    fn wait_any(
+        &self,
+        semaphores: &[&Arc<dyn BackendSemaphore>],
+        abs_timeout_ns: u64,
+    ) -> Result<usize> {
+        let fd = self.physical_device.as_fd().unwrap();
+        let handles: Vec<u32> = semaphores
+            .iter()
+            .map(|s| s.as_raw_handle().ok_or(Error::InvalidArgs))
+            .collect::<Result<Vec<_>>>()?;
+        let timeout_nsec = abs_timeout_ns.min(i64::MAX as u64) as i64;
+        let mut wait_arg = drm_syncobj_wait {
+            handles: handles.as_ptr() as u64,
+            timeout_nsec,
+            count_handles: handles.len() as u32,
+            flags: DRM_SYNCOBJ_WAIT_FLAGS_WAIT_FOR_SUBMIT,
+            first_signaled: 0,
+            pad: 0,
+            deadline_nsec: 0,
+        };
+        match unsafe { drm_ioctl_syncobj_wait(fd, &mut wait_arg) } {
+            Ok(_) => Ok(wait_arg.first_signaled as usize),
+            Err(e) if e.raw_os_error() == Some(libc::ETIME) => Err(Error::TimedOut),
+            Err(e) => Err(Error::PlatformError(e.into())),
+        }
+    }
+
     fn signal(&self) -> Result<()> {
         let fd = self.physical_device.as_fd().unwrap();
         let mut signal_arg = drm_syncobj_array {

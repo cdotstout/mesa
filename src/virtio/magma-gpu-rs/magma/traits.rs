@@ -158,6 +158,16 @@ pub trait GenericSemaphore {
         Err(Error::Unimplemented)
     }
 
+    /// Wait until any semaphore in `semaphores` (which includes `self`) is signaled
+    /// or `abs_timeout_ns` expires, returning the index of a signaled semaphore.
+    fn wait_any(
+        &self,
+        _semaphores: &[&Arc<dyn BackendSemaphore>],
+        _abs_timeout_ns: u64,
+    ) -> Result<usize> {
+        Err(Error::Unimplemented)
+    }
+
     fn signal(&self) -> Result<()> {
         Err(Error::Unimplemented)
     }

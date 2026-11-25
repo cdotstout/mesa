@@ -76,6 +76,12 @@ enum {
     MAGMA_SEMAPHORE_TYPE_TIMELINE = 0x00000001,
 };
 
+typedef uint32_t magma_poll_type_t;
+enum {
+    MAGMA_POLL_TYPE_SEMAPHORE = 0x00000001,
+    MAGMA_POLL_TYPE_HANDLE = 0x00000002,
+};
+
 typedef uint32_t magma_queue_flags_t;
 enum {
     MAGMA_QUEUE_FLAGS_GRAPHICS = 0x00000001,
@@ -121,6 +127,12 @@ enum {
 typedef uint32_t magma_semaphore_wait_flags_t;
 enum {
     MAGMA_SEMAPHORE_WAIT_FLAGS_WAIT_PENDING = 0x00000001,
+};
+
+typedef uint32_t magma_poll_condition_t;
+enum {
+    MAGMA_POLL_CONDITION_READABLE = 0x00000001,
+    MAGMA_POLL_CONDITION_SIGNALED = 0x00000003,
 };
 
 typedef uint32_t magma_handle_type_t;
@@ -179,6 +191,14 @@ struct magma_mapping {
 struct magma_handle {
     int64_t os_handle;
     magma_handle_type_t handle_type;
+};
+
+struct magma_poll_item {
+    magma_semaphore_t semaphore;
+    uint64_t handle;
+    magma_poll_type_t poll_type;
+    magma_poll_condition_t condition;
+    magma_poll_condition_t result;
 };
 
 typedef enum {
@@ -375,6 +395,8 @@ magma_status_t magma_device_create_semaphore(magma_device_t device,
 magma_status_t magma_semaphore_release(magma_semaphore_t* semaphore);
 
 magma_status_t magma_semaphore_wait(magma_semaphore_t semaphore, uint64_t abs_timeout_ns);
+
+magma_status_t magma_poll(struct magma_poll_item* items, uint32_t count, uint64_t abs_timeout_ns);
 
 magma_status_t magma_semaphore_signal(magma_semaphore_t semaphore);
 

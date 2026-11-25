@@ -55,6 +55,17 @@ members = [
     { name = "handle_type", type = "MagmaHandleType" },
 ]
 
+[[structs]]
+name = 'MagmaPollItem'
+aspects = [ "ffi" ]
+members = [
+    { name = "semaphore", type = "Semaphore" },
+    { name = "handle", type = "u64" },
+    { name = "poll_type", type = "MagmaPollType" },
+    { name = "condition", type = "MagmaPollCondition" },
+    { name = "result", type = "MagmaPollCondition" },
+]
+
 [[extensible_structs]]
 name = 'MagmaCreateBufferInfo'
 stype = { name = "CreateBufferInfo", value = 0x00000001 }

@@ -28,6 +28,9 @@ use crate::defines::MagmaCreateSemaphoreInfo;
 use crate::defines::MagmaImportHandleInfo;
 use crate::defines::MagmaMappedMemoryRange;
 use crate::defines::MagmaPhysicalDeviceInfo;
+use crate::defines::MagmaPollCondition;
+use crate::defines::MagmaPollItem;
+use crate::defines::MagmaPollType;
 use crate::defines::MagmaQueueFamilyProperties;
 use crate::defines::MagmaQueueFlags;
 use crate::defines::MagmaQueuePriority;
@@ -152,6 +155,11 @@ extern "C" {
         deadline: zx_time_t,
         observed: *mut zx_signals_t,
     ) -> zx_status_t;
+    fn zx_object_wait_many(
+        items: *mut ZxWaitItem,
+        num_items: usize,
+        deadline: zx_time_t,
+    ) -> zx_status_t;
     fn zx_deadline_after(nanoseconds: zx_duration_t) -> zx_time_t;
     fn zx_vmo_create(size: u64, options: u32, out: *mut zx_handle_t) -> zx_status_t;
     fn zx_vmo_get_size(handle: zx_handle_t, size: *mut u64) -> zx_status_t;
@@ -255,6 +263,14 @@ extern "C" {
         flags: u64,
     ) -> zx_status_t;
     fn magma_fidl_drain_channel(channel: u32);
+}
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+struct ZxWaitItem {
+    handle: zx_handle_t,
+    waitfor: zx_signals_t,
+    pending: zx_signals_t,
 }
 
 #[repr(C)]
@@ -1165,6 +1181,10 @@ impl GenericSemaphore for FuchsiaSemaphore {
         Ok(())
     }
 
+    fn as_raw_handle(&self) -> Option<u32> {
+        self.current_event().ok().map(|ev| ev.event.raw())
+    }
+
     fn object_id(&self) -> Option<u64> {
         self.current_event().ok().map(|ev| ev.object_id)
     }
@@ -1514,4 +1534,72 @@ pub fn enumerate_devices() -> Result<Vec<PhysicalDevice>> {
     }
 
     Ok(devices)
+}
+
+pub fn poll(items: &mut [MagmaPollItem], abs_timeout_ns: u64) -> Result<()> {
+    if items.is_empty() {
+        return Ok(());
+    }
+
+    // Keep semaphore Arcs alive across the blocking wait_many syscall.
+    let mut held_sems = Vec::new();
+    let mut wait_items = Vec::with_capacity(items.len());
+
+    for item in items.iter_mut() {
+        item.result = MagmaPollCondition::empty();
+        match item.poll_type {
+            MagmaPollType::Semaphore => {
+                let sem = item.semaphore.as_ref().ok_or(Error::InvalidArgs)?;
+                let sem_arc = sem.semaphore().clone();
+                let handle = sem_arc.as_raw_handle().ok_or(Error::InvalidArgs)?;
+                held_sems.push(sem_arc);
+                let mut waitfor = 0u32;
+                if item.condition.contains(MagmaPollCondition::Signaled) {
+                    waitfor |= ZX_EVENT_SIGNALED;
+                }
+                wait_items.push(ZxWaitItem {
+                    handle,
+                    waitfor,
+                    pending: 0,
+                });
+            }
+            MagmaPollType::Handle => {
+                let handle = item.handle as zx_handle_t;
+                if handle == ZX_HANDLE_INVALID {
+                    return Err(Error::InvalidArgs);
+                }
+                let mut waitfor = 0u32;
+                if item.condition.contains(MagmaPollCondition::Readable) {
+                    waitfor |= ZX_CHANNEL_READABLE;
+                }
+                wait_items.push(ZxWaitItem {
+                    handle,
+                    waitfor,
+                    pending: 0,
+                });
+            }
+        }
+    }
+
+    let deadline = abs_timeout_ns.min(i64::MAX as u64) as zx_time_t;
+    let status =
+        unsafe { zx_object_wait_many(wait_items.as_mut_ptr(), wait_items.len(), deadline) };
+    zx_status_to_result(status)?;
+
+    for (item, wait_item) in items.iter_mut().zip(wait_items.iter()) {
+        match item.poll_type {
+            MagmaPollType::Semaphore => {
+                if (wait_item.pending & ZX_EVENT_SIGNALED) != 0 {
+                    item.result |= MagmaPollCondition::Signaled;
+                }
+            }
+            MagmaPollType::Handle => {
+                if (wait_item.pending & ZX_CHANNEL_READABLE) != 0 {
+                    item.result |= MagmaPollCondition::Readable;
+                }
+            }
+        }
+    }
+
+    Ok(())
 }

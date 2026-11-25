@@ -180,6 +180,20 @@ inputs = [
 output = "MagmaStatus"
 aspects = [ "ffi" ]
 
+# Wait until at least one item's condition is satisfied (WAIT_ANY semantics) or
+# `abs_timeout_ns` (absolute CLOCK_MONOTONIC deadline in ns) expires.
+# Satisfied items have their `result` field populated.
+[[commands]]
+name = "magma_poll"
+inputs = [
+    { name = "items", type = "MagmaPollItem", direction = "inout" },
+    { name = "count", type = "u32", direction = "in" },
+    { name = "abs_timeout_ns", type = "u64", direction = "in" },
+]
+output = "MagmaStatus"
+aspects = [ "ffi" ]
+manual = true
+
 [[commands]]
 name = "MagmaSemaphoreSignal"
 target = "signal"

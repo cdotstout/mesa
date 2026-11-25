@@ -126,6 +126,20 @@ type = "u32"
 [flags.entries]
 WaitPending = 0x00000001
 
+[[enums]]
+name = 'MagmaPollType'
+type = "u32"
+[enums.entries]
+Semaphore = 1
+Handle = 2
+
+[[flags]]
+name = 'MagmaPollCondition'
+type = "u32"
+[flags.entries]
+Readable = 0x00000001
+Signaled = 0x00000003
+
 [[flags]]
 name = 'MagmaHandleType'
 type = "u32"

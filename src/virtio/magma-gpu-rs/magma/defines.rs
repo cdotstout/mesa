@@ -58,6 +58,15 @@ pub struct MagmaHandle {
     pub handle_type: u32,
 }
 
+#[derive(Clone, Default)]
+pub struct MagmaPollItem {
+    pub semaphore: Option<Semaphore>,
+    pub handle: u64,
+    pub poll_type: MagmaPollType,
+    pub condition: MagmaPollCondition,
+    pub result: MagmaPollCondition,
+}
+
 // Common allocation flags
 //  - MAGMA_BUFFER_FLAG_EXTERNAL: The buffer *may* be exported as an OS-specific handle
 //  - MAGMA_BUFFER_FLAG_SCANOUT: The buffer *may* be used by the scanout engine directly

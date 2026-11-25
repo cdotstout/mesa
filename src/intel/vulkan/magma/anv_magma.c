@@ -537,6 +537,87 @@ anv_magma_sync_wait(struct vk_device *device,
 }
 
 static VkResult
+anv_magma_sync_wait_many(struct vk_device *device,
+                         uint32_t wait_count,
+                         const struct vk_sync_wait *waits,
+                         enum vk_sync_wait_flags wait_flags,
+                         uint64_t abs_timeout_ns)
+{
+   if (wait_count == 0)
+      return VK_SUCCESS;
+
+   if (wait_count == 1) {
+      return anv_magma_sync_wait(device, waits[0].sync, waits[0].wait_value,
+                                 wait_flags & ~VK_SYNC_WAIT_ANY, abs_timeout_ns);
+   }
+
+   bool all_binary = !(wait_flags & VK_SYNC_WAIT_PENDING);
+   if (all_binary) {
+      for (uint32_t i = 0; i < wait_count; i++) {
+         if (waits[i].sync->flags & VK_SYNC_IS_TIMELINE) {
+            all_binary = false;
+            break;
+         }
+      }
+   }
+
+   if (all_binary && (wait_flags & VK_SYNC_WAIT_ANY)) {
+      abs_timeout_ns = MIN2(abs_timeout_ns, (uint64_t)INT64_MAX);
+      STACK_ARRAY(struct magma_poll_item, items, wait_count);
+      if (!items)
+         return VK_ERROR_OUT_OF_HOST_MEMORY;
+
+      for (uint32_t i = 0; i < wait_count; i++) {
+         struct anv_magma_sync *msync = anv_magma_sync_as_magma(waits[i].sync);
+         items[i] = (struct magma_poll_item) {
+            .semaphore = msync->magma_sync,
+            .handle = 0,
+            .poll_type = MAGMA_POLL_TYPE_SEMAPHORE,
+            .condition = MAGMA_POLL_CONDITION_SIGNALED,
+            .result = 0,
+         };
+      }
+
+      magma_status_t status = magma_poll(items, wait_count, abs_timeout_ns);
+      STACK_ARRAY_FINISH(items);
+
+      if (status == MAGMA_STATUS_TIMED_OUT)
+         return VK_TIMEOUT;
+      if (status != MAGMA_STATUS_SUCCESS)
+         return VK_ERROR_DEVICE_LOST;
+
+      return VK_SUCCESS;
+   }
+
+   if (wait_flags & VK_SYNC_WAIT_ANY) {
+      /* Fallback for timeline semaphores or VK_SYNC_WAIT_PENDING until
+       * timeline multi-wait is supported in magma. */
+      do {
+         for (uint32_t i = 0; i < wait_count; i++) {
+            VkResult result = anv_magma_sync_wait(device, waits[i].sync,
+                                                  waits[i].wait_value,
+                                                  wait_flags & ~VK_SYNC_WAIT_ANY,
+                                                  0 /* abs_timeout_ns */);
+            if (result != VK_TIMEOUT)
+               return result;
+         }
+      } while (os_time_get_nano() < abs_timeout_ns);
+
+      return VK_TIMEOUT;
+   }
+
+   for (uint32_t i = 0; i < wait_count; i++) {
+      VkResult result = anv_magma_sync_wait(device, waits[i].sync,
+                                            waits[i].wait_value,
+                                            wait_flags,
+                                            abs_timeout_ns);
+      if (result != VK_SUCCESS)
+         return result;
+   }
+   return VK_SUCCESS;
+}
+
+static VkResult
 anv_magma_sync_move(struct vk_device *device,
                     struct vk_sync *dst,
                     struct vk_sync *src)
@@ -635,6 +716,7 @@ const struct vk_sync_type anv_magma_sync_type = {
    .signal = anv_magma_sync_signal,
    .get_value = anv_magma_sync_get_value,
    .wait = anv_magma_sync_wait,
+   .wait_many = anv_magma_sync_wait_many,
    .move = anv_magma_sync_move,
 #if DETECT_OS_LINUX
    .import_sync_file = anv_magma_sync_import_sync_file,

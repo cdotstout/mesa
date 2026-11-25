@@ -105,6 +105,14 @@ pub enum MagmaSemaphoreType {
     Timeline = 1,
 }
 
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, TryFromBytes, IntoBytes, Immutable)]
+#[repr(u32)]
+pub enum MagmaPollType {
+    #[default]
+    Semaphore = 1,
+    Handle = 2,
+}
+
 #[derive(
     Copy, Clone, Default, Debug, PartialEq, Eq, IntoBytes, FromBytes, Immutable, KnownLayout,
 )]
@@ -192,6 +200,18 @@ bitflags! {
     Copy, Clone, Default, Debug, PartialEq, Eq, IntoBytes, FromBytes, Immutable, KnownLayout,
 )]
 #[repr(transparent)]
+pub struct MagmaPollCondition(u32);
+bitflags! {
+    impl MagmaPollCondition: u32 {
+        const Readable = 1;
+        const Signaled = 3;
+    }
+}
+
+#[derive(
+    Copy, Clone, Default, Debug, PartialEq, Eq, IntoBytes, FromBytes, Immutable, KnownLayout,
+)]
+#[repr(transparent)]
 pub struct MagmaHandleType(u32);
 bitflags! {
     impl MagmaHandleType: u32 {
@@ -254,6 +274,18 @@ pub struct MagmaCreateQueueInfo {
 pub struct MagmaQueueFamilyProperties {
     pub queue_flags: MagmaQueueFlags,
     pub queue_count: u32,
+}
+
+#[derive(Debug, Default, Clone, Copy, TryFromBytes, IntoBytes, Immutable)]
+#[repr(C)]
+pub struct MagmaWirePollItem {
+    pub semaphore: u32,
+    pub _pad0: u32,
+    pub handle: u64,
+    pub poll_type: MagmaPollType,
+    pub condition: MagmaPollCondition,
+    pub result: MagmaPollCondition,
+    pub _padding: u32,
 }
 
 pub const MAGMA_STRUCTURE_TYPE_CREATE_BUFFER_INFO: u32 = 1;
