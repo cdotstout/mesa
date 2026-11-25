@@ -50,6 +50,11 @@ impl<W: std::io::Write> Encoder<W> {
                     ext.header.p_next = if next != 0 { 1 } else { 0 };
                     self.write_bytes(zerocopy::IntoBytes::as_bytes(&ext))?;
                 }
+                MAGMA_STRUCTURE_TYPE_BUFFER_PLACEMENT_INFO => {
+                    let mut ext = unsafe { *(curr as *const MagmaBufferPlacementInfo) };
+                    ext.header.p_next = if next != 0 { 1 } else { 0 };
+                    self.write_bytes(zerocopy::IntoBytes::as_bytes(&ext))?;
+                }
                 MAGMA_STRUCTURE_TYPE_DEVICE_CREATE_INFO => {
                     let mut ext = unsafe { *(curr as *const MagmaDeviceCreateInfo) };
                     ext.header.p_next = if next != 0 { 1 } else { 0 };
@@ -161,6 +166,11 @@ impl<W: std::io::Write> Encoder<W> {
                     ext.header.p_next = if next != 0 { 1 } else { 0 };
                     self.write_bytes(zerocopy::IntoBytes::as_bytes(&ext))?;
                 }
+                MAGMA_STRUCTURE_TYPE_MEMORY_HEAPS_PROPERTIES => {
+                    let mut ext = unsafe { *(curr as *const MagmaMemoryHeapsProperties) };
+                    ext.header.p_next = if next != 0 { 1 } else { 0 };
+                    self.write_bytes(zerocopy::IntoBytes::as_bytes(&ext))?;
+                }
                 MAGMA_STRUCTURE_TYPE_VIRTIO_SEQNO_INFO => {
                     let mut ext = unsafe { *(curr as *const MagmaVirtioSeqnoInfo) };
                     ext.header.p_next = if next != 0 { 1 } else { 0 };
@@ -180,6 +190,19 @@ impl<W: std::io::Write> Encoder<W> {
     pub fn encode_create_buffer_info(
         &mut self,
         msg: &MagmaCreateBufferInfo,
+    ) -> std::io::Result<()> {
+        let mut obj = *msg;
+        let p_next = obj.header.p_next as usize as u64;
+        obj.header.p_next = if p_next != 0 { 1 } else { 0 };
+        self.write_bytes(zerocopy::IntoBytes::as_bytes(&obj))?;
+        if p_next != 0 {
+            self.encode_extensible_chain(p_next)?;
+        }
+        Ok(())
+    }
+    pub fn encode_buffer_placement_info(
+        &mut self,
+        msg: &MagmaBufferPlacementInfo,
     ) -> std::io::Result<()> {
         let mut obj = *msg;
         let p_next = obj.header.p_next as usize as u64;
@@ -381,6 +404,19 @@ impl<W: std::io::Write> Encoder<W> {
     pub fn encode_timestamp_properties(
         &mut self,
         msg: &MagmaTimestampProperties,
+    ) -> std::io::Result<()> {
+        let mut obj = *msg;
+        let p_next = obj.header.p_next as usize as u64;
+        obj.header.p_next = if p_next != 0 { 1 } else { 0 };
+        self.write_bytes(zerocopy::IntoBytes::as_bytes(&obj))?;
+        if p_next != 0 {
+            self.encode_extensible_chain(p_next)?;
+        }
+        Ok(())
+    }
+    pub fn encode_memory_heaps_properties(
+        &mut self,
+        msg: &MagmaMemoryHeapsProperties,
     ) -> std::io::Result<()> {
         let mut obj = *msg;
         let p_next = obj.header.p_next as usize as u64;
@@ -673,6 +709,9 @@ impl<W: std::io::Write> Encoder<W> {
     pub fn encode_extensible_struct(&mut self, msg: &MagmaExtensibleStruct) -> std::io::Result<()> {
         match msg {
             MagmaExtensibleStruct::CreateBufferInfo(msg) => self.encode_create_buffer_info(msg),
+            MagmaExtensibleStruct::BufferPlacementInfo(msg) => {
+                self.encode_buffer_placement_info(msg)
+            }
             MagmaExtensibleStruct::DeviceCreateInfo(msg) => self.encode_device_create_info(msg),
             MagmaExtensibleStruct::WireSubmitSyncInfo(msg) => {
                 self.encode_wire_submit_sync_info(msg)
@@ -704,6 +743,9 @@ impl<W: std::io::Write> Encoder<W> {
             }
             MagmaExtensibleStruct::TimestampProperties(msg) => {
                 self.encode_timestamp_properties(msg)
+            }
+            MagmaExtensibleStruct::MemoryHeapsProperties(msg) => {
+                self.encode_memory_heaps_properties(msg)
             }
             MagmaExtensibleStruct::VirtioSeqnoInfo(msg) => self.encode_virtio_seqno_info(msg),
         }

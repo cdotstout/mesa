@@ -2,6 +2,14 @@
 # SPDX-License-Identifier: MIT
 
 [[structs]]
+name = 'MagmaHeap'
+aspects = [ "common" ]
+members = [
+    { name = "heap_size", type = "u64" },
+    { name = "heap_flags", type = "u64" },
+]
+
+[[structs]]
 name = 'MagmaPciBusInfo'
 aspects = [ "common" ]
 members = [
@@ -55,6 +63,16 @@ members = [
     { name = "common_flags", type = "u32" },
     { name = "vendor_flags", type = "u32" },
     { name = "size", type = "u64" },
+]
+
+[[extensible_structs]]
+name = 'MagmaBufferPlacementInfo'
+extends = 'MagmaCreateBufferInfo'
+rust_member_name = 'placement_info'
+aspects = [ "common" ]
+stype = { name = "BufferPlacementInfo", value = 0x00000015 }
+members = [
+    { name = "heap_mask", type = "u32" },
 ]
 
 [[extensible_structs]]
@@ -215,6 +233,15 @@ members = [
     { name = "result", type = "u64" },
     { name = "buffer", type = "void*" },
     { name = "buffer_size", type = "u64" },
+]
+
+[[extensible_structs]]
+name = 'MagmaMemoryHeapsProperties'
+aspects = [ "common" ]
+stype = { name = "MemoryHeapsProperties", value = 0x00000014 }
+members = [
+    { name = "heap_count", type = "u32" },
+    { name = "heaps", type = "MagmaHeap", array = { size = "MAGMA_MAX_MEMORY_HEAPS" } },
 ]
 
 [[extensible_structs]]

@@ -28,6 +28,7 @@ use magma_gpu_magma::Buffer;
 use magma_gpu_magma::Device;
 use magma_gpu_magma::MagmaAddressSpaceProperties;
 use magma_gpu_magma::MagmaBufferFlag;
+use magma_gpu_magma::MagmaBufferPlacementInfo;
 use magma_gpu_magma::MagmaCreateBufferInfo;
 use magma_gpu_magma::MagmaCreateQueueInfo;
 use magma_gpu_magma::MagmaCreateSemaphoreInfo;
@@ -35,7 +36,10 @@ use magma_gpu_magma::MagmaDeviceCreateInfo;
 use magma_gpu_magma::MagmaGpuMapFlags;
 use magma_gpu_magma::MagmaHandle;
 use magma_gpu_magma::MagmaHandleType;
+use magma_gpu_magma::MagmaHeap;
+use magma_gpu_magma::MagmaHeapFlag;
 use magma_gpu_magma::MagmaMapping;
+use magma_gpu_magma::MagmaMemoryHeapsProperties;
 use magma_gpu_magma::MagmaPciBusInfo;
 use magma_gpu_magma::MagmaPhysicalDeviceInfo;
 use magma_gpu_magma::MagmaQueueFamilyProperties;
@@ -86,6 +90,7 @@ macro_rules! return_on_error {
 }
 
 pub const MAGMA_MAX_PHYSICAL_DEVICES: usize = 8;
+pub const MAGMA_MAX_MEMORY_HEAPS: usize = 32;
 pub const MAGMA_MAX_QUEUES: usize = 16;
 #[allow(non_camel_case_types)]
 pub type magma_queue = Queue;
@@ -130,6 +135,12 @@ pub type magma_semaphore_wait_flags = MagmaSemaphoreWaitFlags;
 pub type magma_handle_type = MagmaHandleType;
 
 #[allow(non_camel_case_types)]
+pub type magma_heap_flag = MagmaHeapFlag;
+
+#[allow(non_camel_case_types)]
+pub type magma_heap = MagmaHeap;
+
+#[allow(non_camel_case_types)]
 pub type magma_pci_bus_info = MagmaPciBusInfo;
 
 #[allow(non_camel_case_types)]
@@ -146,6 +157,9 @@ pub type magma_handle = MagmaHandle;
 
 #[allow(non_camel_case_types)]
 pub type magma_create_buffer_info = MagmaCreateBufferInfo;
+
+#[allow(non_camel_case_types)]
+pub type magma_buffer_placement_info = MagmaBufferPlacementInfo;
 
 #[allow(non_camel_case_types)]
 pub type magma_device_create_info = MagmaDeviceCreateInfo;
@@ -443,6 +457,9 @@ pub type magma_timestamp_properties = MagmaTimestampProperties;
 
 #[allow(non_camel_case_types)]
 pub type magma_vendor_query = MagmaVendorQuery;
+
+#[allow(non_camel_case_types)]
+pub type magma_memory_heaps_properties = MagmaMemoryHeapsProperties;
 
 #[no_mangle]
 pub unsafe extern "C" fn magma_physical_device_create_device(

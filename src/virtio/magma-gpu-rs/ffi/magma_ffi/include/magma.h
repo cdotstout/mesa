@@ -19,6 +19,7 @@ extern "C" {
 #endif
 
 #define MAGMA_MAX_PHYSICAL_DEVICES 8
+#define MAGMA_MAX_MEMORY_HEAPS 32
 #define MAGMA_MAX_QUEUES 16
 
 struct magma_queue;
@@ -128,6 +129,17 @@ enum {
     MAGMA_HANDLE_TYPE_SIGNAL_EVENT_FD = 0x00000050,
 };
 
+typedef uint64_t magma_heap_flag_t;
+enum {
+    MAGMA_HEAP_FLAG_DEVICE_LOCAL_BIT = 0x0000000000000001,
+    MAGMA_HEAP_FLAG_CPU_VISIBLE_BIT = 0x0000000000000010,
+};
+
+struct magma_heap {
+    uint64_t heap_size;
+    uint64_t heap_flags;
+};
+
 struct magma_pci_bus_info {
     uint16_t domain;
     uint16_t subvendor_id;
@@ -163,6 +175,7 @@ struct magma_handle {
 
 typedef enum {
     MAGMA_STRUCTURE_TYPE_CREATE_BUFFER_INFO = 0x00000001,
+    MAGMA_STRUCTURE_TYPE_BUFFER_PLACEMENT_INFO = 0x00000015,
     MAGMA_STRUCTURE_TYPE_DEVICE_CREATE_INFO = 0x00000002,
     MAGMA_STRUCTURE_TYPE_SUBMIT_SYNC_INFO = 0x00000003,
     MAGMA_STRUCTURE_TYPE_SUBMIT_INFO = 0x00000004,
@@ -177,6 +190,7 @@ typedef enum {
     MAGMA_STRUCTURE_TYPE_ADDRESS_SPACE_PROPERTIES = 0x0000000C,
     MAGMA_STRUCTURE_TYPE_TIMESTAMP_PROPERTIES = 0x0000000D,
     MAGMA_STRUCTURE_TYPE_VENDOR_QUERY = 0x00000013,
+    MAGMA_STRUCTURE_TYPE_MEMORY_HEAPS_PROPERTIES = 0x00000014,
 } magma_structure_type_t;
 
 struct magma_structure_type_header {
@@ -192,6 +206,12 @@ struct magma_create_buffer_info {
     uint32_t vendor_flags;
     uint32_t _pad0;
     uint64_t size;
+};
+
+struct magma_buffer_placement_info {
+    struct magma_structure_type_header header;
+    uint32_t heap_mask;
+    uint32_t _padding;
 };
 
 struct magma_device_create_info {
@@ -293,6 +313,13 @@ struct magma_vendor_query {
     uint64_t result;
     void* buffer;
     uint64_t buffer_size;
+};
+
+struct magma_memory_heaps_properties {
+    struct magma_structure_type_header header;
+    uint32_t heap_count;
+    uint32_t _pad0;
+    struct magma_heap heaps[MAGMA_MAX_MEMORY_HEAPS];
 };
 
 magma_status_t magma_enumerate_physical_devices(magma_physical_device_t physical_devices[MAGMA_MAX_PHYSICAL_DEVICES],

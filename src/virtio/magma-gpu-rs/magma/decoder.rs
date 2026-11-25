@@ -222,6 +222,9 @@ pub fn decode_extensible_struct(reader: &mut Reader) -> Option<MagmaExtensibleSt
         MAGMA_STRUCTURE_TYPE_CREATE_BUFFER_INFO => Some(MagmaExtensibleStruct::CreateBufferInfo(
             reader.read_try_obj().ok()?,
         )),
+        MAGMA_STRUCTURE_TYPE_BUFFER_PLACEMENT_INFO => Some(
+            MagmaExtensibleStruct::BufferPlacementInfo(reader.read_try_obj().ok()?),
+        ),
         MAGMA_STRUCTURE_TYPE_DEVICE_CREATE_INFO => Some(MagmaExtensibleStruct::DeviceCreateInfo(
             reader.read_try_obj().ok()?,
         )),
@@ -263,6 +266,9 @@ pub fn decode_extensible_struct(reader: &mut Reader) -> Option<MagmaExtensibleSt
         ),
         MAGMA_STRUCTURE_TYPE_TIMESTAMP_PROPERTIES => Some(
             MagmaExtensibleStruct::TimestampProperties(reader.read_try_obj().ok()?),
+        ),
+        MAGMA_STRUCTURE_TYPE_MEMORY_HEAPS_PROPERTIES => Some(
+            MagmaExtensibleStruct::MemoryHeapsProperties(reader.read_try_obj().ok()?),
         ),
         MAGMA_STRUCTURE_TYPE_VIRTIO_SEQNO_INFO => Some(MagmaExtensibleStruct::VirtioSeqnoInfo(
             reader.read_try_obj().ok()?,

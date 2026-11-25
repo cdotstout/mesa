@@ -8,6 +8,15 @@
 
 use crate::protocol::*;
 
+impl MagmaHeap {
+    pub fn new(heap_size: u64, heap_flags: u64) -> MagmaHeap {
+        MagmaHeap {
+            heap_size,
+            heap_flags,
+        }
+    }
+}
+
 impl MagmaPciBusInfo {
     pub fn new(
         domain: u16,
@@ -68,6 +77,28 @@ impl MagmaCreateBufferInfo {
             common_flags,
             vendor_flags,
             size,
+            ..Default::default()
+        }
+    }
+
+    pub fn placement_info(&self) -> Option<&MagmaBufferPlacementInfo> {
+        self.get_extension::<MagmaBufferPlacementInfo>()
+    }
+
+    pub fn placement_info_mut(&mut self) -> Option<&mut MagmaBufferPlacementInfo> {
+        unsafe { self.get_extension_mut::<MagmaBufferPlacementInfo>() }
+    }
+}
+
+impl MagmaBufferPlacementInfo {
+    pub fn new(heap_mask: u32) -> MagmaBufferPlacementInfo {
+        MagmaBufferPlacementInfo {
+            header: MagmaStructureTypeHeader {
+                stype: MagmaStructureType::BufferPlacementInfo as u32,
+                size: std::mem::size_of::<MagmaBufferPlacementInfo>() as u32,
+                p_next: 0,
+            },
+            heap_mask,
             ..Default::default()
         }
     }
@@ -389,6 +420,24 @@ impl MagmaTimestampProperties {
                 p_next: 0,
             },
             timestamp_frequency,
+        }
+    }
+}
+
+impl MagmaMemoryHeapsProperties {
+    pub fn new(
+        heap_count: u32,
+        heaps: [MagmaHeap; MAGMA_MAX_MEMORY_HEAPS],
+    ) -> MagmaMemoryHeapsProperties {
+        MagmaMemoryHeapsProperties {
+            header: MagmaStructureTypeHeader {
+                stype: MagmaStructureType::MemoryHeapsProperties as u32,
+                size: std::mem::size_of::<MagmaMemoryHeapsProperties>() as u32,
+                p_next: 0,
+            },
+            heap_count,
+            heaps,
+            ..Default::default()
         }
     }
 }

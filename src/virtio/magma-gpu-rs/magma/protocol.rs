@@ -49,6 +49,7 @@ pub const MAGMA_OPCODE_RESP_SEMAPHORE_TIMELINE_QUERY: u32 = 0x8000_0011;
 pub const MAGMA_OPCODE_RESP_QUEUE_CHECK_STATUS: u32 = 0x8000_0012;
 
 pub const MAGMA_MAX_PHYSICAL_DEVICES: usize = 8;
+pub const MAGMA_MAX_MEMORY_HEAPS: usize = 32;
 pub const MAGMA_MAX_QUEUES: usize = 16;
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, TryFromBytes, IntoBytes, Immutable)]
@@ -197,6 +198,25 @@ bitflags! {
     }
 }
 
+#[derive(
+    Copy, Clone, Default, Debug, PartialEq, Eq, IntoBytes, FromBytes, Immutable, KnownLayout,
+)]
+#[repr(transparent)]
+pub struct MagmaHeapFlag(u64);
+bitflags! {
+    impl MagmaHeapFlag: u64 {
+        const DeviceLocalBit = 1;
+        const CpuVisibleBit = 16;
+    }
+}
+
+#[derive(Debug, Default, Clone, Copy, TryFromBytes, IntoBytes, Immutable)]
+#[repr(C)]
+pub struct MagmaHeap {
+    pub heap_size: u64,
+    pub heap_flags: u64,
+}
+
 #[derive(Debug, Default, Clone, Copy, TryFromBytes, IntoBytes, Immutable)]
 #[repr(C)]
 pub struct MagmaPciBusInfo {
@@ -227,6 +247,7 @@ pub struct MagmaQueueFamilyProperties {
 }
 
 pub const MAGMA_STRUCTURE_TYPE_CREATE_BUFFER_INFO: u32 = 1;
+pub const MAGMA_STRUCTURE_TYPE_BUFFER_PLACEMENT_INFO: u32 = 21;
 pub const MAGMA_STRUCTURE_TYPE_DEVICE_CREATE_INFO: u32 = 2;
 pub const MAGMA_STRUCTURE_TYPE_SUBMIT_SYNC_INFO: u32 = 3;
 pub const MAGMA_STRUCTURE_TYPE_SUBMIT_INFO: u32 = 4;
@@ -241,12 +262,14 @@ pub const MAGMA_STRUCTURE_TYPE_VIRT_CAPABILITIES: u32 = 65537;
 pub const MAGMA_STRUCTURE_TYPE_PHYSICAL_DEVICE_INFO: u32 = 65538;
 pub const MAGMA_STRUCTURE_TYPE_ADDRESS_SPACE_PROPERTIES: u32 = 12;
 pub const MAGMA_STRUCTURE_TYPE_TIMESTAMP_PROPERTIES: u32 = 13;
+pub const MAGMA_STRUCTURE_TYPE_MEMORY_HEAPS_PROPERTIES: u32 = 20;
 pub const MAGMA_STRUCTURE_TYPE_VIRTIO_SEQNO_INFO: u32 = 65541;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, TryFromBytes, IntoBytes, Immutable)]
 #[repr(u32)]
 pub enum MagmaStructureType {
     CreateBufferInfo = 1,
+    BufferPlacementInfo = 21,
     DeviceCreateInfo = 2,
     SubmitSyncInfo = 3,
     SubmitInfo = 4,
@@ -261,6 +284,7 @@ pub enum MagmaStructureType {
     PhysicalDeviceInfo = 65538,
     AddressSpaceProperties = 12,
     TimestampProperties = 13,
+    MemoryHeapsProperties = 20,
     VirtioSeqnoInfo = 65541,
 }
 
@@ -364,6 +388,26 @@ unsafe impl MagmaTaggedStructure for MagmaCreateBufferInfo {
         &mut self.header
     }
 }
+#[derive(Debug, Default, Clone, Copy, TryFromBytes, IntoBytes, Immutable)]
+#[repr(C)]
+pub struct MagmaBufferPlacementInfo {
+    pub header: MagmaStructureTypeHeader,
+    pub heap_mask: u32,
+    pub _padding: u32,
+}
+
+unsafe impl MagmaTaggedStructure for MagmaBufferPlacementInfo {
+    const STRUCTURE_TYPE: MagmaStructureType = MagmaStructureType::BufferPlacementInfo;
+
+    fn header(&self) -> &MagmaStructureTypeHeader {
+        &self.header
+    }
+
+    fn header_mut(&mut self) -> &mut MagmaStructureTypeHeader {
+        &mut self.header
+    }
+}
+unsafe impl MagmaExtends<MagmaCreateBufferInfo> for MagmaBufferPlacementInfo {}
 #[derive(Debug, Default, Clone, Copy, TryFromBytes, IntoBytes, Immutable)]
 #[repr(C)]
 pub struct MagmaDeviceCreateInfo {
@@ -687,6 +731,26 @@ unsafe impl MagmaTaggedStructure for MagmaTimestampProperties {
 unsafe impl MagmaExtends<MagmaPhysicalDeviceInfo> for MagmaTimestampProperties {}
 #[derive(Debug, Default, Clone, Copy, TryFromBytes, IntoBytes, Immutable)]
 #[repr(C)]
+pub struct MagmaMemoryHeapsProperties {
+    pub header: MagmaStructureTypeHeader,
+    pub heap_count: u32,
+    pub _pad0: u32,
+    pub heaps: [MagmaHeap; MAGMA_MAX_MEMORY_HEAPS],
+}
+
+unsafe impl MagmaTaggedStructure for MagmaMemoryHeapsProperties {
+    const STRUCTURE_TYPE: MagmaStructureType = MagmaStructureType::MemoryHeapsProperties;
+
+    fn header(&self) -> &MagmaStructureTypeHeader {
+        &self.header
+    }
+
+    fn header_mut(&mut self) -> &mut MagmaStructureTypeHeader {
+        &mut self.header
+    }
+}
+#[derive(Debug, Default, Clone, Copy, TryFromBytes, IntoBytes, Immutable)]
+#[repr(C)]
 pub struct MagmaVirtioSeqnoInfo {
     pub header: MagmaStructureTypeHeader,
     pub ring_idx: u32,
@@ -709,6 +773,7 @@ unsafe impl MagmaExtends<MagmaWireSubmitInfo> for MagmaVirtioSeqnoInfo {}
 #[derive(Debug)]
 pub enum MagmaExtensibleStruct {
     CreateBufferInfo(MagmaCreateBufferInfo),
+    BufferPlacementInfo(MagmaBufferPlacementInfo),
     DeviceCreateInfo(MagmaDeviceCreateInfo),
     WireSubmitSyncInfo(MagmaWireSubmitSyncInfo),
     WireSubmitInfo(MagmaWireSubmitInfo),
@@ -723,6 +788,7 @@ pub enum MagmaExtensibleStruct {
     PhysicalDeviceInfo(MagmaPhysicalDeviceInfo),
     AddressSpaceProperties(MagmaAddressSpaceProperties),
     TimestampProperties(MagmaTimestampProperties),
+    MemoryHeapsProperties(MagmaMemoryHeapsProperties),
     VirtioSeqnoInfo(MagmaVirtioSeqnoInfo),
 }
 
